@@ -277,7 +277,9 @@ export class FakePaperStore implements PaperStore {
 
 export class InMemoryPapersRepo implements PapersRepo {
   saved: PaperSaveInput[] = [];
+  failWith: Error | null = null;
   async save(input: PaperSaveInput): Promise<void> {
+    if (this.failWith) throw this.failWith;
     this.saved.push(input);
   }
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createInboundHandler } from '../src/bot/handle.js';
 import {
   FixedClock, FakeGenerator, FakeMessenger, FakePdfBuilder, FakePdfStore,
+  FakeMediaFetcher, FakePaperGenerator, FakeDocBuilder, FakePaperStore, InMemoryPapersRepo,
   InMemoryEventLog, InMemoryGenerationStore, InMemoryTeacherRepo,
 } from '../src/adapters/memory.js';
 import { EVENT } from '../src/domain/events.js';
@@ -15,7 +16,10 @@ function makeDeps(): ExecutorDeps {
   return {
     teachers: new InMemoryTeacherRepo(), events: new InMemoryEventLog(), generations: new InMemoryGenerationStore(),
     messenger: new FakeMessenger(), generator: new FakeGenerator(MODEL_TEXT), pdfBuilder: new FakePdfBuilder(),
-    pdfStore: new FakePdfStore(), clock: new FixedClock(NOW),
+    pdfStore: new FakePdfStore(),
+    mediaFetcher: new FakeMediaFetcher(), paperGenerator: new FakePaperGenerator(), docBuilder: new FakeDocBuilder(),
+    paperStore: new FakePaperStore(), papers: new InMemoryPapersRepo(),
+    clock: new FixedClock(NOW),
     joinLink: 'https://wa.me/1?text=join%20x', timezone: 'Asia/Kolkata',
   };
 }

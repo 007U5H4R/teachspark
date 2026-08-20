@@ -25,6 +25,7 @@ import { createNudgePass } from '../src/jobs/nudges.js';
 import type { ExecutorDeps } from '../src/bot/executor.js';
 import {
   FixedClock, FakeGenerator, FakeMessenger, FakePdfBuilder, FakePdfStore,
+  FakeMediaFetcher, FakePaperGenerator, FakeDocBuilder, FakePaperStore, InMemoryPapersRepo,
   InMemoryEventLog, InMemoryGenerationStore, InMemoryTeacherRepo,
 } from '../src/adapters/memory.js';
 import { EVENT } from '../src/domain/events.js';
@@ -100,7 +101,10 @@ function harness(opts: { validateSignature?: boolean } = {}): Harness {
   const pdfStore = new FakePdfStore();
   const exec: ExecutorDeps = {
     teachers, events, generations, messenger, generator,
-    pdfBuilder: new FakePdfBuilder(), pdfStore, clock, joinLink: JOIN, timezone: TZ,
+    pdfBuilder: new FakePdfBuilder(), pdfStore,
+    mediaFetcher: new FakeMediaFetcher(), paperGenerator: new FakePaperGenerator(), docBuilder: new FakeDocBuilder(),
+    paperStore: new FakePaperStore(), papers: new InMemoryPapersRepo(),
+    clock, joinLink: JOIN, timezone: TZ,
   };
 
   const realHandler = createInboundHandler(exec); // the REAL handler, not a spy
