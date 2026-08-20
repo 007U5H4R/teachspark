@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type Anthropic from '@anthropic-ai/sdk';
 import { AnthropicPaperGenerator } from '../src/adapters/anthropic-paper.js';
+import { buildQcUserContent } from '../src/bot/paper/prompts.js';
 import { GenerationRefusedError } from '../src/domain/types.js';
 import { samplePaperJson } from '../src/adapters/memory.js';
 import type { PaperGenInput } from '../src/ports.js';
@@ -62,6 +63,10 @@ describe('AnthropicPaperGenerator.qcPaper', () => {
     expect(qc.fixedPaper).not.toBeNull();
     const params = parse.mock.calls[0][0] as Record<string, unknown>;
     expect((params.output_config as Record<string, unknown>).effort).toBe('low');
+    // Pin the wiring: the content actually SENT to the client is buildQcUserContent's output,
+    // not some inline/duplicated construction that could silently drift from it.
+    const content = (params.messages as Array<{ content: unknown[] }>)[0].content;
+    expect(content).toEqual(buildQcUserContent(samplePaperJson(), input));
   });
   it('degrades to a pass-with-note when QC output is unusable (never blocks delivery)', async () => {
     const { client } = fakeClient({ parsed_output: null });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PAPER_SYSTEM_PROMPT, PaperJsonZ, paperShapeIssues, buildPaperUserContent, TIER_TIME, TIER_LABEL } from '../src/bot/paper/prompts.js';
+import { PAPER_SYSTEM_PROMPT, PaperJsonZ, paperShapeIssues, buildPaperUserContent, buildQcUserContent, TIER_TIME, TIER_LABEL } from '../src/bot/paper/prompts.js';
 import { samplePaperJson } from '../src/adapters/memory.js';
 import type { PaperGenInput } from '../src/ports.js';
 
@@ -65,6 +65,37 @@ describe('buildPaperUserContent', () => {
   });
 });
 
+describe('buildQcUserContent', () => {
+  it('splices the real paperShapeIssues findings into the "Known structural problems" block', () => {
+    const p = samplePaperJson();
+    p.tiers[0].tasks = p.tiers[0].tasks.slice(0, 3); // violates the "exactly 4 tasks" rule
+    const issues = paperShapeIssues(p);
+    expect(issues.length).toBeGreaterThan(0); // guard against a vacuous pass below
+    const text = (buildQcUserContent(p, input).at(-1) as { type: 'text'; text: string }).text;
+    expect(text).toContain('Known structural problems you MUST fix:');
+    for (const issue of issues) expect(text).toContain(`- ${issue}`); // the ACTUAL issue text, not a guess
+    expect(text).toMatch(/must have exactly 4 tasks/);
+  });
+  it('omits the "Known structural problems" block for a structurally valid paper', () => {
+    const p = samplePaperJson();
+    expect(paperShapeIssues(p)).toEqual([]);
+    const text = (buildQcUserContent(p, input).at(-1) as { type: 'text'; text: string }).text;
+    expect(text).not.toContain('Known structural problems');
+  });
+  it('embeds the exact serialized paper JSON so a broken serialization is caught', () => {
+    const p = samplePaperJson();
+    const text = (buildQcUserContent(p, input).at(-1) as { type: 'text'; text: string }).text;
+    expect(text).toContain(JSON.stringify(p));
+  });
+  it('puts image and document blocks before the checklist text, same ordering as buildPaperUserContent', () => {
+    const blocks = buildQcUserContent(samplePaperJson(), input);
+    expect(blocks).toHaveLength(3); // 2 media blocks (image + pdf) + 1 text block
+    expect(blocks[0]).toMatchObject({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg' } });
+    expect(blocks[1]).toMatchObject({ type: 'document', source: { type: 'base64', media_type: 'application/pdf' } });
+    expect(blocks.at(-1)).toMatchObject({ type: 'text' });
+  });
+});
+
 describe('PaperJsonZ + paperShapeIssues', () => {
   it('accepts the sample paper with no shape issues', () => {
     expect(PaperJsonZ.safeParse(samplePaperJson()).success).toBe(true);
@@ -85,6 +116,65 @@ describe('PaperJsonZ + paperShapeIssues', () => {
     const q = samplePaperJson();
     q.tiers[0].tasks[0].questions[0].options = ['only', 'three', 'options'];
     expect(paperShapeIssues(q).some((i) => /4 options/.test(i))).toBe(true);
+  });
+});
+
+describe('paperShapeIssues — remaining structural rules', () => {
+  const cases = [
+    {
+      name: 'an empty tiers list',
+      build: () => samplePaperJson({ tiers: [] }),
+      expected: 'paper has no tiers',
+    },
+    {
+      name: 'a task with no questions',
+      build: () => {
+        const p = samplePaperJson();
+        p.tiers[0].tasks[0].questions = [];
+        return p;
+      },
+      expected: 'tier A task 1 has no questions',
+    },
+    {
+      name: 'a question with non-positive marks',
+      build: () => {
+        const p = samplePaperJson();
+        p.tiers[0].tasks[0].questions[0].marks = 0;
+        return p;
+      },
+      expected: 'tier A task 1 Q1 has non-positive marks',
+    },
+    {
+      name: 'an MTF question with fewer than 2 match pairs',
+      build: () => {
+        const p = samplePaperJson();
+        p.tiers[0].tasks[0].questions[0] = {
+          ...p.tiers[0].tasks[0].questions[0],
+          type: 'MTF',
+          options: null,
+          matchPairs: [{ left: 'a', right: 'b' }],
+        };
+        return p;
+      },
+      expected: 'tier A task 1 Q1 is MTF but has fewer than 2 pairs',
+    },
+    {
+      name: 'a question with empty answer text',
+      build: () => {
+        const p = samplePaperJson();
+        p.tiers[0].tasks[0].questions[0].answer = '   ';
+        return p;
+      },
+      expected: 'tier A task 1 Q1 has no answer',
+    },
+  ];
+
+  it.each(cases)('flags $name', ({ build, expected }) => {
+    expect(paperShapeIssues(build())).toContain(expected);
+  });
+
+  it('is empty for the unmodified sample paper (baseline for every case above)', () => {
+    expect(paperShapeIssues(samplePaperJson())).toEqual([]);
   });
 });
 
