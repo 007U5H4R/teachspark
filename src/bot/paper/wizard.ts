@@ -179,6 +179,11 @@ export function paperTransition(ctx: MachineContext, step: Step): Step {
         step.updates.schoolName = body.slice(0, 80);
         step.events.push({ name: EVENT.paper_school_captured, properties: { skipped: false } });
       } else {
+        // I5: persist a sentinel ('', not left null) -- PAPER_KEY's `schoolName === null` gate
+        // otherwise re-asks school + logo before EVERY future paper despite copy.askLogo()
+        // promising "I'll remember both for every future paper" (PRD §18.1: captured once).
+        // docx.ts's header render falls back to 'TeachSpark' via '||', so '' still renders fine.
+        step.updates.schoolName = '';
         step.events.push({ name: EVENT.paper_school_captured, properties: { skipped: true } });
       }
       step.updates.state = 'PAPER_LOGO';

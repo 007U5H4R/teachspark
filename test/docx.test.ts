@@ -62,6 +62,10 @@ describe('DocxPaperBuilder', () => {
     expect(xml).toContain('ANSWER KEY');
     expect(xml).toContain('उत्तर');                   // sample answer text present
   });
+  it.skipIf(!hasUnzip)('I5: an empty-string schoolName (the wizard\'s skip sentinel) still falls back to TeachSpark', async () => {
+    const xml = docXml(await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: '', logo: null }, false));
+    expect(xml).toContain('TeachSpark');
+  });
   it('embeds a PNG logo without throwing', async () => {
     // 1x1 transparent PNG
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');

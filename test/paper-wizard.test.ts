@@ -268,6 +268,19 @@ describe('whole-branch review fixes (C1/I1/I3/I5/funnel/M1)', () => {
     expect(s.updates.paperRequest).toBeUndefined();
   });
 
+  it('I5: skipping the school name persists a sentinel ("") so a later paper does not re-ask', () => {
+    const atSchool = teacher({ state: 'PAPER_SCHOOL', paperRequest: walkToKey().paperRequest });
+    const skipped = run(atSchool, msg('SKIP'));
+    expect(skipped.updates.schoolName).toBe(''); // sentinel, not left undefined/null
+    expect(skipped.updates.state).toBe('PAPER_LOGO');
+    expect(skipped.events.find((e) => e.name === EVENT.paper_school_captured)?.properties).toMatchObject({ skipped: true });
+
+    // a LATER paper: PAPER_KEY's `schoolName === null` gate must treat '' as "already asked"
+    const t2 = { ...walkToKey(), schoolName: apply(atSchool, skipped).schoolName };
+    const s2 = run(t2, msg('1')); // key: yes
+    expect(s2.updates.state).toBe('PAPER_GENERATING'); // straight to generation, no PAPER_SCHOOL re-ask
+  });
+
   it('M2: PREVIEW_OPTIONS no longer advertises the dead "again" alias', () => {
     // parseCommand('again') already resolves to the global `new` command BEFORE paperTransition
     // ever runs (checked earlier in machine.ts's transition()), so 'again' listed as a redo alias

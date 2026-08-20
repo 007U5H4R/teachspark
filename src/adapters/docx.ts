@@ -56,7 +56,10 @@ function headerBlock(paper: PaperJson, branding: PaperBranding): (Paragraph | Ta
   cells.push(new TableCell({
     width: { size: hasLogo ? TWIPS_FULL - 1600 : TWIPS_FULL, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER,
     children: [
-      new Paragraph({ alignment: hasLogo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(branding.schoolName ?? 'TeachSpark', { bold: true, size: 30 })] }),
+      // I5: '||' not '??' -- the wizard persists '' (not null) as its "school name skipped" sentinel
+      // so PAPER_KEY's schoolName===null gate does not re-ask on a later paper; '' must still fall
+      // back to the default header here exactly like the null (never-asked) case does.
+      new Paragraph({ alignment: hasLogo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(branding.schoolName || 'TeachSpark', { bold: true, size: 30 })] }),
       new Paragraph({ alignment: hasLogo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(`${paper.subjectLabel} · ${paper.assessmentLabel}`, { size: 20, color: '555555' })] }),
     ],
   }));
