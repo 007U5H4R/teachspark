@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
     "build": "tsc -p tsconfig.build.json",
@@ -13,12 +15,15 @@
     "test:watch": "vitest",
     "try:generate": "tsx --env-file-if-exists=.env scripts/try-generate.ts",
     "try:paper": "tsx --env-file-if-exists=.env scripts/try-paper.ts",
+    "try:render": "tsx scripts/try-render.ts",
     "export:events": "tsx --env-file-if-exists=.env scripts/export-events.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.119.0",
     "@supabase/supabase-js": "^2.112.3",
+    "docx": "^9.7.1",
     "express": "^5.2.1",
+    "image-size": "^2.0.2",
     "node-cron": "^4.6.0",
     "pdfkit": "^0.19.1",
     "twilio": "^6.1.0",
