@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  parseCommand, parseOption, renderMenu, validateTopic, chunkText,
+  parseCommand, parseOption, renderMenu, validateTopic, chunkText, containsPii,
   GRADE_OPTIONS, SUBJECT_OPTIONS, BOARD_OPTIONS, IMPACT_OPTIONS, REFERRAL_OPTIONS,
 } from '../src/bot/parse.js';
 
@@ -71,6 +71,17 @@ describe('validateTopic', () => {
   });
   it('treats a 9-digit run as below the phone-number threshold (boundary)', () => {
     expect(validateTopic('call me 98765 4321')).toEqual({ ok: true, topic: 'call me 98765 4321' });
+  });
+});
+
+describe('containsPii', () => {
+  it('flags emails and 10-digit phone numbers', () => {
+    expect(containsPii('fractions for priya@school.com')).toBe(true);
+    expect(containsPii('call me 98765 43210')).toBe(true);
+  });
+  it('does not flag plain text or a 9-digit run', () => {
+    expect(containsPii('Comparing fractions')).toBe(false);
+    expect(containsPii('call me 98765 4321')).toBe(false);
   });
 });
 

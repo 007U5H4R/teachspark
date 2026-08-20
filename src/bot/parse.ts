@@ -96,6 +96,12 @@ const ACKS = new Set([
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/;
 const PHONE_RE = /\+?\d[\d\s().-]{8,}\d/g;
 
+export function containsPii(s: string): boolean {
+  if (EMAIL_RE.test(s)) return true;
+  const phones = s.match(PHONE_RE) ?? [];
+  return phones.some((p) => p.replace(/\D/g, '').length >= 10);
+}
+
 export function validateTopic(body: string): TopicValidation {
   const raw = body.trim();
   const norm = normalize(raw);

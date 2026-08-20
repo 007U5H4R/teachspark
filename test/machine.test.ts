@@ -79,6 +79,13 @@ describe('onboarding', () => {
     expect(s.updates.retries).toBe(0);
     expect(s.events.find((e) => e.name === EVENT.grade_captured)?.properties).toMatchObject({ via: 'free_text' });
   });
+  it('blocks PII in the free-text fallback and falls back to Other', () => {
+    const t = teacher({ state: 'AWAITING_GRADE', retries: MAX_MENU_RETRIES });
+    const s = run(t, 'reach me at a@b.com');
+    expect(s.updates.grade).toBe('Other');
+    expect(s.updates.state).toBe('AWAITING_SUBJECT');
+    expect(s.events.find((e) => e.name === EVENT.grade_captured)?.properties).toMatchObject({ via: 'skipped' });
+  });
 });
 
 describe('commands', () => {
@@ -135,6 +142,17 @@ describe('topic + generation', () => {
     expect(texts(s)).toEqual([m.generationFailed()]);
     expect(s.events.find((e) => e.name === EVENT.generation_failed)?.properties).toMatchObject({ reason: 'stale' });
   });
+  it('does not refresh lastInboundAt on a still-working ping, so an impatient teacher still hits the stale escape', () => {
+    const t = onboarded({ state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x', lastInboundAt: NOW });
+    const s1 = run(t, 'are you there?', new Date(NOW.getTime() + 90_000));
+    expect(texts(s1)).toEqual([m.stillWorking()]);
+    expect(s1.updates.lastInboundAt).toBeUndefined();
+    const t2 = apply(t, s1);
+    expect(t2.lastInboundAt).toEqual(NOW);
+    const s2 = run(t2, 'hello?', new Date(NOW.getTime() + 130_000));
+    expect(s2.updates.state).toBe('AWAITING_TOPIC');
+    expect(s2.events.find((e) => e.name === EVENT.generation_failed)?.properties).toMatchObject({ reason: 'stale' });
+  });
 });
 
 describe('afterGeneration', () => {
@@ -187,6 +205,13 @@ describe('impact, referral, share, nudge scheduling', () => {
     expect(s.updates.state).toBe('AWAITING_REFERRAL');
     expect(s.events.find((e) => e.name === EVENT.impact_reported)?.properties).toMatchObject({ minutes: null });
   });
+  it('referral skipped after retries still completes the skill and schedules the nudge', () => {
+    const t = onboarded({ state: 'AWAITING_REFERRAL', currentSkillId: 'worksheet', retries: MAX_MENU_RETRIES });
+    const s = run(t, 'whatever');
+    expect(s.events.find((e) => e.name === EVENT.referral_reported)?.properties).toMatchObject({ forwarded: null });
+    expect(s.updates).toMatchObject({ state: 'IDLE', skillsCompleted: ['worksheet'] });
+    expect(names(s)).toEqual(expect.arrayContaining([EVENT.skill_completed, EVENT.share_cta_sent, EVENT.nudge_scheduled]));
+  });
   it('referral -> share CTA, skill completed, IDLE, nudge scheduled inside the window', () => {
     const t = onboarded({ state: 'AWAITING_REFERRAL', currentSkillId: 'worksheet' });
     const s = run(t, '1');
@@ -221,5 +246,14 @@ describe('buildNudgeStep', () => {
     expect(names(s)).toEqual([EVENT.nudge_sent]);
     expect(texts(s)[0]).toContain('exit ticket');
     expect(texts(s)[0].toLowerCase()).toContain('topic');
+  });
+});
+
+describe('unrecognised teacher state (runtime safety)', () => {
+  it('self-heals into onboarding instead of crashing when the DB state is not a known TeacherState', () => {
+    const bogus = { ...teacher(), state: 'WAT' as unknown as Teacher['state'] };
+    const s = run(bogus, 'hi');
+    expect(s.updates.state).toBe('AWAITING_GRADE');
+    expect(names(s)).toContain(EVENT.welcome_sent);
   });
 });

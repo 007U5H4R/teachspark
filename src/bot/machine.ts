@@ -4,7 +4,7 @@ import { SKILLS, hasNextSkill, nextSkillFor } from './skills.js';
 import * as msg from './messages.js';
 import {
   BOARD_OPTIONS, FREE_TEXT_MAX, GRADE_OPTIONS, IMPACT_OPTIONS, REFERRAL_OPTIONS, SUBJECT_OPTIONS,
-  chunkText, parseCommand, parseOption, renderMenu, validateTopic, type Option,
+  chunkText, containsPii, parseCommand, parseOption, renderMenu, validateTopic, type Option,
 } from './parse.js';
 import { computeNudgeDueAt } from './nudge.js';
 
@@ -72,7 +72,9 @@ function resolveMenu(t: Teacher, step: Step, body: string, options: Option[], al
   }
   step.updates.retries = 0;
   const free = body.trim().slice(0, FREE_TEXT_MAX);
-  return allowFreeText && free.length > 0 ? { value: free, via: 'free_text', option: null } : { value: null, via: 'skipped', option: null };
+  return allowFreeText && free.length > 0 && !containsPii(free)
+    ? { value: free, via: 'free_text', option: null }
+    : { value: null, via: 'skipped', option: null };
 }
 
 function completeSkillAndShare(t: Teacher, step: Step, ctx: MachineContext): Step {
@@ -173,6 +175,10 @@ export function transition(ctx: MachineContext): Step {
       }
       step.events.push({ name: EVENT.still_working_sent });
       step.actions.push(text(msg.stillWorking()));
+      // Keep the generation clock anchored to the topic message: refreshing lastInboundAt on
+      // every "still working" ping would make the stale check below unreachable for an
+      // impatient teacher. Understating lastInboundAt is safe for the Twilio 24h window.
+      delete step.updates.lastInboundAt;
       return step;
     }
 
@@ -197,6 +203,14 @@ export function transition(ctx: MachineContext): Step {
 
     case 'IDLE':
       return profile ? startSkill(t, step, profile) : welcome(step);
+
+    default: {
+      // Compile-time: adding a TeacherState without a case makes this assignment fail.
+      const _exhaustive: never = t.state;
+      void _exhaustive;
+      // Runtime: an unexpected DB value self-heals into onboarding instead of crashing.
+      return welcome(step);
+    }
   }
 }
 
