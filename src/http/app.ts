@@ -1,6 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import twilio from 'twilio'; // CJS: default import + destructure
-import type { InboundMessage } from '../domain/types.js';
+import type { InboundMedia, InboundMessage } from '../domain/types.js';
 import type { Clock, EventLog, TeacherRepo } from '../ports.js';
 import type { Config } from '../config.js';
 import { computeFunnel } from '../metrics/funnel.js';
@@ -23,6 +23,13 @@ export interface AppDeps {
 type Form = Record<string, string | undefined>;
 
 function parseInbound(body: Form): InboundMessage {
+  const media: InboundMedia[] = [];
+  const numMedia = Number(body.NumMedia ?? '0'); // arrives as a string in the form body
+  for (let i = 0; i < numMedia; i++) {
+    const url = body[`MediaUrl${i}`];
+    const contentType = body[`MediaContentType${i}`];
+    if (url && contentType) media.push({ url, contentType });
+  }
   return {
     from: body.From ?? '',
     waId: body.WaId ?? null,
@@ -30,7 +37,7 @@ function parseInbound(body: Form): InboundMessage {
     body: body.Body ?? '',
     messageSid: body.MessageSid ?? '',
     buttonPayload: body.ButtonPayload ?? null,
-    media: [], // stopgap — Task 22 parses Twilio MediaUrl{N}/MediaContentType{N} into this
+    media,
   };
 }
 

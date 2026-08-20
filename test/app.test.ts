@@ -37,6 +37,14 @@ describe('POST /webhooks/twilio/whatsapp', () => {
     const res = await request(createApp(deps)).post(WEBHOOK_PATH).type('form').send(form);
     expect(res.status).toBe(200);
   });
+  it('parses media items from the Twilio form', async () => {
+    const { deps, inbound } = makeDeps();
+    await request(createApp(deps)).post(WEBHOOK_PATH).type('form').send({
+      ...form, NumMedia: '1', MediaUrl0: 'https://api.twilio.com/2010-04-01/Accounts/AC1/Messages/SM1/Media/ME1', MediaContentType0: 'image/jpeg',
+    });
+    await vi.waitFor(() => expect(inbound).toHaveLength(1));
+    expect(inbound[0].media).toEqual([{ url: 'https://api.twilio.com/2010-04-01/Accounts/AC1/Messages/SM1/Media/ME1', contentType: 'image/jpeg' }]);
+  });
 });
 
 describe('POST /webhooks/twilio/whatsapp — signature validation', () => {
