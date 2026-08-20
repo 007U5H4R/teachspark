@@ -77,6 +77,7 @@ export function shareCta(joinLink: string, nextSkillTitle: string | null): strin
     '',
     next,
     'Reply *NEW* anytime for another one, or *HELP* for options.',
+    'Or type *PAPER* to turn your textbook photos into a complete question paper 📄',
   ].join('\n');
 }
 
@@ -86,6 +87,7 @@ export function help(): string {
     '',
     'Commands:',
     '• *NEW* — make another worksheet or quiz',
+    '• *PAPER* — turn photos of a lesson into a full question paper (Word file)',
     '• *RESTART* — change your grade / subject / board',
     '• *HELP* — this message',
     '',

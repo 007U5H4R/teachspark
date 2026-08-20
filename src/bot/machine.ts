@@ -1,4 +1,5 @@
 import type { Action, CoreTeacherState, EventRecord, GenerationOutcome, InboundMessage, SkillId, Step, Teacher, TeacherProfile, TeacherUpdate } from '../domain/types.js';
+import { isPaperState } from '../domain/types.js';
 import { EVENT } from '../domain/events.js';
 import { SKILLS, hasNextSkill, nextSkillFor } from './skills.js';
 import * as msg from './messages.js';
@@ -7,6 +8,7 @@ import {
   chunkText, containsPii, parseCommand, parseOption, renderMenu, validateTopic, type Option,
 } from './parse.js';
 import { computeNudgeDueAt } from './nudge.js';
+import { startPaperWizard, paperTransition } from './paper/wizard.js';
 
 export const MAX_MENU_RETRIES = 2;
 export const MAX_CHUNK = 1500;
@@ -110,13 +112,22 @@ export function transition(ctx: MachineContext): Step {
     return step;
   }
   if (cmd === 'restart') {
-    Object.assign(step.updates, { grade: null, subject: null, board: null, currentSkillId: null, pendingTopic: null, state: 'AWAITING_GRADE', retries: 0 } satisfies TeacherUpdate);
+    Object.assign(step.updates, {
+      grade: null, subject: null, board: null, currentSkillId: null, pendingTopic: null, state: 'AWAITING_GRADE', retries: 0,
+      paperRequest: null, paperJson: null, paperRedoCount: 0,
+    } satisfies TeacherUpdate);
     step.events.push({ name: EVENT.restarted }, { name: EVENT.welcome_sent });
     step.actions.push(text(msg.restarted()));
     return step;
   }
-  if (cmd === 'new' && t.state !== 'GENERATING') {
+  if (cmd === 'new' && t.state !== 'GENERATING' && t.state !== 'PAPER_GENERATING') {
     return profile ? startSkill(t, step, profile) : welcome(step);
+  }
+  if (cmd === 'paper' && t.state !== 'GENERATING' && t.state !== 'PAPER_GENERATING') {
+    return profile ? startPaperWizard(t, step, profile) : welcome(step);
+  }
+  if (isPaperState(t.state)) {
+    return paperTransition(ctx, step);
   }
 
   const coreState = t.state as CoreTeacherState;
@@ -210,7 +221,13 @@ export function transition(ctx: MachineContext): Step {
       return profile ? startSkill(t, step, profile) : welcome(step);
 
     default: {
-      // Compile-time: adding a TeacherState without a case makes this assignment fail.
+      // Compile-time: this switch is exhaustive over CoreTeacherState ONLY — adding a
+      // CoreTeacherState without a case here makes this assignment fail. It does NOT guard
+      // PaperState: those never reach this switch, because the isPaperState(t.state) check
+      // above delegates every PAPER_* state to paperTransition() in paper/wizard.ts, whose own
+      // switch is separately exhaustive over PaperState. The two switches together cover all of
+      // TeacherState (= CoreTeacherState | PaperState) — but each is independently compiler-guarded
+      // over its own half, not this one over the whole union.
       const _exhaustive: never = coreState;
       void _exhaustive;
       // Runtime: an unexpected DB value self-heals into onboarding instead of crashing.

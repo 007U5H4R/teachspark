@@ -49,6 +49,7 @@ describe('bot copy', () => {
     const t = m.shareCta('https://wa.me/1?text=join%20x', 'exit ticket');
     expect(t).toContain('https://wa.me/1?text=join%20x');
     expect(t).toContain('exit ticket');
+    expect(t).toMatch(/PAPER/);
     expect(m.shareCta('https://wa.me/1?text=join%20x', null)).not.toContain('skill #2');
   });
   it('help states what is stored and that student data is never needed', () => {
@@ -56,6 +57,7 @@ describe('bot copy', () => {
     expect(m.help()).toMatch(/student/i);
     expect(m.help()).toMatch(/NEW/);
     expect(m.help()).toMatch(/RESTART/);
+    expect(m.help()).toMatch(/PAPER/);
   });
   it('nudge includes the skill micro-lesson and asks for a topic', () => {
     const t = m.nudge(SKILLS.quiz, profile);

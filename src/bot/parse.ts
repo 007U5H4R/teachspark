@@ -1,4 +1,4 @@
-export type Command = 'help' | 'restart' | 'new';
+export type Command = 'help' | 'restart' | 'new' | 'paper';
 
 export const FREE_TEXT_MAX = 40;
 
@@ -17,6 +17,7 @@ export function parseCommand(body: string): Command | null {
   if (['help', 'info'].includes(t)) return 'help';
   if (['restart', 'reset', 'start over'].includes(t)) return 'restart';
   if (['new', 'menu', 'start', 'again', 'another', 'next'].includes(t)) return 'new';
+  if (['paper', 'qp', 'question paper'].includes(t)) return 'paper';
   return null;
 }
 

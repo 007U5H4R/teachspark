@@ -9,6 +9,7 @@ describe('parseCommand', () => {
     ['help', 'help'], ['HELP', 'help'], ['*help*', 'help'], ['?', 'help'],
     ['restart', 'restart'], ['Reset', 'restart'],
     ['new', 'new'], ['NEW!', 'new'], ['menu', 'new'], ['another', 'new'], ['next', 'new'],
+    ['paper', 'paper'], ['QP', 'paper'], ['Question Paper', 'paper'],
     ['hello', null], ['fractions', null], ['', null],
   ])('%s -> %s', (body, cmd) => expect(parseCommand(body)).toBe(cmd));
 });
