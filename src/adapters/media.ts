@@ -29,8 +29,20 @@ export class TwilioMediaFetcher implements MediaFetcher {
     // Twilio enforces HTTP Basic auth on media URLs (all accounts since Jul 2023). The response
     // redirects to a signed CDN URL that rejects a forwarded Authorization header — Node's fetch
     // (undici) strips Authorization on cross-origin redirects, so plain follow is correct.
+    //
+    // I4 (security): this fetcher is ALSO used to re-fetch a teacher's stored school logo from
+    // Supabase Storage (executor.ts's runPaperRender, on every branded render) — the media.url in
+    // that call is a supabase.co URL, not a Twilio one. The credential must never be attached to a
+    // non-Twilio host, or the WhatsApp account's master Basic-auth secret leaks into that host's
+    // access logs on every render. An unparseable url is treated as non-Twilio (never attach).
+    let isTwilio: boolean;
+    try {
+      isTwilio = new URL(media.url).hostname.endsWith('.twilio.com');
+    } catch {
+      isTwilio = false;
+    }
     const auth = `Basic ${Buffer.from(`${this.opts.accountSid}:${this.opts.authToken}`).toString('base64')}`;
-    const res = await fetch(media.url, { redirect: 'follow', headers: { Authorization: auth } });
+    const res = await fetch(media.url, { redirect: 'follow', headers: isTwilio ? { Authorization: auth } : {} });
     if (!res.ok) throw new Error(`media fetch failed: ${res.status} for ${media.url}`);
 
     const contentType = (res.headers.get('content-type') ?? declared).split(';')[0].trim().toLowerCase();

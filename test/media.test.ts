@@ -29,6 +29,25 @@ describe('TwilioMediaFetcher', () => {
     expect(new Headers(init.headers).get('Authorization')).toBe(`Basic ${Buffer.from('AC1:tok').toString('base64')}`);
     expect(init.redirect).toBe('follow');
   });
+  it('I4: does NOT attach the Twilio credential when fetching a non-Twilio host (e.g. a stored Supabase logo)', async () => {
+    const f = stubFetch(async () => new Response(Buffer.from('pngbytes'), { status: 200, headers: { 'content-type': 'image/png' } }));
+    const supabaseLogo = { url: 'https://xyzcompany.supabase.co/storage/v1/object/public/papers/t1/logo-abc.png', contentType: 'image/png' };
+    await new TwilioMediaFetcher(OPTS).fetch(supabaseLogo);
+    const init = f.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get('Authorization')).toBeNull();
+  });
+  it('I4: still attaches the Twilio credential for an api.twilio.com media URL', async () => {
+    const f = stubFetch(async () => new Response(Buffer.from('jpegbytes'), { status: 200, headers: { 'content-type': 'image/jpeg' } }));
+    await new TwilioMediaFetcher(OPTS).fetch(IMG);
+    const init = f.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get('Authorization')).toBe(`Basic ${Buffer.from('AC1:tok').toString('base64')}`);
+  });
+  it('I4: treats an unparseable url as non-Twilio -- never attaches the credential', async () => {
+    const f = stubFetch(async () => new Response(Buffer.from('jpegbytes'), { status: 200, headers: { 'content-type': 'image/jpeg' } }));
+    await new TwilioMediaFetcher(OPTS).fetch({ url: 'not-a-valid-url', contentType: 'image/jpeg' });
+    const init = f.mock.calls[0][1] as RequestInit;
+    expect(new Headers(init.headers).get('Authorization')).toBeNull();
+  });
   it('rejects unsupported declared types without fetching', async () => {
     const f = stubFetch(async () => new Response('x', { status: 200 }));
     await expect(new TwilioMediaFetcher(OPTS).fetch({ url: 'https://api.twilio.com/m/ME2', contentType: 'video/mp4' })).rejects.toThrow(/unsupported/i);
