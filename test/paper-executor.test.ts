@@ -70,6 +70,32 @@ describe('generate_paper pipeline', () => {
     expect(updated.state).toBe('IDLE');
     expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.paper_generation_failed);
   });
+
+  it('C1: a QC throw does not discard a successful, billed generation — still reaches PAPER_PREVIEW', async () => {
+    const deps = makeDeps();
+    (deps.paperGenerator as FakePaperGenerator).qcFailWith = new Error('anthropic 529 overloaded');
+    const t = await makeTeacher(deps);
+    const updated = await new Executor(deps).runStep(t, gen);
+    expect(updated.state).toBe('PAPER_PREVIEW');
+    expect(updated.paperJson).not.toBeNull();
+    const names = (deps.events as InMemoryEventLog).names();
+    expect(names).toContain(EVENT.paper_generated);
+    expect(names).toContain(EVENT.paper_qc_completed);
+    expect(names).not.toContain(EVENT.paper_generation_failed);
+  });
+
+  it('C1: a paper_generated events.log throw does not discard a successful, billed generation', async () => {
+    const deps = makeDeps();
+    const realLog = (deps.events as InMemoryEventLog).log.bind(deps.events);
+    (deps.events as InMemoryEventLog).log = async (teacherId, event, at) => {
+      if (event.name === EVENT.paper_generated) throw new Error('events table down');
+      return realLog(teacherId, event, at);
+    };
+    const t = await makeTeacher(deps);
+    const updated = await new Executor(deps).runStep(t, gen);
+    expect(updated.state).toBe('PAPER_PREVIEW');
+    expect(updated.paperJson).not.toBeNull();
+  });
 });
 
 describe('render_paper pipeline', () => {

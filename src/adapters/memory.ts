@@ -237,6 +237,7 @@ export class FakePaperGenerator implements PaperGenerator {
   calls: PaperGenInput[] = [];
   qcCalls = 0;
   failWith: Error | null = null;
+  qcFailWith: Error | null = null;
   qcReport: PaperQcReport = { pass: true, issues: [], fixedPaper: null };
   constructor(private paper: PaperJson = samplePaperJson()) {}
   async generatePaper(input: PaperGenInput) {
@@ -246,6 +247,7 @@ export class FakePaperGenerator implements PaperGenerator {
   }
   async qcPaper(_paper: PaperJson, _input: PaperGenInput): Promise<PaperQcReport> {
     this.qcCalls += 1;
+    if (this.qcFailWith) throw this.qcFailWith;
     return this.qcReport;
   }
 }

@@ -1,5 +1,5 @@
 import type { Action, GenerationOutcome, SkillId, Step, Teacher } from '../domain/types.js';
-import { GenerationRefusedError, type InboundMedia, type PaperGenerationOutcome } from '../domain/types.js';
+import { GenerationRefusedError, type InboundMedia, type PaperGenerationOutcome, type PaperQcReport } from '../domain/types.js';
 import { EVENT } from '../domain/events.js';
 import type {
   Clock, DocBuilder, EventLog, FetchedMedia, GenerationStore, Generator, MediaFetcher, Messenger,
@@ -177,16 +177,32 @@ export class Executor {
       const input: PaperGenInput = { request, profile, media };
       try {
         const result = await d.paperGenerator.generatePaper(input);
-        const qc = await d.paperGenerator.qcPaper(result.paper, input);
+        // C1: a successful, billed generatePaper() call must never be demoted to a failure by a QC
+        // or telemetry hiccup -- identical failure class to runGeneration's generations.save
+        // isolation (Task 13 fix) and runPaperRender's papers.save isolation. qcPaper's SDK call
+        // can itself throw (529 overloaded, a 5xx after retries, ECONNRESET, timeout) even though
+        // AnthropicPaperGenerator already degrades an unusable QC *response* to this exact fallback
+        // internally -- this mirrors that same fallback for when the QC *call* throws outright.
+        let qc: PaperQcReport;
+        try {
+          qc = await d.paperGenerator.qcPaper(result.paper, input);
+        } catch (qcErr) {
+          console.error('[executor] qc failed', qcErr);
+          qc = { pass: true, issues: ['qc_unavailable'], fixedPaper: null };
+        }
         const paper = qc.fixedPaper ?? result.paper; // the one bounded auto-repair round (PRD §18.7)
-        await d.events.log(teacher.id, {
-          name: EVENT.paper_generated,
-          properties: {
-            model: result.model, inputTokens: result.inputTokens, outputTokens: result.outputTokens, latencyMs: result.latencyMs,
-            tiers: paper.tiers.length, totalMarks: paper.tiers.reduce((s, t) => s + t.totalMarks, 0),
-          },
-        }, d.clock.now());
-        await d.events.log(teacher.id, { name: EVENT.paper_qc_completed, properties: { pass: qc.pass, issues: qc.issues.length, repaired: qc.fixedPaper !== null } }, d.clock.now());
+        try {
+          await d.events.log(teacher.id, {
+            name: EVENT.paper_generated,
+            properties: {
+              model: result.model, inputTokens: result.inputTokens, outputTokens: result.outputTokens, latencyMs: result.latencyMs,
+              tiers: paper.tiers.length, totalMarks: paper.tiers.reduce((s, t) => s + t.totalMarks, 0),
+            },
+          }, d.clock.now());
+          await d.events.log(teacher.id, { name: EVENT.paper_qc_completed, properties: { pass: qc.pass, issues: qc.issues.length, repaired: qc.fixedPaper !== null } }, d.clock.now());
+        } catch (telemetryErr) {
+          console.error('[executor] paper telemetry failed', telemetryErr);
+        }
         outcome = { ok: true, paper, qc };
       } catch (err) {
         const refused = err instanceof GenerationRefusedError;
