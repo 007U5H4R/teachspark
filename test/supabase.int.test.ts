@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createSupabase, SupabaseTeacherRepo, SupabaseEventLog, SupabaseGenerationStore } from '../src/adapters/supabase.js';
+import { createSupabase, SupabaseTeacherRepo, SupabaseEventLog, SupabaseGenerationStore, SupabasePapersRepo } from '../src/adapters/supabase.js';
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,7 +22,7 @@ describe.skipIf(!url || !key)('Supabase adapters (integration)', () => {
     gens = new SupabaseGenerationStore(sb);
   });
 
-  it('round-trips a teacher, an event and a generation', async () => {
+  it('round-trips a teacher, an event, a generation and a paper', async () => {
     const now = new Date();
     const t = await repo.create({ waFrom, waId: null, profileName: 'Int Test', now });
     expect(t.state).toBe('NEW');
@@ -34,7 +34,16 @@ describe.skipIf(!url || !key)('Supabase adapters (integration)', () => {
     await events.log(t.id, { name: 'message_received', properties: { state: 'NEW' } }, now);
     expect((await events.listAll()).some((e) => e.teacherId === t.id)).toBe(true);
     await gens.save({ teacherId: t.id, skillId: 'worksheet', topic: 'Fractions', pdfUrl: null, at: now, result: { text: 'x', model: 'm', inputTokens: 1, outputTokens: 1, latencyMs: 1, requestId: null, promptUsed: 'p' } });
-    // cleanup (cascade deletes events + generations)
+    await new SupabasePapersRepo(sb).save({
+      teacherId: t.id,
+      request: { subject: 'Hindi', language: 'Hindi', grade: 'g', board: 'b', chapter: 'c', assessmentType: 'worksheet', tiers: ['A'], teacherVersion: true, media: [], adjustment: null },
+      docxUrl: 'https://x/y.docx',
+      totalMarks: 20,
+      redoCount: 0,
+      pageCount: 3,
+      at: now,
+    });
+    // cleanup (cascade deletes events + generations + papers)
     const { error } = await sb.from('teachers').delete().eq('id', t.id);
     expect(error).toBeNull();
   });

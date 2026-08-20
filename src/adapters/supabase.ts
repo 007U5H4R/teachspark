@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { EventRecord, EventRow, SkillId, Teacher, TeacherState, TeacherUpdate } from '../domain/types.js';
-import type { EventLog, GenerationSaveInput, GenerationStore, TeacherRepo } from '../ports.js';
+import type { EventLog, GenerationSaveInput, GenerationStore, PaperSaveInput, PapersRepo, TeacherRepo } from '../ports.js';
 
 export interface TeacherRow {
   id: string;
@@ -22,10 +22,15 @@ export interface TeacherRow {
   nudge_count: number;
   created_at: string;
   updated_at: string;
+  school_name: string | null;
+  school_logo_url: string | null;
+  paper_request: unknown;
+  paper_json: unknown;
+  paper_redo_count: number;
 }
 
 const TEACHER_COLUMNS =
-  'id, wa_from, wa_id, profile_name, grade, subject, board, state, current_skill_id, pending_topic, skills_completed, retries, activated_at, last_inbound_at, nudge_due_at, nudge_sent_at, nudge_count, created_at, updated_at';
+  'id, wa_from, wa_id, profile_name, grade, subject, board, state, current_skill_id, pending_topic, skills_completed, retries, activated_at, last_inbound_at, nudge_due_at, nudge_sent_at, nudge_count, created_at, updated_at, school_name, school_logo_url, paper_request, paper_json, paper_redo_count';
 
 const toDate = (s: string | null): Date | null => (s === null ? null : new Date(s));
 const toIso = (d: Date | null | undefined): string | null | undefined => (d === undefined ? undefined : d === null ? null : d.toISOString());
@@ -50,13 +55,11 @@ export function rowToTeacher(r: TeacherRow): Teacher {
     nudgeSentAt: toDate(r.nudge_sent_at),
     nudgeCount: r.nudge_count,
     createdAt: new Date(r.created_at),
-    // Paper columns are not yet in the teachers table (Task 20 is domain-only) — default until a
-    // later task adds the migration + select columns wiring these through.
-    schoolName: null,
-    schoolLogoUrl: null,
-    paperRequest: null,
-    paperJson: null,
-    paperRedoCount: 0,
+    schoolName: r.school_name,
+    schoolLogoUrl: r.school_logo_url,
+    paperRequest: (r.paper_request as Teacher['paperRequest']) ?? null,
+    paperJson: (r.paper_json as Teacher['paperJson']) ?? null,
+    paperRedoCount: r.paper_redo_count ?? 0,
   };
 }
 
@@ -80,6 +83,11 @@ export function updateToRow(u: TeacherUpdate): Record<string, unknown> {
   put('nudge_due_at', toIso(u.nudgeDueAt));
   put('nudge_sent_at', toIso(u.nudgeSentAt));
   put('nudge_count', u.nudgeCount);
+  put('school_name', u.schoolName);
+  put('school_logo_url', u.schoolLogoUrl);
+  put('paper_request', u.paperRequest);
+  put('paper_json', u.paperJson);
+  put('paper_redo_count', u.paperRedoCount);
   out.updated_at = new Date().toISOString();
   return out;
 }
@@ -163,5 +171,29 @@ export class SupabaseGenerationStore implements GenerationStore {
       created_at: input.at.toISOString(),
     });
     if (error) throw new Error(`generations.insert failed: ${error.message}`);
+  }
+}
+
+export class SupabasePapersRepo implements PapersRepo {
+  constructor(private sb: SupabaseClient) {}
+
+  async save(input: PaperSaveInput): Promise<void> {
+    const { error } = await this.sb.from('papers').insert({
+      teacher_id: input.teacherId,
+      subject: input.request.subject,
+      grade: input.request.grade,
+      board: input.request.board,
+      chapter: input.request.chapter,
+      assessment_type: input.request.assessmentType,
+      tiers: input.request.tiers,
+      teacher_version: input.request.teacherVersion,
+      source: input.pageCount === 0 ? 'chapter' : input.request.media.some((m) => m.contentType === 'application/pdf') ? 'pdf' : 'photos',
+      page_count: input.pageCount,
+      docx_url: input.docxUrl,
+      total_marks: input.totalMarks,
+      redo_count: input.redoCount,
+      created_at: input.at.toISOString(),
+    });
+    if (error) throw new Error(`papers.insert failed: ${error.message}`);
   }
 }
