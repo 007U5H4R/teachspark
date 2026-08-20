@@ -209,6 +209,13 @@ export function paperTransition(ctx: MachineContext, step: Step): Step {
       }
       step.events.push({ name: EVENT.still_working_sent, properties: { where: 'paper' } });
       step.actions.push(text(copy.paperStillWorking()));
+      // Keep the generation clock anchored to the message that started this paper — same fix as
+      // the core GENERATING case in machine.ts, ported here: refreshing lastInboundAt on every
+      // "still working" ping would make the stale check above unreachable for an impatient
+      // teacher. This matters even more for papers than worksheets — a paper takes 2-4 minutes
+      // (vs. a worksheet's ~10s), so a teacher pinging mid-wait is far more likely, not less.
+      // Understating lastInboundAt is safe for the Twilio 24h window — it only ever errs conservative.
+      delete step.updates.lastInboundAt;
       return step;
     }
 

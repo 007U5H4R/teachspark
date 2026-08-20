@@ -105,10 +105,12 @@ export function transition(ctx: MachineContext): Step {
   if (cmd === 'help') {
     step.events.push({ name: EVENT.help_requested });
     step.actions.push(text(msg.help()));
-    // Same reason as the still-working path: while GENERATING, keep lastInboundAt anchored to
-    // the topic message so the stale-generation escape stays reachable for a teacher who
-    // repeatedly asks for help instead of sending free text.
-    if (t.state === 'GENERATING') delete step.updates.lastInboundAt;
+    // Same reason as the still-working path: while GENERATING (worksheet) or PAPER_GENERATING
+    // (paper), keep lastInboundAt anchored to the message that started generation, so the
+    // stale-generation escape stays reachable for a teacher who repeatedly asks for help instead
+    // of sending free text. This matters even more for PAPER_GENERATING — a paper takes 2-4
+    // minutes (vs. a worksheet's ~10s), so an impatient teacher pinging mid-wait is far more likely.
+    if (t.state === 'GENERATING' || t.state === 'PAPER_GENERATING') delete step.updates.lastInboundAt;
     return step;
   }
   if (cmd === 'restart') {

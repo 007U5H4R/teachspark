@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { transition } from '../src/bot/machine.js';
-import { afterPaperGeneration, afterPaperRender, buildPreviewText, MAX_PAPER_MEDIA, MAX_PAPER_REDOS } from '../src/bot/paper/wizard.js';
+import { afterPaperGeneration, afterPaperRender, buildPreviewText, MAX_PAPER_MEDIA, MAX_PAPER_REDOS, PAPER_STALE_MS } from '../src/bot/paper/wizard.js';
+import { help } from '../src/bot/messages.js';
 import { samplePaperJson } from '../src/adapters/memory.js';
 import { EVENT } from '../src/domain/events.js';
 import type { InboundMessage, Step, Teacher } from '../src/domain/types.js';
@@ -19,7 +20,7 @@ function teacher(over: Partial<Teacher> = {}): Teacher {
 }
 const msg = (body: string, media: InboundMessage['media'] = []): InboundMessage =>
   ({ from: 'whatsapp:+911', waId: '911', profileName: 'Meera', body, messageSid: 'SM1', buttonPayload: null, media });
-const run = (t: Teacher, m: InboundMessage): Step => transition({ teacher: t, message: m, now: NOW, joinLink: JOIN, timezone: TZ });
+const run = (t: Teacher, m: InboundMessage, now = NOW): Step => transition({ teacher: t, message: m, now, joinLink: JOIN, timezone: TZ });
 const texts = (s: Step) => s.actions.filter((a) => a.type === 'send_text').map((a) => (a as { body: string }).body);
 const names = (s: Step) => s.events.map((e) => e.name);
 const apply = (t: Teacher, s: Step): Teacher => ({ ...t, ...s.updates } as Teacher);
@@ -125,6 +126,17 @@ describe('type, tiers, key, school, logo → generation', () => {
     expect(s.updates.state).toBe('IDLE');
     expect(s.events.find((e) => e.name === EVENT.paper_generation_failed)?.properties).toMatchObject({ reason: 'stale' });
   });
+  it('does not refresh lastInboundAt on a still-working ping, so an impatient teacher still hits the paper stale escape', () => {
+    const t = teacher({ state: 'PAPER_GENERATING', lastInboundAt: NOW });
+    const s1 = run(t, msg('are you there?'), new Date(NOW.getTime() + 90_000));
+    expect(texts(s1)[0].toLowerCase()).toContain('working');
+    expect(s1.updates.lastInboundAt).toBeUndefined();
+    const t2 = apply(t, s1);
+    expect(t2.lastInboundAt).toEqual(NOW);
+    const s2 = run(t2, msg('hello?'), new Date(NOW.getTime() + PAPER_STALE_MS + 30_000));
+    expect(s2.updates.state).toBe('IDLE');
+    expect(s2.events.find((e) => e.name === EVENT.paper_generation_failed)?.properties).toMatchObject({ reason: 'stale' });
+  });
 });
 
 describe('preview, redo, render, impact', () => {
@@ -180,5 +192,17 @@ describe('global commands still work inside the wizard', () => {
     expect(h.updates.state).toBeUndefined();
     const r = run(t, msg('restart'));
     expect(r.updates).toMatchObject({ state: 'AWAITING_GRADE', paperRequest: null, paperJson: null, paperRedoCount: 0 });
+  });
+  it('help during PAPER_GENERATING keeps the generation clock anchored, so the paper stale escape stays reachable', () => {
+    const t = teacher({ state: 'PAPER_GENERATING', lastInboundAt: NOW });
+    const s1 = run(t, msg('help'), new Date(NOW.getTime() + 90_000));
+    expect(texts(s1)).toEqual([help()]);
+    expect(s1.updates.state).toBeUndefined();
+    expect(s1.updates.lastInboundAt).toBeUndefined();
+    const t2 = apply(t, s1);
+    expect(t2.lastInboundAt).toEqual(NOW);
+    const s2 = run(t2, msg('hello?'), new Date(NOW.getTime() + PAPER_STALE_MS + 30_000));
+    expect(s2.updates.state).toBe('IDLE');
+    expect(s2.events.find((e) => e.name === EVENT.paper_generation_failed)?.properties).toMatchObject({ reason: 'stale' });
   });
 });

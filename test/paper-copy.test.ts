@@ -13,11 +13,12 @@ const JOIN = 'https://wa.me/14155238886?text=join%20clever-tiger';
 //   - mediaLimit(max)           DYNAMIC — always called with the MAX_PAPER_MEDIA constant (10)
 //   - previewMenu(redosLeft)    DYNAMIC — redosLeft is 0..MAX_PAPER_REDOS (small integer)
 //   - paperShareCta(joinLink)   DYNAMIC — joinLink is an operator-configured wa.me URL, not user input
-//   - paperDeliveredIntro(title) DYNAMIC AND UNBOUNDED — title is paper.title, LLM-generated text with
-//       NO max-length constraint in the PaperJson zod schema (title: z.string()). This sweep only proves
-//       the representative sample title below stays under the WhatsApp 1500-char limit; it cannot prove
-//       every possible generated title will. If titles ever grow long in production, this is the function
-//       that would need a defensive truncation — worth a follow-up if real generations show long titles.
+//   - paperDeliveredIntro(title) DYNAMIC but now BOUNDED — title is paper.title, LLM-generated text with
+//       NO max-length constraint in the PaperJson zod schema (title: z.string()). Anthropic's structured-output
+//       schemas forbid minLength/maxLength entirely, which is exactly why this codebase enforces structural
+//       limits in code instead (see paperShapeIssues). copy.ts itself now clamps the interpolated title to a
+//       safe cap (120 chars, trailing '…' when truncated) before building the string, so the returned body can
+//       never exceed 1500 chars regardless of what the model produces — see the dedicated clamp test below.
 const all: Array<[string, string]> = [
   ['askLanguage', copy.askLanguage()],
   ['askChapter', copy.askChapter('Hindi')],
@@ -48,5 +49,14 @@ describe('paper bot copy', () => {
   it.each(all)('%s is non-empty and ≤ 1500 chars', (_name, text) => {
     expect(text.trim().length).toBeGreaterThan(10);
     expect(text.length).toBeLessThanOrEqual(1500);
+  });
+
+  it('paperDeliveredIntro clamps a pathologically long title so the body never exceeds 1500 chars', () => {
+    const result = copy.paperDeliveredIntro('X'.repeat(5000));
+    expect(result.length).toBeLessThanOrEqual(1500);
+    // meaningful surrounding copy survives — this isn't just a truncated stub
+    expect(result).toContain('Word file');
+    expect(result).toContain('AI can make mistakes');
+    expect(result).toContain('…'); // truncation marker present
   });
 });

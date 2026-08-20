@@ -80,9 +80,20 @@ export function preparingFile(): string {
   return '📄 Making your Word file — a few seconds…';
 }
 
+// paper.title is LLM-generated text with no max-length constraint in the PaperJson zod schema —
+// Anthropic's structured-output schemas forbid minLength/maxLength entirely, which is exactly why
+// this codebase enforces structural limits in code instead (see paperShapeIssues). Clamp here so
+// the interpolated title can never push paperDeliveredIntro's return past the WhatsApp 1500-char
+// body limit, regardless of what the model produces.
+const MAX_TITLE_CHARS = 120;
+
+function clampTitle(title: string): string {
+  return title.length > MAX_TITLE_CHARS ? `${title.slice(0, MAX_TITLE_CHARS - 1)}…` : title;
+}
+
 export function paperDeliveredIntro(title: string): string {
   return [
-    `📄 Here comes your paper: *${title}* (Word file — fully editable: change any question, add your school details, print).`,
+    `📄 Here comes your paper: *${clampTitle(title)}* (Word file — fully editable: change any question, add your school details, print).`,
     '⚠️ AI can make mistakes — please review before using in class.',
   ].join('\n');
 }
