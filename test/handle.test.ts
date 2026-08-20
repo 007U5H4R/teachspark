@@ -20,7 +20,7 @@ function makeDeps(): ExecutorDeps {
   };
 }
 const msg = (body: string, from = 'whatsapp:+911'): InboundMessage =>
-  ({ from, waId: '911', profileName: 'Meera', body, messageSid: `SM${Math.random()}`, buttonPayload: null });
+  ({ from, waId: '911', profileName: 'Meera', body, messageSid: `SM${Math.random()}`, buttonPayload: null, media: [] });
 
 describe('createInboundHandler', () => {
   it('creates the teacher on first contact and logs session_started', async () => {

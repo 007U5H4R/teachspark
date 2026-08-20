@@ -30,6 +30,7 @@ function parseInbound(body: Form): InboundMessage {
     body: body.Body ?? '',
     messageSid: body.MessageSid ?? '',
     buttonPayload: body.ButtonPayload ?? null,
+    media: [], // stopgap — Task 22 parses Twilio MediaUrl{N}/MediaContentType{N} into this
   };
 }
 

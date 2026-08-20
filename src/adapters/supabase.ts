@@ -50,6 +50,13 @@ export function rowToTeacher(r: TeacherRow): Teacher {
     nudgeSentAt: toDate(r.nudge_sent_at),
     nudgeCount: r.nudge_count,
     createdAt: new Date(r.created_at),
+    // Paper columns are not yet in the teachers table (Task 20 is domain-only) — default until a
+    // later task adds the migration + select columns wiring these through.
+    schoolName: null,
+    schoolLogoUrl: null,
+    paperRequest: null,
+    paperJson: null,
+    paperRedoCount: 0,
   };
 }
 

@@ -59,8 +59,8 @@ export class Executor {
       }
       return teacher;
     }
-    // action.type === 'generate'
-    return this.runGeneration(teacher, action.skillId, action.topic);
+    if (action.type === 'generate') return this.runGeneration(teacher, action.skillId, action.topic);
+    return teacher; // store_logo / generate_paper / render_paper wired in Task 26
   }
 
   private async runGeneration(teacher: Teacher, skillId: SkillId, topic: string): Promise<Teacher> {

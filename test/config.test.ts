@@ -37,6 +37,11 @@ describe('loadConfig', () => {
   it('rejects a PUBLIC_BASE_URL with a trailing slash', () => {
     expect(() => loadConfig({ ...valid, PUBLIC_BASE_URL: 'https://x.ngrok-free.app/' })).toThrow(/trailing slash/);
   });
+  it('applies paper defaults', () => {
+    const c = loadConfig(valid);
+    expect(c.SUPABASE_PAPER_BUCKET).toBe('papers');
+    expect(c.PAPER_MODEL).toBe('claude-sonnet-5');
+  });
 });
 
 describe('buildJoinLink', () => {

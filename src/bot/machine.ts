@@ -1,4 +1,4 @@
-import type { Action, EventRecord, GenerationOutcome, InboundMessage, SkillId, Step, Teacher, TeacherProfile, TeacherUpdate } from '../domain/types.js';
+import type { Action, CoreTeacherState, EventRecord, GenerationOutcome, InboundMessage, SkillId, Step, Teacher, TeacherProfile, TeacherUpdate } from '../domain/types.js';
 import { EVENT } from '../domain/events.js';
 import { SKILLS, hasNextSkill, nextSkillFor } from './skills.js';
 import * as msg from './messages.js';
@@ -119,7 +119,8 @@ export function transition(ctx: MachineContext): Step {
     return profile ? startSkill(t, step, profile) : welcome(step);
   }
 
-  switch (t.state) {
+  const coreState = t.state as CoreTeacherState;
+  switch (coreState) {
     case 'NEW':
       return welcome(step);
 
@@ -210,7 +211,7 @@ export function transition(ctx: MachineContext): Step {
 
     default: {
       // Compile-time: adding a TeacherState without a case makes this assignment fail.
-      const _exhaustive: never = t.state;
+      const _exhaustive: never = coreState;
       void _exhaustive;
       // Runtime: an unexpected DB value self-heals into onboarding instead of crashing.
       return welcome(step);

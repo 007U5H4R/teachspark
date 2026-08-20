@@ -30,7 +30,7 @@ describe('POST /webhooks/twilio/whatsapp', () => {
     expect(res.headers['content-type']).toContain('xml');
     expect(res.text).toContain('<Response/>');
     await vi.waitFor(() => expect(inbound).toHaveLength(1));
-    expect(inbound[0]).toEqual({ from: 'whatsapp:+911', waId: '911', profileName: 'Meera', body: 'hi', messageSid: 'SM1', buttonPayload: null });
+    expect(inbound[0]).toEqual({ from: 'whatsapp:+911', waId: '911', profileName: 'Meera', body: 'hi', messageSid: 'SM1', buttonPayload: null, media: [] });
   });
   it('still ACKs 200 when the handler throws (never 500 to Twilio)', async () => {
     const { deps } = makeDeps({ handleInbound: async () => { throw new Error('boom'); } });

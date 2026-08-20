@@ -4,17 +4,29 @@ import type {
   EventRow,
   GenerationRequest,
   GenerationResult,
+  InboundMedia,
+  PaperBranding,
+  PaperJson,
+  PaperQcReport,
   SendResult,
   Teacher,
   TeacherUpdate,
 } from '../domain/types.js';
 import type {
   Clock,
+  DocBuilder,
   EventLog,
+  FetchedMedia,
   GenerationSaveInput,
   GenerationStore,
   Generator,
+  MediaFetcher,
   Messenger,
+  PaperGenInput,
+  PaperGenerator,
+  PaperSaveInput,
+  PapersRepo,
+  PaperStore,
   PdfBuilder,
   PdfSection,
   PdfStore,
@@ -68,6 +80,11 @@ export class InMemoryTeacherRepo implements TeacherRepo {
       nudgeSentAt: null,
       nudgeCount: 0,
       createdAt: new Date(input.now.getTime()),
+      schoolName: null,
+      schoolLogoUrl: null,
+      paperRequest: null,
+      paperJson: null,
+      paperRedoCount: 0,
     };
     this.byId.set(t.id, t);
     return { ...t };
@@ -168,5 +185,99 @@ export class FakePdfStore implements PdfStore {
     if (this.failWith) throw this.failWith;
     this.stored.push({ teacherId, bytes: pdf.length });
     return `https://example.test/worksheets/${teacherId}/${++this.n}.pdf`;
+  }
+}
+
+export class FakeMediaFetcher implements MediaFetcher {
+  fetched: InboundMedia[] = [];
+  failWith: Error | null = null;
+  async fetch(media: InboundMedia): Promise<FetchedMedia> {
+    if (this.failWith) throw this.failWith;
+    this.fetched.push(media);
+    return { data: Buffer.from(`fake-bytes:${media.url}`), contentType: media.contentType };
+  }
+}
+
+/** A minimal but structurally complete PaperJson for tests. */
+export function samplePaperJson(over: Partial<PaperJson> = {}): PaperJson {
+  return {
+    title: 'अभ्यास-पत्र: टोपी शुक्ला',
+    language: 'Hindi',
+    gradeLabel: 'High (Classes 9-12)',
+    subjectLabel: 'Hindi',
+    boardLabel: 'CBSE',
+    chapterLabel: 'टोपी शुक्ला',
+    assessmentLabel: 'Worksheet',
+    generalInstructions: ['सभी प्रश्न अनिवार्य हैं।'],
+    tiers: [
+      {
+        tier: 'A',
+        tierLabel: 'Foundational',
+        timeMinutes: '35–40',
+        totalMarks: 20,
+        tasks: [1, 2, 3, 4].map((n) => ({
+          taskNumber: n as 1 | 2 | 3 | 4,
+          heading: `कार्य ${n}`,
+          headingEnglish: ['Reading Comprehension & Vocabulary', 'Language in Use', 'Textual Analysis', 'Creative / Personal Response'][n - 1],
+          instructions: 'निर्देश।',
+          passage: n === 1 ? 'गद्यांश…' : null,
+          questions: [
+            // marks must sum to the tier's totalMarks (4 tasks × 5 = 20) — paperShapeIssues() enforces it
+            { number: 1, type: n === 1 ? 'MCQ' : 'SA', text: `प्रश्न ${n}.1`, marks: 5, options: n === 1 ? ['क', 'ख', 'ग', 'घ'] : null, matchPairs: null, answer: 'उत्तर', answerNotes: null },
+          ],
+        })),
+      },
+    ],
+    sourceNotes: [],
+    ...over,
+  };
+}
+
+export class FakePaperGenerator implements PaperGenerator {
+  calls: PaperGenInput[] = [];
+  qcCalls = 0;
+  failWith: Error | null = null;
+  qcReport: PaperQcReport = { pass: true, issues: [], fixedPaper: null };
+  constructor(private paper: PaperJson = samplePaperJson()) {}
+  async generatePaper(input: PaperGenInput) {
+    this.calls.push(input);
+    if (this.failWith) throw this.failWith;
+    return { paper: this.paper, inputTokens: 5000, outputTokens: 4000, latencyMs: 42, model: 'fake-paper-model' };
+  }
+  async qcPaper(_paper: PaperJson, _input: PaperGenInput): Promise<PaperQcReport> {
+    this.qcCalls += 1;
+    return this.qcReport;
+  }
+}
+
+export class FakeDocBuilder implements DocBuilder {
+  builds: Array<{ paper: PaperJson; branding: PaperBranding; teacherVersion: boolean }> = [];
+  async buildPaperDocx(paper: PaperJson, branding: PaperBranding, teacherVersion: boolean): Promise<Buffer> {
+    this.builds.push({ paper, branding, teacherVersion });
+    return Buffer.from(`PK-fake-docx:${paper.title}`);
+  }
+}
+
+export class FakePaperStore implements PaperStore {
+  storedDocs: Array<{ teacherId: string; bytes: number }> = [];
+  storedLogos: Array<{ teacherId: string; contentType: string }> = [];
+  failWith: Error | null = null;
+  private n = 0;
+  async storePaperDocx(teacherId: string, docx: Buffer): Promise<string> {
+    if (this.failWith) throw this.failWith;
+    this.storedDocs.push({ teacherId, bytes: docx.length });
+    return `https://example.test/papers/${teacherId}/${++this.n}.docx`;
+  }
+  async storeLogo(teacherId: string, _image: Buffer, contentType: string): Promise<string> {
+    if (this.failWith) throw this.failWith;
+    this.storedLogos.push({ teacherId, contentType });
+    return `https://example.test/logos/${teacherId}/${++this.n}.png`;
+  }
+}
+
+export class InMemoryPapersRepo implements PapersRepo {
+  saved: PaperSaveInput[] = [];
+  async save(input: PaperSaveInput): Promise<void> {
+    this.saved.push(input);
   }
 }

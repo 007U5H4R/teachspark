@@ -20,6 +20,8 @@ const ConfigSchema = z.object({
   CRON_SECRET: z.string().min(8),
   NUDGE_TIMEZONE: z.string().min(1).default('Asia/Kolkata'),
   NUDGE_CRON: z.string().min(1).default('*/10 * * * *'),
+  SUPABASE_PAPER_BUCKET: z.string().min(1).default('papers'),
+  PAPER_MODEL: z.string().min(1).default('claude-sonnet-5'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

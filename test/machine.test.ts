@@ -13,11 +13,13 @@ function teacher(over: Partial<Teacher> = {}): Teacher {
     id: 't1', waFrom: 'whatsapp:+911', waId: '911', profileName: 'Meera',
     grade: null, subject: null, board: null, state: 'NEW', currentSkillId: null, pendingTopic: null,
     skillsCompleted: [], retries: 0, activatedAt: null, lastInboundAt: null, nudgeDueAt: null, nudgeSentAt: null,
-    nudgeCount: 0, createdAt: NOW, ...over,
+    nudgeCount: 0, createdAt: NOW,
+    schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0,
+    ...over,
   };
 }
 const onboarded = (over: Partial<Teacher> = {}) => teacher({ grade: 'Middle (Classes 6-8)', subject: 'Maths', board: 'CBSE', ...over });
-const msg = (body: string): InboundMessage => ({ from: 'whatsapp:+911', waId: '911', profileName: 'Meera', body, messageSid: 'SM1', buttonPayload: null });
+const msg = (body: string): InboundMessage => ({ from: 'whatsapp:+911', waId: '911', profileName: 'Meera', body, messageSid: 'SM1', buttonPayload: null, media: [] });
 const run = (t: Teacher, body: string, now = NOW): Step => transition({ teacher: t, message: msg(body), now, joinLink: JOIN, timezone: TZ });
 const texts = (s: Step) => s.actions.filter((a) => a.type === 'send_text').map((a) => (a as { body: string }).body);
 const names = (s: Step) => s.events.map((e) => e.name);

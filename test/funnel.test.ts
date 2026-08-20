@@ -8,7 +8,9 @@ const ev = (teacherId: string, name: string, properties: Record<string, unknown>
 const teacher = (id: string, over: Partial<Teacher> = {}): Teacher => ({
   id, waFrom: `whatsapp:+${id}`, waId: null, profileName: null, grade: null, subject: null, board: null,
   state: 'NEW', currentSkillId: null, pendingTopic: null, skillsCompleted: [], retries: 0,
-  activatedAt: null, lastInboundAt: null, nudgeDueAt: null, nudgeSentAt: null, nudgeCount: 0, createdAt: at, ...over,
+  activatedAt: null, lastInboundAt: null, nudgeDueAt: null, nudgeSentAt: null, nudgeCount: 0, createdAt: at,
+  schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0,
+  ...over,
 });
 
 describe('computeFunnel', () => {

@@ -3,8 +3,14 @@ import type {
   EventRow,
   GenerationRequest,
   GenerationResult,
+  InboundMedia,
+  PaperBranding,
+  PaperJson,
+  PaperQcReport,
+  PaperRequest,
   SendResult,
   Teacher,
+  TeacherProfile,
   TeacherUpdate,
 } from './domain/types.js';
 
@@ -61,4 +67,55 @@ export interface PdfBuilder {
 export interface PdfStore {
   /** uploads and returns a public HTTPS URL ending in .pdf */
   storeWorksheetPdf(teacherId: string, pdf: Buffer): Promise<string>;
+}
+
+export interface FetchedMedia {
+  data: Buffer;
+  contentType: string; // normalized: image/jpeg, image/png, image/webp, application/pdf
+}
+
+export interface MediaFetcher {
+  /** downloads a Twilio (or Supabase) media URL; throws on network failure or unsupported/oversized media */
+  fetch(media: InboundMedia): Promise<FetchedMedia>;
+}
+
+export interface PaperGenInput {
+  request: PaperRequest;
+  profile: TeacherProfile;
+  media: FetchedMedia[];
+}
+
+export interface PaperGenerator {
+  /** throws GenerationRefusedError on refusal; throws Error on API failure */
+  generatePaper(input: PaperGenInput): Promise<{ paper: PaperJson; inputTokens: number; outputTokens: number; latencyMs: number; model: string }>;
+  /** validates a generated paper against the QC checklist (PRD §18.7); may return a repaired paper */
+  qcPaper(paper: PaperJson, input: PaperGenInput): Promise<PaperQcReport>;
+}
+
+export interface DocBuilder {
+  /** renders the fixed bilingual template (PRD §18.4) to an editable .docx */
+  buildPaperDocx(paper: PaperJson, branding: PaperBranding, teacherVersion: boolean): Promise<Buffer>;
+}
+
+export interface PaperStore {
+  /** uploads and returns a public HTTPS URL ending in .docx */
+  storePaperDocx(teacherId: string, docx: Buffer): Promise<string>;
+  /** uploads a logo image and returns its public URL */
+  storeLogo(teacherId: string, image: Buffer, contentType: string): Promise<string>;
+}
+
+export interface PaperSaveInput {
+  teacherId: string;
+  request: PaperRequest;
+  docxUrl: string;
+  totalMarks: number;
+  redoCount: number;
+  pageCount: number; // media items supplied
+  at: Date;
+  // model/tokens/latency/QC verdict live in the paper_generated / paper_qc_completed events —
+  // the papers row records the artifact, events record the telemetry (single source of truth).
+}
+
+export interface PapersRepo {
+  save(input: PaperSaveInput): Promise<void>;
 }
