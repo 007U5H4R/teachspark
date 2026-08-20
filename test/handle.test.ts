@@ -87,7 +87,79 @@ describe('createInboundHandler', () => {
     await handle(msg('hi'));
     const t = await deps.teachers.findByWaFrom('whatsapp:+911');
     await deps.teachers.update(t!.id, { state: 'PAPER_GENERATING' });
+    const before = (deps.messenger as FakeMessenger).texts().length; // 1 (the welcome from "hi")
     await Promise.all([handle(msg('x')), handle(msg('y'))]);
-    expect((deps.messenger as FakeMessenger).texts().some((b) => b.includes('paper'))).toBe(true);
+
+    // M4: the WINNER of the race is processed for real, and paperTransition's own PAPER_GENERATING
+    // case ALSO sends copy.paperStillWorking() regardless of the in-flight guard -- so "a text
+    // containing 'paper' exists somewhere" passes even if the guard's copy branch were reverted to
+    // the core 20-second copy. Assert the guard was actually exercised (exactly one bounce logged)
+    // and that BOTH new texts are the paper-specific copy, never the core one.
+    const inFlightLogs = (deps.events as InMemoryEventLog).rows.filter(
+      (r) => r.name === EVENT.still_working_sent && r.properties.reason === 'in_flight',
+    );
+    expect(inFlightLogs).toHaveLength(1);
+    const texts = (deps.messenger as FakeMessenger).texts().slice(before);
+    expect(texts).toHaveLength(2);
+    expect(texts.filter((b) => b.includes('Still working on your paper'))).toHaveLength(2);
+    expect(texts.some((b) => b.includes('20 more seconds'))).toBe(false); // never the core copy
+  });
+
+  it('I2(a): the in-flight guard during PAPER_MEDIA does not falsely claim a paper is being generated', async () => {
+    const deps = makeDeps();
+    const handle = createInboundHandler(deps);
+    await handle(msg('hi'));
+    const t = await deps.teachers.findByWaFrom('whatsapp:+911');
+    await deps.teachers.update(t!.id, {
+      state: 'PAPER_MEDIA',
+      paperRequest: { subject: 'Hindi', language: 'Hindi', grade: 'g', board: 'b', chapter: 'x', assessmentType: 'worksheet', tiers: ['A'], teacherVersion: true, media: [], adjustment: null },
+    });
+    // two TEXT-only messages (no media) -- neither carries media, so the loser is still bounced
+    // immediately (not queued), but the bounce copy must not lie about a paper being generated.
+    await Promise.all([handle(msg('DONE')), handle(msg('DONE'))]);
+    const texts = (deps.messenger as FakeMessenger).texts();
+    expect(texts.some((b) => b.includes('Still working on your paper'))).toBe(false);
+    expect(texts.some((b) => /one at a time/i.test(b))).toBe(true);
+  });
+
+  it('I2(b): a photo burst during an in-flight PAPER_MEDIA turn is serialized, not dropped', async () => {
+    const deps = makeDeps();
+    const handle = createInboundHandler(deps);
+    await handle(msg('hi'));
+    const t = await deps.teachers.findByWaFrom('whatsapp:+911');
+    await deps.teachers.update(t!.id, {
+      state: 'PAPER_MEDIA',
+      paperRequest: { subject: 'Hindi', language: 'Hindi', grade: 'g', board: 'b', chapter: 'x', assessmentType: 'worksheet', tiers: ['A'], teacherVersion: true, media: [], adjustment: null },
+    });
+    const photo1: InboundMessage = { ...msg(''), media: [{ url: 'https://api.twilio.com/m/P1', contentType: 'image/jpeg' }] };
+    const photo2: InboundMessage = { ...msg(''), media: [{ url: 'https://api.twilio.com/m/P2', contentType: 'image/jpeg' }] };
+    await Promise.all([handle(photo1), handle(photo2)]);
+
+    const after = await deps.teachers.findByWaFrom('whatsapp:+911');
+    const urls = (after?.paperRequest?.media ?? []).map((m) => m.url).sort();
+    expect(urls).toEqual(['https://api.twilio.com/m/P1', 'https://api.twilio.com/m/P2']); // BOTH recorded, neither dropped
+    expect((deps.messenger as FakeMessenger).texts().some((b) => /one at a time/i.test(b))).toBe(false); // neither was bounced
+  });
+
+  it('I2 constraint: a text-only double-text during a CORE worksheet generation is still bounced immediately, never queued', async () => {
+    const deps = makeDeps();
+    const handle = createInboundHandler(deps);
+    await handle(msg('hi'));
+    const t = await deps.teachers.findByWaFrom('whatsapp:+911');
+    await deps.teachers.update(t!.id, { state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x', lastInboundAt: NOW });
+    const before = (deps.messenger as FakeMessenger).texts().length; // 1 (the welcome from "hi")
+    await Promise.all([handle(msg('are you there?')), handle(msg('are you there?'))]);
+
+    // exactly one call hit the in-flight guard; the other was processed for real by the core
+    // machine's own GENERATING case (which also just sends stillWorking()) -- neither was queued,
+    // and the teacher never advances past GENERATING from either path.
+    const inFlightLogs = (deps.events as InMemoryEventLog).rows.filter(
+      (r) => r.name === EVENT.still_working_sent && r.properties.reason === 'in_flight',
+    );
+    expect(inFlightLogs).toHaveLength(1);
+    const texts = (deps.messenger as FakeMessenger).texts().slice(before);
+    expect(texts).toHaveLength(2);
+    expect(texts.every((b) => b.includes('20 more seconds'))).toBe(true);
+    expect((await deps.teachers.findByWaFrom('whatsapp:+911'))?.state).toBe('GENERATING');
   });
 });

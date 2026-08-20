@@ -83,6 +83,13 @@ export function paperStillWorking(): string {
   return 'Still working on your paper — about a minute more 📖✍️'; // must contain "working" (wizard test asserts it)
 }
 
+// I2(a): the in-flight guard must not claim a paper is being generated while she is still
+// sending photos -- nothing is generating yet, and a photo sent during this window is now queued
+// (I2(b)) rather than dropped, so this is a "wait a beat", not a "please retry" message.
+export function mediaBusy(): string {
+  return 'One at a time please — send that page again 🙂';
+}
+
 export function previewMenu(redosLeft: number): string {
   if (redosLeft <= 0) {
     return `1) 📄 Get the Word file\n(You've used all the redos for this paper — but the file is fully editable in Word.)`;
