@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { transition } from '../src/bot/machine.js';
-import { afterPaperGeneration, afterPaperRender, buildPreviewText, MAX_PAPER_MEDIA, MAX_PAPER_REDOS, PAPER_STALE_MS } from '../src/bot/paper/wizard.js';
+import { afterPaperGeneration, afterPaperRender, afterPaperRenderFailure, buildPreviewText, MAX_PAPER_MEDIA, MAX_PAPER_REDOS, PAPER_STALE_MS, PREVIEW_OPTIONS } from '../src/bot/paper/wizard.js';
 import { help } from '../src/bot/messages.js';
 import { samplePaperJson } from '../src/adapters/memory.js';
 import { EVENT } from '../src/domain/events.js';
@@ -182,6 +182,111 @@ describe('preview, redo, render, impact', () => {
     expect(s.events.find((e) => e.name === EVENT.paper_minutes_saved)?.properties).toMatchObject({ minutes: 60 });
     expect(s.updates.state).toBe('IDLE');
     expect(texts(s)[0]).toContain(JOIN);
+  });
+  it('M1: PAPER_IMPACT clears paperJson/paperRequest on its terminal IDLE transition (read on every inbound via TEACHER_COLUMNS)', () => {
+    const t = teacher({ state: 'PAPER_IMPACT', paperJson: paper, paperRequest: walkToKey().paperRequest });
+    const s = run(t, msg('2'));
+    expect(s.updates.state).toBe('IDLE');
+    expect(s.updates.paperJson).toBeNull();
+    expect(s.updates.paperRequest).toBeNull();
+  });
+});
+
+describe('whole-branch review fixes (C1/I1/I3/I5/funnel/M1)', () => {
+  const paper = samplePaperJson();
+
+  it('I1: a failed redo returns her to PAPER_PREVIEW with the existing paper intact, not IDLE', () => {
+    const existing = samplePaperJson({ title: 'पुराना पत्र' });
+    const t = teacher({ state: 'PAPER_GENERATING', paperJson: existing, paperRedoCount: 1 });
+    const s = afterPaperGeneration(t, { ok: false, reason: 'error' }, NOW);
+    expect(s.updates.state).toBe('PAPER_PREVIEW');
+    expect(names(s)).toContain(EVENT.paper_generation_failed);
+    const after = apply(t, s);
+    expect(after.paperJson).toEqual(existing); // she still has the paper she started with
+    expect(after.paperRedoCount).toBe(1); // not reset by the failure itself
+  });
+  it('I1: a FIRST-EVER generation failure (no prior paper) still goes to IDLE with the apology', () => {
+    const t = teacher({ state: 'PAPER_GENERATING', paperJson: null });
+    const s = afterPaperGeneration(t, { ok: false, reason: 'error' }, NOW);
+    expect(s.updates.state).toBe('IDLE'); // unchanged behavior when there is nothing to fall back to
+  });
+  it('I1: looping a failing redo still exhausts the cap after MAX_PAPER_REDOS attempts', () => {
+    let t = teacher({ state: 'PAPER_PREVIEW', paperJson: samplePaperJson(), paperRequest: walkToKey().paperRequest, paperRedoCount: 0 });
+    for (let i = 1; i <= MAX_PAPER_REDOS; i++) {
+      const redo = run(t, msg('2')); // 2) Try a fresh version
+      expect(redo.updates.paperRedoCount).toBe(i);
+      t = apply(t, redo); // now PAPER_GENERATING
+      const failed = afterPaperGeneration(t, { ok: false, reason: 'error' }, NOW);
+      expect(failed.updates.state).toBe('PAPER_PREVIEW'); // back to preview every time, not IDLE
+      t = apply(t, failed);
+      expect(t.paperJson).not.toBeNull();
+    }
+    const capped = run(t, msg('2')); // one more redo attempt: cap is exhausted
+    expect(capped.updates.state).toBeUndefined();
+    expect(capped.actions.some((a) => a.type === 'generate_paper')).toBe(false);
+  });
+
+  it('I3: a genuinely-repaired paper shows NO residual warning (the pre-repair issue must not resurface)', () => {
+    const fixed = samplePaperJson({ title: 'सुधारा हुआ' }); // structurally valid
+    const t = teacher({ state: 'PAPER_GENERATING' });
+    const s = afterPaperGeneration(t, { ok: true, paper: fixed, qc: { pass: false, issues: ['marks off by 2'], fixedPaper: fixed } }, NOW);
+    expect(texts(s).join('\n')).not.toContain('marks off by 2');
+  });
+  it('I3: a fixedPaper that still violates a shape rule DOES show the RE-CHECKED residual, not the stale pre-repair issue', () => {
+    const base = samplePaperJson();
+    const stillBroken = { ...base, tiers: [{ ...base.tiers[0], totalMarks: 999 }] }; // question-mark sum stays 20, now mismatched
+    const t = teacher({ state: 'PAPER_GENERATING' });
+    const s = afterPaperGeneration(t, { ok: true, paper: stillBroken, qc: { pass: false, issues: ['stale pre-repair note'], fixedPaper: stillBroken } }, NOW);
+    const body = texts(s).join('\n');
+    expect(body).not.toContain('stale pre-repair note');
+    expect(body).toContain('does not equal the question-mark sum');
+  });
+  it('I3: an UNREPAIRED failing QC (fixedPaper null) still shows its own issues unchanged', () => {
+    const t = teacher({ state: 'PAPER_GENERATING' });
+    const s = afterPaperGeneration(t, { ok: true, paper, qc: { pass: false, issues: ['Tier B Q2 wording ambiguous'], fixedPaper: null } }, NOW);
+    expect(texts(s).join('\n')).toContain('ambiguous');
+  });
+
+  it('funnel: afterPaperRender activates a paper-only teacher on her first export', () => {
+    const t = teacher({ state: 'PAPER_PREVIEW', paperJson: paper, activatedAt: null });
+    const s = afterPaperRender(t, 'https://x.test/p.docx', NOW);
+    expect(s.updates.activatedAt).toEqual(NOW);
+    expect(names(s)).toContain(EVENT.activated);
+  });
+  it('funnel: does not re-activate or re-emit for an already-activated teacher', () => {
+    const already = new Date('2026-08-01T00:00:00Z');
+    const t = teacher({ state: 'PAPER_PREVIEW', paperJson: paper, activatedAt: already });
+    const s = afterPaperRender(t, 'https://x.test/p.docx', NOW);
+    expect(s.updates.activatedAt).toBeUndefined();
+    expect(names(s)).not.toContain(EVENT.activated);
+  });
+
+  it('M1: afterPaperRenderFailure keeps holding paperJson/paperRequest (not cleared)', () => {
+    const t = teacher({ state: 'PAPER_PREVIEW', paperJson: paper, paperRequest: walkToKey().paperRequest });
+    const s = afterPaperRenderFailure(t, NOW);
+    expect(s.updates.paperJson).toBeUndefined(); // untouched -- neither set nor cleared
+    expect(s.updates.paperRequest).toBeUndefined();
+  });
+
+  it('M2: PREVIEW_OPTIONS no longer advertises the dead "again" alias', () => {
+    // parseCommand('again') already resolves to the global `new` command BEFORE paperTransition
+    // ever runs (checked earlier in machine.ts's transition()), so 'again' listed as a redo alias
+    // here was unreachable and misleading -- typing it actually misroutes into the core worksheet
+    // flow, not a redo. Direct data check: the wizard-level behavior can't distinguish "removed"
+    // from "always dead", so this pins the alias list itself.
+    const redo = PREVIEW_OPTIONS.find((o) => o.id === 'redo');
+    expect(redo?.aliases).not.toContain('again');
+    expect(redo?.aliases).toEqual(expect.arrayContaining(['redo', 'fresh', 'retry']));
+  });
+
+  it('M3: PAPER_CHAPTER explains the rejection reason instead of one generic re-ask', () => {
+    let t = apply(teacher(), run(teacher(), msg('paper')));
+    t = apply(t, run(t, msg('2'))); // Hindi → PAPER_CHAPTER
+    const piiBody = texts(run(t, msg('call me at 9876543210')))[0];
+    expect(piiBody).toContain("don't share");
+    const tooLongBody = texts(run(t, msg('x'.repeat(210))))[0];
+    expect(tooLongBody).toContain('under 200 characters');
+    expect(piiBody).not.toBe(tooLongBody); // genuinely reason-specific, not one generic reprompt
   });
 });
 

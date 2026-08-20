@@ -419,7 +419,11 @@ describe('QA Case 2 — end-to-end paper flow over HTTP (app + handler + executo
     expect(teacher.schoolName).toBe(SCHOOL);
     expect(teacher.schoolLogoUrl).toBeNull();
     expect(teacher.paperRedoCount).toBe(0);
-    expect(teacher.paperJson?.title).toBe(BIG_PAPER.title);
+    // M1 (whole-branch review): paperJson/paperRequest are read on EVERY inbound message and are
+    // dead weight once the wizard has truly finished -- the terminal PAPER_IMPACT->IDLE transition
+    // now clears both. The delivered docx (already asserted in test (d)/(f)) is unaffected.
+    expect(teacher.paperJson).toBeNull();
+    expect(teacher.paperRequest).toBeNull();
     expect(teacher.retries).toBe(0);
     expect(teacher.skillsCompleted).toEqual([]); // the paper flow is not a core skill
     expect(texts.at(-1)).toContain(JOIN);

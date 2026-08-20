@@ -13,6 +13,7 @@ import {
 } from './options.js';
 import * as copy from './copy.js';
 import * as msg from '../messages.js';
+import { paperShapeIssues } from './prompts.js';
 
 export * from './options.js'; // tests and machine.ts import everything via wizard.js
 
@@ -93,7 +94,9 @@ export function paperTransition(ctx: MachineContext, step: Step): Step {
       const v = validateTopic(body); // reuses the ack/PII/length guards
       if (!v.ok) {
         step.events.push({ name: EVENT.unrecognized_input, properties: { state: t.state, reason: v.reason } });
-        step.actions.push(text(copy.askChapter(request.language || 'the')));
+        // M3: explain WHY, mirroring how the core loop's AWAITING_TOPIC uses msg.topicRejected(reason, skill)
+        // instead of one generic re-ask for every rejection reason.
+        step.actions.push(text(copy.askChapterRejected(v.reason, request.language || 'the')));
         return step;
       }
       step.updates.paperRequest = { ...request, chapter: v.topic };
@@ -261,7 +264,10 @@ export function paperTransition(ctx: MachineContext, step: Step): Step {
           return step;
         }
       }
-      Object.assign(step.updates, { state: 'IDLE', retries: 0 } satisfies TeacherUpdate);
+      // M1: paperJson/paperRequest are read on EVERY inbound message (TEACHER_COLUMNS) but are
+      // dead weight once the wizard is truly done -- clear them on this terminal transition.
+      // afterPaperRenderFailure deliberately does NOT do this (she may still need them to retry).
+      Object.assign(step.updates, { state: 'IDLE', retries: 0, paperJson: null, paperRequest: null } satisfies TeacherUpdate);
       step.events.push({ name: EVENT.paper_minutes_saved, properties: { minutes: opt ? Number(opt.id) : null } });
       step.actions.push(text(copy.paperShareCta(ctx.joinLink)));
       return step;
@@ -281,6 +287,20 @@ export function afterPaperGeneration(t: Teacher, outcome: PaperGenerationOutcome
       step.actions.push(text(copy.mediaUnreadable()));
       return step;
     }
+    if (t.paperJson !== null) {
+      // I1: this was a REDO -- she already has a perfectly good paper from before the attempt.
+      // Sending her to IDLE would make it unreachable (typing PAPER resets paperJson via
+      // startPaperWizard), losing TWO paid generations instead of one. Route back to
+      // PAPER_PREVIEW with the existing paper intact, mirroring afterPaperRenderFailure's shape.
+      // The redo cap is untouched by this: paperRedoCount is already incremented the moment she
+      // CHOSE the redo (the PAPER_PREVIEW case above), before the outcome is known, so looping a
+      // FAILING redo still exhausts MAX_PAPER_REDOS exactly like a succeeding one would.
+      const redosLeft = Math.max(0, MAX_PAPER_REDOS - t.paperRedoCount);
+      Object.assign(step.updates, { state: 'PAPER_PREVIEW', retries: 0 } satisfies TeacherUpdate);
+      step.events.push({ name: EVENT.paper_generation_failed, properties: { reason: outcome.reason } });
+      step.actions.push(text(copy.paperRedoFailed()), text(copy.previewMenu(redosLeft)));
+      return step;
+    }
     Object.assign(step.updates, { state: 'IDLE', retries: 0 } satisfies TeacherUpdate);
     step.events.push({ name: EVENT.paper_generation_failed, properties: { reason: outcome.reason } });
     step.actions.push(text(outcome.reason === 'refusal' ? copy.paperRefused() : copy.paperFailed()));
@@ -289,16 +309,29 @@ export function afterPaperGeneration(t: Teacher, outcome: PaperGenerationOutcome
   const redosLeft = Math.max(0, MAX_PAPER_REDOS - t.paperRedoCount);
   Object.assign(step.updates, { state: 'PAPER_PREVIEW', paperJson: outcome.paper, retries: 0 } satisfies TeacherUpdate);
   step.events.push({ name: EVENT.paper_preview_sent, properties: { tiers: outcome.paper.tiers.length, qcPass: outcome.qc.pass } });
-  const qcIssues = outcome.qc.pass ? [] : outcome.qc.issues;
-  for (const chunk of chunkText(buildPreviewText(outcome.paper, qcIssues), 1500)) step.actions.push(text(chunk));
+  // I3: paperShapeIssues() is a STRUCTURAL sanity check ADVISED to the QC model as repair guidance
+  // (see prompts.ts) -- it is never itself an enforcement gate. Once QC has (possibly) repaired
+  // the paper, its PRE-repair issues describe a paper we are no longer showing her; re-run the
+  // same check against the FINAL paper so only genuinely-residual problems ever surface.
+  const residual = outcome.qc.fixedPaper ? paperShapeIssues(outcome.paper) : (outcome.qc.pass ? [] : outcome.qc.issues);
+  for (const chunk of chunkText(buildPreviewText(outcome.paper, residual), 1500)) step.actions.push(text(chunk));
   step.actions.push(text(copy.previewMenu(redosLeft)));
   return step;
 }
 
-export function afterPaperRender(t: Teacher, docxUrl: string, _now: Date): Step {
+export function afterPaperRender(t: Teacher, docxUrl: string, now: Date): Step {
+  const updates: Step['updates'] = { state: 'PAPER_IMPACT', retries: 0 };
+  const events: Step['events'] = [{ name: EVENT.paper_exported, properties: { docxUrl } }];
+  // Funnel decision: PRD §18.10 treats an exported paper as an activation event exactly like a
+  // worksheet -- mirrors afterGeneration's first-success guard (machine.ts) so a paper-only
+  // teacher is not undercounted as never-activated in the §14 funnel measurement.
+  if (!t.activatedAt) {
+    updates.activatedAt = now;
+    events.push({ name: EVENT.activated, properties: { via: 'paper' } });
+  }
   return {
-    updates: { state: 'PAPER_IMPACT', retries: 0 },
-    events: [{ name: EVENT.paper_exported, properties: { docxUrl } }],
+    updates,
+    events,
     actions: [
       text(copy.paperDeliveredIntro(t.paperJson?.title ?? 'your paper')), // WhatsApp cannot set a document filename — name it here
       { type: 'send_document', url: docxUrl },

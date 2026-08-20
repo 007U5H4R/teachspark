@@ -32,7 +32,7 @@ export const PAPER_IMPACT_OPTIONS: Option[] = [
 ];
 export const PREVIEW_OPTIONS: Option[] = [
   { id: 'file', label: '📄 Get the Word file', aliases: ['file', 'word', 'send', 'get', 'ok', 'yes'] },
-  { id: 'redo', label: '🔁 Try a fresh version', aliases: ['redo', 'again', 'fresh', 'retry'] },
+  { id: 'redo', label: '🔁 Try a fresh version', aliases: ['redo', 'fresh', 'retry'] }, // NOT 'again' -- parseCommand maps it to the global 'new' command, checked before this menu ever runs, so it was dead and misrouted her into the worksheet flow
   { id: 'harder', label: '📈 Make it harder', aliases: ['harder', 'tougher'] },
   { id: 'easier', label: '📉 Make it easier', aliases: ['easier', 'simpler'] },
 ];

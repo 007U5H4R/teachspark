@@ -1,4 +1,4 @@
-import { renderMenu } from '../parse.js';
+import { renderMenu, type TopicRejection } from '../parse.js';
 // options.ts (not wizard.ts) so copy ↔ wizard never form an import cycle
 import { PAPER_IMPACT_OPTIONS, PAPER_KEY_OPTIONS, PAPER_TIER_OPTIONS, PAPER_TYPE_OPTIONS, PREVIEW_OPTIONS } from './options.js';
 
@@ -13,6 +13,20 @@ export function askLanguage(): string {
 
 export function askChapter(language: string): string {
   return `Great — a ${language} paper. Which chapter, poem or prose piece is it on? (e.g. "टोपी शुक्ला" or "The Fun They Had")`;
+}
+
+// M3: mirrors messages.ts's topicRejected(reason, skill) -- explains WHY instead of one generic
+// re-ask for every rejection reason.
+export function askChapterRejected(reason: TopicRejection, language: string): string {
+  switch (reason) {
+    case 'pii':
+      return `Please don't share student names, phone numbers or emails — I only need the chapter name 🙂 Which chapter, poem or prose piece? (e.g. "टोपी शुक्ला" or "The Fun They Had")`;
+    case 'too_long':
+      return 'That is a bit long — give me the chapter name in under 200 characters.';
+    case 'ack':
+    case 'too_short':
+      return `Just tell me which chapter, poem or prose piece this ${language} paper is on (e.g. "टोपी शुक्ला" or "The Fun They Had").`;
+  }
 }
 
 export function askMedia(max: number): string {
@@ -113,6 +127,12 @@ export function paperShareCta(joinLink: string): string {
 
 export function paperFailed(): string {
   return `😔 Sorry — that paper didn't come together. Type *PAPER* to try again (fewer pages sometimes helps).`;
+}
+
+// I1: a REDO's regeneration failed, but she already has the paper she started with -- unlike
+// paperFailed(), this must NOT tell her to type PAPER (that resets paperJson and discards it).
+export function paperRedoFailed(): string {
+  return `😕 Couldn't make a new version this time — here's the one you already had.`;
 }
 
 export function paperRefused(): string {
