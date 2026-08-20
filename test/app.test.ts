@@ -1,8 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import request from 'supertest';
+import twilio from 'twilio'; // CJS: default import + destructure (matches src/adapters/twilio.ts, src/http/app.ts)
 import { createApp, WEBHOOK_PATH, STATUS_PATH, type AppDeps } from '../src/http/app.js';
 import { FixedClock, InMemoryEventLog, InMemoryTeacherRepo } from '../src/adapters/memory.js';
 import type { InboundMessage } from '../src/domain/types.js';
+
+const { getExpectedTwilioSignature } = twilio;
 
 function makeDeps(over: Partial<AppDeps> = {}): { deps: AppDeps; inbound: InboundMessage[] } {
   const inbound: InboundMessage[] = [];
@@ -33,6 +36,38 @@ describe('POST /webhooks/twilio/whatsapp', () => {
     const { deps } = makeDeps({ handleInbound: async () => { throw new Error('boom'); } });
     const res = await request(createApp(deps)).post(WEBHOOK_PATH).type('form').send(form);
     expect(res.status).toBe(200);
+  });
+});
+
+describe('POST /webhooks/twilio/whatsapp — signature validation', () => {
+  const PUBLIC_BASE_URL = 'https://x.test';
+  const CONFIG_TOKEN = 'config-token-correct';
+  const url = `${PUBLIC_BASE_URL}${WEBHOOK_PATH}`;
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('validates using config.TWILIO_AUTH_TOKEN, not process.env.TWILIO_AUTH_TOKEN', async () => {
+    // Ambient env deliberately WRONG: if the middleware silently fell back to it (the bug this
+    // pins), a signature computed with the correct config token would then mismatch -> 403.
+    vi.stubEnv('TWILIO_AUTH_TOKEN', 'wrong-ambient-token-must-be-ignored');
+    const { deps } = makeDeps({
+      config: { TWILIO_AUTH_TOKEN: CONFIG_TOKEN, TWILIO_VALIDATE_SIGNATURE: true, PUBLIC_BASE_URL, ADMIN_TOKEN: 'admin-secret', CRON_SECRET: 'cron-secret' },
+    });
+    const signature = getExpectedTwilioSignature(CONFIG_TOKEN, url, form);
+    const res = await request(createApp(deps)).post(WEBHOOK_PATH).set('X-Twilio-Signature', signature).type('form').send(form);
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('<Response/>');
+  });
+
+  it('rejects a bogus signature with 403 when validation is on', async () => {
+    vi.stubEnv('TWILIO_AUTH_TOKEN', CONFIG_TOKEN); // ambient present but must not matter either way
+    const { deps } = makeDeps({
+      config: { TWILIO_AUTH_TOKEN: CONFIG_TOKEN, TWILIO_VALIDATE_SIGNATURE: true, PUBLIC_BASE_URL, ADMIN_TOKEN: 'admin-secret', CRON_SECRET: 'cron-secret' },
+    });
+    const res = await request(createApp(deps)).post(WEBHOOK_PATH).set('X-Twilio-Signature', 'bogus-signature').type('form').send(form);
+    expect(res.status).toBe(403);
   });
 });
 

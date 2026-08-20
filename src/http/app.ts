@@ -46,9 +46,8 @@ export function createApp(deps: AppDeps): express.Express {
 
   app.post(
     WEBHOOK_PATH,
-    twilioWebhook({
+    twilioWebhook(config.TWILIO_AUTH_TOKEN, {
       validate: config.TWILIO_VALIDATE_SIGNATURE,
-      authToken: config.TWILIO_AUTH_TOKEN,
       url: `${config.PUBLIC_BASE_URL}${WEBHOOK_PATH}`,
     }),
     (req: Request, res: Response) => {
