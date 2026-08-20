@@ -104,6 +104,64 @@ describe('render_paper pipeline', () => {
     expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.paper_exported);
     expect((deps.papers as InMemoryPapersRepo).saved).toHaveLength(0); // the row itself is the documented gap
   });
+
+  it('an events.log hiccup ONLY on paper_exported does not cancel delivery of an already-rendered paper', async () => {
+    const deps = makeDeps();
+    const t = await makeTeacher(deps, { state: 'PAPER_PREVIEW', paperJson: samplePaperJson() });
+    const realLog = (deps.events as InMemoryEventLog).log.bind(deps.events);
+    (deps.events as InMemoryEventLog).log = async (teacherId, event, at) => {
+      if (event.name === EVENT.paper_exported) throw new Error('events table down');
+      return realLog(teacherId, event, at);
+    };
+    const updated = await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'render_paper' }] });
+    const kinds = (deps.messenger as FakeMessenger).sent.map((s) => s.kind);
+    expect(kinds).toEqual(['text', 'document', 'text']); // the docx still went out despite the log failure
+    expect(updated.state).toBe('PAPER_IMPACT'); // the state update itself succeeded in this sub-case
+  });
+
+  it('a teachers.update hiccup on the delivery transition does not cancel delivery either', async () => {
+    const deps = makeDeps();
+    const t = await makeTeacher(deps, { state: 'PAPER_PREVIEW', paperJson: samplePaperJson() });
+    deps.teachers.update = async () => { throw new Error('db down'); };
+    const updated = await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'render_paper' }] });
+    const kinds = (deps.messenger as FakeMessenger).sent.map((s) => s.kind);
+    expect(kinds).toEqual(['text', 'document', 'text']); // the docx still went out despite the update failure
+    expect(updated.state).not.toBe('IDLE'); // not stranded with an apology
+  });
+
+  it('a docx upload failure leaves her in PAPER_PREVIEW with the paper intact, retryable once the store recovers', async () => {
+    const deps = makeDeps();
+    (deps.paperStore as FakePaperStore).failWith = new Error('supabase storage 503');
+    const t = await makeTeacher(deps, { state: 'PAPER_PREVIEW', paperJson: samplePaperJson() });
+    const updated = await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'render_paper' }] });
+
+    expect(updated.state).toBe('PAPER_PREVIEW'); // not stranded in IDLE (QA-6 F1)
+    expect(updated.paperJson).not.toBeNull(); // the paper she already generated is preserved
+    expect(updated.paperRedoCount).toBe(0); // the retry loop does not consume redo budget
+    expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.error_occurred);
+    expect((deps.messenger as FakeMessenger).texts().length).toBeGreaterThan(0); // an intelligible retry message
+    expect((deps.messenger as FakeMessenger).sent.some((s) => s.kind === 'document')).toBe(false);
+
+    // she recovers: the store comes back, and a subsequent "get the file" attempt succeeds
+    (deps.paperStore as FakePaperStore).failWith = null;
+    const retried = await new Executor(deps).runStep(updated, { updates: {}, events: [], actions: [{ type: 'render_paper' }] });
+    expect(retried.state).toBe('PAPER_IMPACT');
+    expect(retried.paperRedoCount).toBe(0);
+    expect((deps.messenger as FakeMessenger).sent.filter((s) => s.kind === 'document')).toHaveLength(1);
+    expect((deps.papers as InMemoryPapersRepo).saved).toHaveLength(1);
+  });
+
+  it('a docx BUILD failure (not just upload) also degrades to a retryable PAPER_PREVIEW, not IDLE', async () => {
+    const deps = makeDeps();
+    (deps.docBuilder as FakeDocBuilder).failWith = new Error('docx template render error');
+    const t = await makeTeacher(deps, { state: 'PAPER_PREVIEW', paperJson: samplePaperJson() });
+    const updated = await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'render_paper' }] });
+
+    expect(updated.state).toBe('PAPER_PREVIEW');
+    expect(updated.paperJson).not.toBeNull();
+    expect((deps.paperStore as FakePaperStore).storedDocs).toHaveLength(0); // never reached upload
+    expect((deps.messenger as FakeMessenger).sent.some((s) => s.kind === 'document')).toBe(false);
+  });
 });
 
 describe('store_logo action', () => {

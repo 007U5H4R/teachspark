@@ -6,11 +6,10 @@ import type {
   PaperGenInput, PaperGenerator, PapersRepo, PaperStore, PdfBuilder, PdfStore, TeacherRepo,
 } from '../ports.js';
 import { afterGeneration, profileOf } from './machine.js';
-import { afterPaperGeneration, afterPaperRender } from './paper/wizard.js';
+import { afterPaperGeneration, afterPaperRender, afterPaperRenderFailure } from './paper/wizard.js';
 import { splitIntoSections } from './postprocess.js';
 import { SKILLS } from './skills.js';
 import * as msg from './messages.js';
-import * as paperCopy from './paper/copy.js';
 
 export interface ExecutorDeps {
   teachers: TeacherRepo;
@@ -210,6 +209,10 @@ export class Executor {
       await d.messenger.sendText(teacher.waFrom, msg.somethingWentWrong());
       return d.teachers.update(teacher.id, { state: 'IDLE' });
     }
+
+    // The outer try covers ONLY build + upload -- the operations that can genuinely fail. Once
+    // docxUrl is a live, already-persisted URL, nothing below may cancel delivery of it.
+    let docxUrl: string;
     try {
       let logo: FetchedMedia | null = null;
       if (teacher.schoolLogoUrl) {
@@ -221,26 +224,54 @@ export class Executor {
         }
       }
       const docx = await d.docBuilder.buildPaperDocx(paper, { schoolName: teacher.schoolName, logo }, request.teacherVersion);
-      const docxUrl = await d.paperStore.storePaperDocx(teacher.id, docx);
-      try {
-        // OWN try/catch, mirroring runGeneration's generations.save isolation (Task 13 fix): the
-        // docx is already built AND uploaded at this point (docxUrl is a live, public URL) -- a
-        // papers-table blip must not discard a paper the teacher already paid for and waited
-        // minutes for. Console-only on failure; delivery still proceeds below.
-        await d.papers.save({
-          teacherId: teacher.id, request, docxUrl,
-          totalMarks: paper.tiers.reduce((s, t) => s + t.totalMarks, 0),
-          redoCount: teacher.paperRedoCount, pageCount: request.media.length, at: d.clock.now(),
-        });
-      } catch (saveErr) {
-        console.error('[executor] papers.save failed', saveErr);
-      }
-      return this.runStep(teacher, afterPaperRender(teacher, docxUrl, d.clock.now()));
+      docxUrl = await d.paperStore.storePaperDocx(teacher.id, docx);
     } catch (err) {
+      // She already HAS a generated paper (paperJson is untouched) -- route back to PAPER_PREVIEW,
+      // not IDLE, via afterPaperRenderFailure so "1) Get the Word file" stays retryable instead of
+      // discarding the 2-4 minutes and paid model call a lost-in-IDLE paperJson would waste (QA-6 F1).
       console.error('[executor] paper render failed', err);
       await d.events.log(teacher.id, { name: EVENT.error_occurred, properties: { where: 'render_paper', message: err instanceof Error ? err.message : String(err) } }, d.clock.now());
-      await d.messenger.sendText(teacher.waFrom, paperCopy.paperFailed());
-      return d.teachers.update(teacher.id, { state: 'IDLE' });
+      return this.runStep(teacher, afterPaperRenderFailure(teacher, d.clock.now()));
     }
+
+    try {
+      // OWN try/catch, mirroring runGeneration's generations.save isolation (Task 13 fix): the
+      // docx is already built AND uploaded at this point (docxUrl is a live, public URL) -- a
+      // papers-table blip must not discard a paper the teacher already paid for and waited
+      // minutes for. Console-only on failure; delivery still proceeds below.
+      await d.papers.save({
+        teacherId: teacher.id, request, docxUrl,
+        totalMarks: paper.tiers.reduce((s, t) => s + t.totalMarks, 0),
+        redoCount: teacher.paperRedoCount, pageCount: request.media.length, at: d.clock.now(),
+      });
+    } catch (saveErr) {
+      console.error('[executor] papers.save failed', saveErr);
+    }
+
+    // Deliberately NOT a plain `return this.runStep(teacher, afterPaperRender(...))`: runStep's
+    // own d.teachers.update / d.events.log calls run BEFORE its actions loop and are unguarded
+    // there, so an unrelated telemetry hiccup at exactly this point would otherwise skip the
+    // send_document entirely even though docxUrl already exists and is already publicly stored.
+    // Isolate the bookkeeping (mirroring the papers.save pattern just above) so a hiccup in either
+    // is console-only, and the delivery actions (text -> document -> text) always run once we hold
+    // a valid docxUrl.
+    const followUp = afterPaperRender(teacher, docxUrl, d.clock.now());
+    let current = teacher;
+    try {
+      current = Object.keys(followUp.updates).length > 0 ? await d.teachers.update(teacher.id, followUp.updates) : teacher;
+    } catch (err) {
+      console.error('[executor] paper delivery state update failed — delivering the file anyway', err);
+    }
+    for (const e of followUp.events) {
+      try {
+        await d.events.log(current.id, e, d.clock.now());
+      } catch (err) {
+        console.error('[executor] paper delivery event log failed — delivering the file anyway', err);
+      }
+    }
+    for (const action of followUp.actions) {
+      current = await this.runAction(current, action);
+    }
+    return current;
   }
 }

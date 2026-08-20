@@ -252,7 +252,9 @@ export class FakePaperGenerator implements PaperGenerator {
 
 export class FakeDocBuilder implements DocBuilder {
   builds: Array<{ paper: PaperJson; branding: PaperBranding; teacherVersion: boolean }> = [];
+  failWith: Error | null = null;
   async buildPaperDocx(paper: PaperJson, branding: PaperBranding, teacherVersion: boolean): Promise<Buffer> {
+    if (this.failWith) throw this.failWith;
     this.builds.push({ paper, branding, teacherVersion });
     return Buffer.from(`PK-fake-docx:${paper.title}`);
   }

@@ -12,6 +12,7 @@ import {
   PAPER_STALE_MS, PAPER_TIER_OPTIONS, PAPER_TYPE_OPTIONS, PREVIEW_OPTIONS,
 } from './options.js';
 import * as copy from './copy.js';
+import * as msg from '../messages.js';
 
 export * from './options.js'; // tests and machine.ts import everything via wizard.js
 
@@ -303,6 +304,24 @@ export function afterPaperRender(t: Teacher, docxUrl: string, _now: Date): Step 
       { type: 'send_document', url: docxUrl },
       text(copy.paperImpactQuestion()),
     ],
+  };
+}
+
+/**
+ * A render/upload failure (Storage down, docx build error, etc.) is NOT a generation failure --
+ * she already HAS a fully generated paper (paperJson is left untouched by this step). Sending her
+ * to IDLE would make that paper unreachable: typing PAPER resets paperJson via startPaperWizard's
+ * fresh request, discarding the 2-4 minutes and the paid model call she already spent (QA-6 F1).
+ * So this routes back to PAPER_PREVIEW instead -- the SAME menu she saw right after generation,
+ * which already offers "1) Get the Word file" as a retryable option. No new state, no new copy:
+ * this reuses the existing preview menu, which already IS the "try that again" path.
+ */
+export function afterPaperRenderFailure(t: Teacher, _now: Date): Step {
+  const redosLeft = Math.max(0, MAX_PAPER_REDOS - t.paperRedoCount);
+  return {
+    updates: { state: 'PAPER_PREVIEW', retries: 0 }, // paperJson/paperRequest/paperRedoCount untouched — she keeps the paper she already has
+    events: [],
+    actions: [text(msg.somethingWentWrong()), text(copy.previewMenu(redosLeft))],
   };
 }
 

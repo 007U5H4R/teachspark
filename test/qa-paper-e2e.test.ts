@@ -524,7 +524,7 @@ describe('QA Case 3 — failure injection: every paper edge degrades gracefully'
     expect((await h.teacher()).state).toBe('PAPER_SUBJECT');
   });
 
-  it('(c) docx upload fails: no crash, error_occurred logged, and she is told — not left silently empty-handed', async () => {
+  it('(c) docx upload fails: no crash, error_occurred logged, and she keeps her paper to retry — not left empty-handed', async () => {
     const h = harness();
     await toPreview(h);
     expect((await h.teacher()).state).toBe('PAPER_PREVIEW');
@@ -541,15 +541,24 @@ describe('QA Case 3 — failure injection: every paper edge degrades gracefully'
     expect(h.papers.saved).toEqual([]); // the row is only written after a successful upload
     expect(h.docBuilder.builds).toHaveLength(1); // the docx was built; only the upload failed
     const texts = h.messenger.texts();
-    expect(texts.at(-1)).toContain("that paper didn't come together"); // she gets an explicit apology
+    expect(texts.at(-1)).toContain('Get the Word file'); // an intelligible retry message, not a dead-end apology
     expect(texts.some((t) => t.includes('TIER A'))).toBe(true); // and still holds the preview she was sent
     expect(texts.filter((t) => t.length > MAX_CHUNK)).toEqual([]);
 
-    // terminal state is IDLE and she can start a fresh paper
-    expect((await h.teacher()).state).toBe('IDLE');
+    // she is NOT stranded (QA-6 F1): still at PAPER_PREVIEW with her already-generated paper
+    // intact, so "1) Get the Word file" is retryable once Storage recovers — a transient upload
+    // failure must never cost her the 2-3 minutes (and the paid generation) she already spent.
+    const stranded = await h.teacher();
+    expect(stranded.state).toBe('PAPER_PREVIEW');
+    expect(stranded.paperJson).not.toBeNull();
+    expect(stranded.paperRedoCount).toBe(0); // the retry did not consume redo budget
+
     h.paperStore.failWith = null;
-    await h.post('paper');
-    expect((await h.teacher()).state).toBe('PAPER_SUBJECT');
+    const retry = await h.post('1'); // the SAME "get the file" request, now that Storage is back
+    expect(retry.status).toBe(200);
+    expect((await h.teacher()).state).toBe('PAPER_IMPACT');
+    expect(h.documents()).toHaveLength(1);
+    expect(h.papers.saved).toHaveLength(1);
   });
 
   it('(d) the redo cap is enforced — she cannot loop forever', async () => {
