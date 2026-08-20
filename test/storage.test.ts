@@ -2,11 +2,17 @@ import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabasePdfStore, ensurePublicBucket } from '../src/adapters/storage.js';
 
-function fakeSb(uploadResult: { data: { path: string } | null; error: { message: string } | null }) {
+function fakeSb(
+  uploadResult: { data: { path: string } | null; error: { message: string } | null },
+  bucketResult: {
+    getBucket?: { data: { name: string } | null; error: { message: string } | null };
+    createBucket?: { data: { name: string } | null; error: { message: string } | null };
+  } = {},
+) {
   const upload = vi.fn().mockResolvedValue(uploadResult);
   const getPublicUrl = vi.fn((p: string) => ({ data: { publicUrl: `https://abc.supabase.co/storage/v1/object/public/worksheets/${p}` } }));
-  const getBucket = vi.fn().mockResolvedValue({ data: null, error: null });
-  const createBucket = vi.fn().mockResolvedValue({ data: { name: 'worksheets' }, error: null });
+  const getBucket = vi.fn().mockResolvedValue(bucketResult.getBucket ?? { data: null, error: null });
+  const createBucket = vi.fn().mockResolvedValue(bucketResult.createBucket ?? { data: { name: 'worksheets' }, error: null });
   const sb = { storage: { from: () => ({ upload, getPublicUrl }), getBucket, createBucket } } as unknown as SupabaseClient;
   return { sb, upload, getPublicUrl, getBucket, createBucket };
 }
@@ -32,5 +38,18 @@ describe('ensurePublicBucket', () => {
     const { sb, createBucket } = fakeSb({ data: null, error: null });
     await ensurePublicBucket(sb, 'worksheets');
     expect(createBucket).toHaveBeenCalledWith('worksheets', expect.objectContaining({ public: true, allowedMimeTypes: ['application/pdf'] }));
+  });
+  it('does nothing when the bucket already exists (steady-state path)', async () => {
+    const { sb, createBucket } = fakeSb({ data: null, error: null }, { getBucket: { data: { name: 'worksheets' }, error: null } });
+    await ensurePublicBucket(sb, 'worksheets');
+    expect(createBucket).not.toHaveBeenCalled();
+  });
+  it('tolerates a concurrent-creation race (already-exists error) without throwing', async () => {
+    const { sb } = fakeSb({ data: null, error: null }, { createBucket: { data: null, error: { message: 'The resource already exists' } } });
+    await expect(ensurePublicBucket(sb, 'worksheets')).resolves.toBeUndefined();
+  });
+  it('still throws on a real createBucket error', async () => {
+    const { sb } = fakeSb({ data: null, error: null }, { createBucket: { data: null, error: { message: 'permission denied' } } });
+    await expect(ensurePublicBucket(sb, 'worksheets')).rejects.toThrow(/permission denied/);
   });
 });
