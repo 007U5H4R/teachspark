@@ -28,23 +28,36 @@ export function answerLineCount(q: PaperQuestion): number {
 
 const RULE = '_'.repeat(88);
 
+/** image-size dispatches on magic bytes, so a mislabeled ICNS/JXL/HEIF can reach its
+ *  DoS-prone parsers (GHSA-w3rx-r6r6-pgpr, no upstream fix). Only ever hand it JPEG or PNG. */
+function logoKind(buf: Buffer): 'jpg' | 'png' | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47
+      && buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a) return 'png';
+  return null;
+}
+
 function headerBlock(paper: PaperJson, branding: PaperBranding): (Paragraph | Table)[] {
   const cells: TableCell[] = [];
-  if (branding.logo) {
-    const dims = imageSize(branding.logo.data);
-    const type = dims.type === 'png' ? 'png' : 'jpg'; // image-size returns 'jpg' — matches ImageRun's union ('jpeg' is invalid)
+  const kind = branding.logo ? logoKind(branding.logo.data) : null;
+  if (branding.logo && kind) {
+    const logo = branding.logo;
+    const dims = imageSize(logo.data); // bytes are byte-verified JPEG/PNG at this point — safe; used only for the width/height ratio
     const h = 56;
     const w = Math.round((dims.width && dims.height ? dims.width / dims.height : 1) * h);
     cells.push(new TableCell({
       width: { size: 1600, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER,
-      children: [new Paragraph({ children: [new ImageRun({ type, data: branding.logo.data, transformation: { width: Math.min(w, 140), height: h } })] })],
+      children: [new Paragraph({ children: [new ImageRun({ type: kind, data: logo.data, transformation: { width: Math.min(w, 140), height: h } })] })],
     }));
+  } else if (branding.logo) {
+    console.warn('docx: school logo bytes are not JPEG/PNG (magic-byte check failed) — rendering without a logo');
   }
+  const hasLogo = Boolean(branding.logo && kind);
   cells.push(new TableCell({
-    width: { size: branding.logo ? TWIPS_FULL - 1600 : TWIPS_FULL, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER,
+    width: { size: hasLogo ? TWIPS_FULL - 1600 : TWIPS_FULL, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER,
     children: [
-      new Paragraph({ alignment: branding.logo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(branding.schoolName ?? 'TeachSpark', { bold: true, size: 30 })] }),
-      new Paragraph({ alignment: branding.logo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(`${paper.subjectLabel} · ${paper.assessmentLabel}`, { size: 20, color: '555555' })] }),
+      new Paragraph({ alignment: hasLogo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(branding.schoolName ?? 'TeachSpark', { bold: true, size: 30 })] }),
+      new Paragraph({ alignment: hasLogo ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(`${paper.subjectLabel} · ${paper.assessmentLabel}`, { size: 20, color: '555555' })] }),
     ],
   }));
   const headerTable = new Table({

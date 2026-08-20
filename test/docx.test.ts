@@ -13,6 +13,18 @@ function docXml(buf: Buffer): string {
   writeFileSync(f, buf);
   return execFileSync('unzip', ['-p', f, 'word/document.xml'], { maxBuffer: 64 * 1024 * 1024 }).toString();
 }
+function zipList(buf: Buffer): string {
+  const dir = mkdtempSync(join(tmpdir(), 'docx-'));
+  const f = join(dir, 'p.docx');
+  writeFileSync(f, buf);
+  return execFileSync('unzip', ['-l', f], { maxBuffer: 64 * 1024 * 1024 }).toString();
+}
+
+// Genuine 1x1 JPEG (produced via macOS `sips` from the 1x1 PNG below — real magic bytes ff d8 ff,
+// confirmed parseable by the installed image-size before use here) and the pre-existing 1x1 PNG fixture.
+const JPEG_1PX =
+  '/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/8AAEQgAAQABAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/bAEMAAgICAgICAwICAwUDAwMFBgUFBQUGCAYGBgYGCAoICAgICAgKCgoKCgoKCgwMDAwMDA4ODg4ODw8PDw8PDw8PD//bAEMBAgICBAQEBwQEBxALCQsQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEP/dAAQAAf/aAAwDAQACEQMRAD8A7iiiiv8AQA+XP//Z';
+const PNG_1PX = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 describe('optionPrefixes / answerLineCount', () => {
   it('uses Devanagari letters for Hindi and latin otherwise', () => {
@@ -55,5 +67,31 @@ describe('DocxPaperBuilder', () => {
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
     const buf = await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: 'X', logo: { data: png, contentType: 'image/png' } }, false);
     expect(buf.subarray(0, 2).toString()).toBe('PK');
+  });
+
+  // GHSA-w3rx-r6r6-pgpr / GHSA-5p2g-fcmc-qvqq: image-size's ICNS/JXL/HEIF parsers can infinite-loop on
+  // crafted input, and image-size dispatches on magic bytes, not the declared content-type. A school
+  // logo arrives over WhatsApp; the content-type allowlist alone doesn't stop mislabeled bytes from
+  // reaching those parsers. docx.ts must byte-verify JPEG/PNG before ever calling imageSize().
+  it.skipIf(!hasUnzip)('renders WITH a logo when given genuine JPEG magic bytes', async () => {
+    const jpg = Buffer.from(JPEG_1PX, 'base64');
+    const buf = await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: 'X', logo: { data: jpg, contentType: 'image/jpeg' } }, false);
+    expect(buf.subarray(0, 2).toString()).toBe('PK');
+    expect(zipList(buf)).toContain('word/media/');
+  });
+  it.skipIf(!hasUnzip)('renders WITH a logo when given genuine PNG magic bytes', async () => {
+    const png = Buffer.from(PNG_1PX, 'base64');
+    const buf = await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: 'X', logo: { data: png, contentType: 'image/png' } }, false);
+    expect(buf.subarray(0, 2).toString()).toBe('PK');
+    expect(zipList(buf)).toContain('word/media/');
+  });
+  it('renders WITHOUT a logo, and never throws, when the bytes are mislabeled/not JPEG or PNG', async () => {
+    // ICNS magic bytes — pre-mitigation this reached image-size's DoS-prone ICNS parser and got
+    // embedded as a mislabeled "jpg" anyway; this test pins that it is now skipped instead.
+    const junk = Buffer.from('icns' + 'x'.repeat(64));
+    const buf = await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: 'X', logo: { data: junk, contentType: 'image/png' } }, false);
+    expect(buf.subarray(0, 2).toString()).toBe('PK');
+    expect(buf.length).toBeGreaterThan(4000);
+    if (hasUnzip) expect(zipList(buf)).not.toContain('word/media/');
   });
 });
