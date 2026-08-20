@@ -162,4 +162,36 @@ describe('createInboundHandler', () => {
     expect(texts.every((b) => b.includes('20 more seconds'))).toBe(true);
     expect((await deps.teachers.findByWaFrom('whatsapp:+911'))?.state).toBe('GENERATING');
   });
+
+  it('I2 constraint (regression): a MEDIA message during a CORE worksheet generation is still bounced immediately, never queued', async () => {
+    // Coordinator's post-review finding: a teacher who never types PAPER and happens to send a
+    // photo while her worksheet is generating must NOT take the queue path -- queueing is scoped
+    // to paper states only. Without that scoping, the media message above gets queued instead of
+    // bounced: no immediate stillWorking() reply, and once the winner's generation lands (moving
+    // her to AWAITING_IMPACT) the queued message is processed there instead, producing a spurious
+    // unrecognized_input + a bumped retries count -- burning one of her two free menu retries on a
+    // photo she may not have even meant to send during this window.
+    const deps = makeDeps();
+    const handle = createInboundHandler(deps);
+    await handle(msg('hi'));
+    const t = await deps.teachers.findByWaFrom('whatsapp:+911');
+    await deps.teachers.update(t!.id, { state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x', lastInboundAt: NOW });
+    const before = (deps.messenger as FakeMessenger).texts().length; // 1 (the welcome from "hi")
+    const withMedia: InboundMessage = { ...msg(''), media: [{ url: 'https://api.twilio.com/m/PX', contentType: 'image/jpeg' }] };
+    await Promise.all([handle(msg('are you there?')), handle(withMedia)]);
+
+    // exactly one call hit the in-flight guard (the media-carrying one, if it lost the race, must
+    // be bounced too -- not queued); the other was processed for real by GENERATING's own case.
+    const inFlightLogs = (deps.events as InMemoryEventLog).rows.filter(
+      (r) => r.name === EVENT.still_working_sent && r.properties.reason === 'in_flight',
+    );
+    expect(inFlightLogs).toHaveLength(1);
+    const texts = (deps.messenger as FakeMessenger).texts().slice(before);
+    expect(texts).toHaveLength(2);
+    expect(texts.every((b) => b.includes('20 more seconds'))).toBe(true);
+    expect((deps.events as InMemoryEventLog).names()).not.toContain(EVENT.unrecognized_input);
+    const after = await deps.teachers.findByWaFrom('whatsapp:+911');
+    expect(after?.state).toBe('GENERATING'); // never advanced via a queued-then-misrouted message
+    expect(after?.retries).toBe(0); // no free retry burned
+  });
 });

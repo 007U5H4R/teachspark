@@ -43,7 +43,7 @@ export interface Teacher {
   pendingTopic: string | null;
   skillsCompleted: SkillId[];
   retries: number; // unrecognized answers in the current menu state
-  activatedAt: Date | null; // first worksheet delivered
+  activatedAt: Date | null; // first worksheet delivered, or first paper exported (afterPaperRender)
   lastInboundAt: Date | null;
   nudgeDueAt: Date | null;
   nudgeSentAt: Date | null;

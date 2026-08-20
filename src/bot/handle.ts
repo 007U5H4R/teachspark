@@ -17,12 +17,16 @@ export function createInboundHandler(deps: ExecutorDeps): (message: InboundMessa
   // no cross-instance coordination is needed.
   //
   // I2: WhatsApp "send N photos" arrives as N independent webhook POSTs, so a naive "reject while
-  // busy" guard (the original behaviour, still used for text-only messages below) silently DROPS
-  // alternate photos -- media never recorded, no warning, a paper grounded in half the chapter. A
-  // message CARRYING MEDIA instead chains onto whatever is already in flight for that teacher and
-  // is processed once its turn comes, instead of being discarded. Text-only messages are still
-  // bounced immediately and are NEVER queued -- the core loop's double-text behaviour (a teacher
-  // pinging mid-generation gets stillWorking() and nothing more happens) is unchanged.
+  // busy" guard (the original behaviour, still used for text-only messages and the core loop
+  // below) silently DROPS alternate photos -- media never recorded, no warning, a paper grounded
+  // in half the chapter. A message CARRYING MEDIA WHILE SHE IS IN A PAPER STATE instead chains
+  // onto whatever is already in flight for that teacher and is processed once its turn comes,
+  // instead of being discarded. Deliberately scoped to paper states: a teacher who never typed
+  // PAPER and happens to send a photo while her CORE worksheet is generating must still get the
+  // immediate stillWorking() bounce and must NOT be queued -- the core loop's double-text
+  // behaviour is unchanged for every non-paper state, media or not (post-review fix: the original
+  // `message.media.length > 0` check alone queued that case too, which is exactly the scenario
+  // this isPaperState(t.state) guard closes).
   const inFlight = new Map<string, Promise<void>>();
 
   async function processOne(teacher: Teacher, message: InboundMessage): Promise<void> {
@@ -46,7 +50,7 @@ export function createInboundHandler(deps: ExecutorDeps): (message: InboundMessa
       // single-threaded; nothing can interleave between two synchronous statements).
       const running = inFlight.get(t.id);
       if (running) {
-        if (message.media.length > 0) {
+        if (message.media.length > 0 && isPaperState(t.state)) {
           // Re-fetch right before this actually runs, NOT the `t` snapshot captured above: by the
           // time the promise we are chaining onto has settled, an earlier queued photo may have
           // already updated paperRequest.media, and paperTransition computes a whole replacement
