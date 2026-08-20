@@ -93,7 +93,20 @@ describe('commands', () => {
     const s = run(onboarded({ state: 'AWAITING_TOPIC' }), 'help');
     expect(texts(s)).toEqual([m.help()]);
     expect(s.updates.state).toBeUndefined();
+    expect(s.updates.lastInboundAt).toEqual(NOW);
     expect(names(s)).toContain(EVENT.help_requested);
+  });
+  it('help during GENERATING keeps the generation clock anchored, so the stale escape stays reachable', () => {
+    const t = onboarded({ state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x', lastInboundAt: NOW });
+    const s1 = run(t, 'help', new Date(NOW.getTime() + 90_000));
+    expect(texts(s1)).toEqual([m.help()]);
+    expect(s1.updates.state).toBeUndefined();
+    expect(s1.updates.lastInboundAt).toBeUndefined();
+    const t2 = apply(t, s1);
+    expect(t2.lastInboundAt).toEqual(NOW);
+    const s2 = run(t2, 'hello?', new Date(NOW.getTime() + 130_000));
+    expect(s2.updates.state).toBe('AWAITING_TOPIC');
+    expect(s2.events.find((e) => e.name === EVENT.generation_failed)?.properties).toMatchObject({ reason: 'stale' });
   });
   it('restart clears the profile and restarts onboarding', () => {
     const s = run(onboarded({ state: 'IDLE', skillsCompleted: ['worksheet'] }), 'restart');
