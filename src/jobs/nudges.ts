@@ -4,9 +4,27 @@ import { buildNudgeStep } from '../bot/machine.js';
 import { hasNextSkill } from '../bot/skills.js';
 import { EVENT } from '../domain/events.js';
 
-export function createNudgePass(deps: ExecutorDeps): () => Promise<number> {
+/**
+ * Callable exactly like `() => Promise<number>` (one sweep; returns #sent), plus `whenIdle()` so a
+ * caller (shutdown) can drain an in-flight sweep without changing the call-site type -- `AppDeps`'s
+ * `runNudgePass: () => Promise<number>` and `startNudgeCron`'s `runPass` param are untouched.
+ */
+export interface NudgePass {
+  (): Promise<number>;
+  /** Resolves once no sweep is in flight (immediately, with 0, if already idle). Never rejects. */
+  whenIdle(): Promise<number>;
+}
+
+export function createNudgePass(deps: ExecutorDeps): NudgePass {
   const executor = new Executor(deps);
-  return async function runNudgePass(): Promise<number> {
+  // Closure-scoped per pass instance (mirrors Task 13's per-handler `inFlight` Set) -- deliberately
+  // NOT module-level. Serializes the sweep because it is reachable from TWO uncoordinated triggers:
+  // the in-process cron AND the CRON_SECRET-gated POST /internal/cron/nudges route. node-cron's
+  // `noOverlap` only guards its own Runner and has no visibility into a direct call from Express, so
+  // without this, both could sweep the same due-list at once and double-send.
+  let running: Promise<number> | null = null;
+
+  async function sweep(): Promise<number> {
     const now = deps.clock.now();
     const due = await deps.teachers.findNudgeDue(now);
     let sent = 0;
@@ -32,7 +50,26 @@ export function createNudgePass(deps: ExecutorDeps): () => Promise<number> {
     }
     if (due.length > 0) console.log(`[nudges] due=${due.length} sent=${sent}`);
     return sent;
-  };
+  }
+
+  const runNudgePass = (async function runNudgePass(): Promise<number> {
+    if (running) {
+      console.log('[nudges] sweep already running; joining');
+      return running;
+    }
+    const p = sweep().finally(() => {
+      running = null;
+    });
+    running = p;
+    return p;
+  }) as NudgePass;
+
+  // Never rejects: a stuck OR a failing in-flight sweep must not turn shutdown's drain
+  // (`whenIdle().finally(...)`) into an unhandled rejection. Callers that want the failure signal
+  // already get it from the awaited `runNudgePass()` call itself.
+  runNudgePass.whenIdle = () => (running ?? Promise.resolve(0)).catch(() => 0);
+
+  return runNudgePass;
 }
 
 export function startNudgeCron(runPass: () => Promise<number>, cronExpr: string, timezone: string): { stop: () => void } {

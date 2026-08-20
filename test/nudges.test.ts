@@ -46,6 +46,8 @@ describe('createNudgePass', () => {
     const t = await deps.teachers.create({ waFrom: 'whatsapp:+913', waId: null, profileName: null, now: PAST });
     await deps.teachers.update(t.id, { state: 'IDLE', skillsCompleted: ['worksheet', 'quiz'], nudgeDueAt: PAST, nudgeSentAt: null });
     expect(await createNudgePass(deps)()).toBe(0);
+    const after = await deps.teachers.findByWaFrom('whatsapp:+913');
+    expect(after?.nudgeDueAt).toBeNull();
   });
   it('one failing teacher does not block the sweep', async () => {
     const deps = makeDeps();
@@ -61,5 +63,25 @@ describe('createNudgePass', () => {
     const sent = await createNudgePass(deps)();
     expect(sent).toBe(1); // b still went out
     expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.nudge_failed);
+  });
+  it('serializes concurrent invocations: a second call while one is in flight joins it, no duplicate send', async () => {
+    const deps = makeDeps();
+    const t = await deps.teachers.create({ waFrom: 'whatsapp:+916', waId: null, profileName: null, now: PAST });
+    await deps.teachers.update(t.id, { state: 'IDLE', grade: 'g', subject: 's', board: 'b', skillsCompleted: ['worksheet'], nudgeDueAt: PAST, nudgeSentAt: null });
+    const pass = createNudgePass(deps);
+    // Both calls fire before either can observe the other's in-flight state; the second must join
+    // the first's promise rather than starting a duplicate sweep over the same due-list.
+    await Promise.all([pass(), pass()]);
+    expect((deps.messenger as FakeMessenger).texts()).toHaveLength(1);
+    expect((deps.events as InMemoryEventLog).names().filter((n) => n === EVENT.nudge_sent)).toHaveLength(1);
+  });
+  it('whenIdle resolves once a sweep completes, and immediately when idle (never hangs)', async () => {
+    const deps = makeDeps();
+    const t = await deps.teachers.create({ waFrom: 'whatsapp:+917', waId: null, profileName: null, now: PAST });
+    await deps.teachers.update(t.id, { state: 'IDLE', grade: 'g', subject: 's', board: 'b', skillsCompleted: ['worksheet'], nudgeDueAt: PAST, nudgeSentAt: null });
+    const pass = createNudgePass(deps);
+    await expect(pass.whenIdle()).resolves.toBe(0); // nothing in flight yet
+    await pass();
+    await expect(pass.whenIdle()).resolves.toBe(0); // settled again after completion
   });
 });

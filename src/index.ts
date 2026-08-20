@@ -35,12 +35,17 @@ const deps: ExecutorDeps = {
 const runNudgePass = createNudgePass(deps);
 const app = createApp({ config, handleInbound: createInboundHandler(deps), runNudgePass, teachers: deps.teachers, events: deps.events, clock: deps.clock });
 
-await ensurePublicBucket(sb, config.SUPABASE_PDF_BUCKET);
-
 const server = app.listen(config.PORT, '0.0.0.0', (err?: Error) => {
   if (err) throw err;
   console.log(`teachspark listening on :${config.PORT} (${config.NODE_ENV})`);
   console.log(`join link: ${deps.joinLink}`);
+});
+
+// Non-fatal and non-blocking: /health must come up even if Supabase storage hiccups on a cold
+// start. A missing/unreachable bucket only degrades PDF delivery -- storeWorksheetPdf failing is
+// already caught in the executor (pdfUrl: null), so the worksheet TEXT still goes out either way.
+ensurePublicBucket(sb, config.SUPABASE_PDF_BUCKET).catch((err) => {
+  console.error('[boot] ensurePublicBucket failed; PDF delivery may be degraded until it succeeds', err);
 });
 
 const cronHandle = startNudgeCron(runNudgePass, config.NUDGE_CRON, config.NUDGE_TIMEZONE);
@@ -48,7 +53,10 @@ const cronHandle = startNudgeCron(runNudgePass, config.NUDGE_CRON, config.NUDGE_
 function shutdown(signal: string) {
   console.log(`received ${signal}, shutting down`);
   cronHandle.stop();
-  server.close(() => process.exit(0));
+  // Drain a sweep already mid-flight before closing the server, so a process kill can never land
+  // between a successful Twilio send and its paired nudgeSentAt write (which would double-send on
+  // restart). The 5s hard-exit below still bounds this -- a stuck sweep can't block shutdown forever.
+  void runNudgePass.whenIdle().finally(() => server.close(() => process.exit(0)));
   setTimeout(() => process.exit(0), 5000).unref();
 }
 process.once('SIGTERM', () => shutdown('SIGTERM'));
