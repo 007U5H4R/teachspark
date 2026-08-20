@@ -80,4 +80,14 @@ describe('createInboundHandler', () => {
     await expect(handle(msg('hi'))).resolves.toBeUndefined();
     expect((deps.messenger as FakeMessenger).texts().at(-1)).toContain('Something went wrong');
   });
+
+  it('in-flight guard uses the paper still-working copy during a paper flow', async () => {
+    const deps = makeDeps();
+    const handle = createInboundHandler(deps);
+    await handle(msg('hi'));
+    const t = await deps.teachers.findByWaFrom('whatsapp:+911');
+    await deps.teachers.update(t!.id, { state: 'PAPER_GENERATING' });
+    await Promise.all([handle(msg('x')), handle(msg('y'))]);
+    expect((deps.messenger as FakeMessenger).texts().some((b) => b.includes('paper'))).toBe(true);
+  });
 });

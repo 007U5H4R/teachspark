@@ -36,6 +36,15 @@ describe('createNudgePass', () => {
     expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.nudge_sent);
     expect((deps.messenger as FakeMessenger).texts()[0]).toContain('exit ticket');
   });
+  it('keeps (does not clear) a due nudge for a teacher parked in the paper wizard', async () => {
+    const deps = makeDeps();
+    const t = await deps.teachers.create({ waFrom: 'whatsapp:+916', waId: null, profileName: null, now: PAST });
+    await deps.teachers.update(t.id, { state: 'PAPER_MEDIA', grade: 'g', subject: 's', board: 'b', skillsCompleted: ['worksheet'], nudgeDueAt: PAST, nudgeSentAt: null });
+    expect(await createNudgePass(deps)()).toBe(0);
+    const after = await deps.teachers.findByWaFrom('whatsapp:+916');
+    expect(after?.nudgeDueAt).toEqual(PAST); // preserved, not cleared
+    expect((deps.messenger as FakeMessenger).sent).toHaveLength(0);
+  });
   it('skips teachers who are mid-conversation (clears the due nudge)', async () => {
     const deps = makeDeps();
     const t = await deps.teachers.create({ waFrom: 'whatsapp:+912', waId: null, profileName: null, now: PAST });

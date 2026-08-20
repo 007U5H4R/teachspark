@@ -1,8 +1,10 @@
 import type { InboundMessage, Teacher } from '../domain/types.js';
+import { isPaperState } from '../domain/types.js';
 import { EVENT } from '../domain/events.js';
 import { Executor, type ExecutorDeps } from './executor.js';
 import { transition } from './machine.js';
 import * as msg from './messages.js';
+import * as paperCopy from './paper/copy.js';
 
 export function createInboundHandler(deps: ExecutorDeps): (message: InboundMessage) => Promise<void> {
   const executor = new Executor(deps);
@@ -27,7 +29,7 @@ export function createInboundHandler(deps: ExecutorDeps): (message: InboundMessa
       }
       if (inFlight.has(teacher.id)) {
         await deps.events.log(teacher.id, { name: EVENT.still_working_sent, properties: { reason: 'in_flight' } }, now);
-        await deps.messenger.sendText(teacher.waFrom, msg.stillWorking());
+        await deps.messenger.sendText(teacher.waFrom, isPaperState(teacher.state) ? paperCopy.paperStillWorking() : msg.stillWorking());
         return;
       }
       inFlight.add(teacher.id);

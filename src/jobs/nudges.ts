@@ -3,6 +3,7 @@ import { Executor, type ExecutorDeps } from '../bot/executor.js';
 import { buildNudgeStep } from '../bot/machine.js';
 import { hasNextSkill } from '../bot/skills.js';
 import { EVENT } from '../domain/events.js';
+import { isPaperState } from '../domain/types.js';
 
 /**
  * Callable exactly like `() => Promise<number>` (one sweep; returns #sent), plus `whenIdle()` so a
@@ -35,7 +36,8 @@ export function createNudgePass(deps: ExecutorDeps): NudgePass {
           continue;
         }
         if (t.state !== 'IDLE') {
-          // mid-conversation: don't interrupt; drop this nudge
+          if (isPaperState(t.state)) continue; // parked mid-paper-wizard: keep the nudge; it fires when she returns to IDLE
+          // mid-core-conversation: don't interrupt; drop this nudge
           await deps.teachers.update(t.id, { nudgeDueAt: null });
           continue;
         }

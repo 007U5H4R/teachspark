@@ -14,19 +14,21 @@ const teacher = (id: string, over: Partial<Teacher> = {}): Teacher => ({
 });
 
 describe('computeFunnel', () => {
+  const teachers = [
+    teacher('a', { activatedAt: at, skillsCompleted: ['worksheet', 'quiz'] }),
+    teacher('b', { activatedAt: at, skillsCompleted: ['worksheet'] }),
+    teacher('c'),
+  ];
+  const events: EventRow[] = [
+    ev('a', 'onboarding_completed'), ev('b', 'onboarding_completed'),
+    ev('a', 'impact_reported', { minutes: 30 }), ev('a', 'impact_reported', { minutes: 45 }),
+    ev('b', 'impact_reported', { minutes: 15 }), ev('c', 'impact_reported', { minutes: null }),
+    ev('a', 'referral_reported', { forwarded: true }), ev('b', 'referral_reported', { forwarded: false }),
+    ev('a', 'nudge_sent'), ev('a', 'nudge_reopened'),
+    ev('a', 'paper_exported'), ev('a', 'paper_minutes_saved', { minutes: 60 }),
+  ];
+
   it('counts the funnel stages and medians', () => {
-    const teachers = [
-      teacher('a', { activatedAt: at, skillsCompleted: ['worksheet', 'quiz'] }),
-      teacher('b', { activatedAt: at, skillsCompleted: ['worksheet'] }),
-      teacher('c'),
-    ];
-    const events: EventRow[] = [
-      ev('a', 'onboarding_completed'), ev('b', 'onboarding_completed'),
-      ev('a', 'impact_reported', { minutes: 30 }), ev('a', 'impact_reported', { minutes: 45 }),
-      ev('b', 'impact_reported', { minutes: 15 }), ev('c', 'impact_reported', { minutes: null }),
-      ev('a', 'referral_reported', { forwarded: true }), ev('b', 'referral_reported', { forwarded: false }),
-      ev('a', 'nudge_sent'), ev('a', 'nudge_reopened'),
-    ];
     const f = computeFunnel(events, teachers);
     expect(f.teachers).toBe(3);
     expect(f.onboarded).toBe(2);
@@ -40,9 +42,16 @@ describe('computeFunnel', () => {
     expect(f.nudgesReopened).toBe(1);
     expect(f.eventCounts.impact_reported).toBe(4);
   });
+  it('counts exported papers and their median minutes saved', () => {
+    const f = computeFunnel(events, teachers);
+    expect(f.papersExported).toBe(1);
+    expect(f.medianPaperMinutesSaved).toBe(60);
+  });
   it('handles empty inputs', () => {
     const f = computeFunnel([], []);
     expect(f.teachers).toBe(0);
     expect(f.medianMinutesSaved).toBeNull();
+    expect(f.papersExported).toBe(0);
+    expect(f.medianPaperMinutesSaved).toBeNull();
   });
 });

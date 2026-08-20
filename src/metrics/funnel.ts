@@ -12,6 +12,8 @@ export interface Funnel {
   referredCount: number;
   nudgesSent: number;
   nudgesReopened: number;
+  papersExported: number;                 // count of paper_exported events
+  medianPaperMinutesSaved: number | null; // over numeric paper_minutes_saved minutes
   eventCounts: Record<string, number>;
 }
 
@@ -34,6 +36,14 @@ export function computeFunnel(events: EventRow[], teachers: Teacher[]): Funnel {
   minutes.sort((a, b) => a - b);
   const median = minutes.length === 0 ? null : minutes.length % 2 ? minutes[(minutes.length - 1) / 2] : (minutes[minutes.length / 2 - 1] + minutes[minutes.length / 2]) / 2;
 
+  const paperMinutes: number[] = [];
+  for (const e of events) {
+    if (e.name === EVENT.paper_minutes_saved && typeof e.properties.minutes === 'number') paperMinutes.push(e.properties.minutes);
+  }
+  paperMinutes.sort((a, b) => a - b);
+  const paperMedian =
+    paperMinutes.length === 0 ? null : paperMinutes.length % 2 ? paperMinutes[(paperMinutes.length - 1) / 2] : (paperMinutes[paperMinutes.length / 2 - 1] + paperMinutes[paperMinutes.length / 2]) / 2;
+
   return {
     teachers: teachers.length,
     onboarded: distinct(events, EVENT.onboarding_completed),
@@ -45,6 +55,8 @@ export function computeFunnel(events: EventRow[], teachers: Teacher[]): Funnel {
     referredCount: distinct(events, EVENT.referral_reported, (e) => e.properties.forwarded === true),
     nudgesSent: eventCounts[EVENT.nudge_sent] ?? 0,
     nudgesReopened: eventCounts[EVENT.nudge_reopened] ?? 0,
+    papersExported: eventCounts[EVENT.paper_exported] ?? 0,
+    medianPaperMinutesSaved: paperMedian,
     eventCounts,
   };
 }
