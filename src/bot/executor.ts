@@ -37,12 +37,25 @@ export class Executor {
   private async runAction(teacher: Teacher, action: Action): Promise<Teacher> {
     const d = this.deps;
     if (action.type === 'send_text' || action.type === 'send_document') {
-      const res =
-        action.type === 'send_text'
-          ? await d.messenger.sendText(teacher.waFrom, action.body)
-          : await d.messenger.sendDocument(teacher.waFrom, action.url);
-      if (!res.ok) {
-        await d.events.log(teacher.id, { name: EVENT.error_occurred, properties: { action: action.type, errorCode: res.errorCode } }, d.clock.now());
+      try {
+        const res =
+          action.type === 'send_text'
+            ? await d.messenger.sendText(teacher.waFrom, action.body)
+            : await d.messenger.sendDocument(teacher.waFrom, action.url);
+        if (!res.ok) {
+          await d.events.log(teacher.id, { name: EVENT.error_occurred, properties: { action: action.type, errorCode: res.errorCode } }, d.clock.now());
+        }
+      } catch (err) {
+        // A thrown send (e.g. TwilioMessenger's >1500-char guard, or a rethrown non-RestException
+        // error such as ECONNRESET) must not abort the rest of the step -- earlier updates may
+        // have already advanced the teacher's state, so later actions (remaining chunks, the pdf,
+        // the impact prompt) still need to run. Treat it exactly like a failed SendResult.
+        console.error('[executor] send failed', err);
+        await d.events.log(
+          teacher.id,
+          { name: EVENT.error_occurred, properties: { action: action.type, errorCode: null, message: err instanceof Error ? err.message : String(err) } },
+          d.clock.now(),
+        );
       }
       return teacher;
     }
@@ -72,12 +85,18 @@ export class Executor {
         console.error('[executor] pdf failed', pdfErr);
         pdfUrl = null;
       }
-      await d.generations.save({ teacherId: teacher.id, skillId, topic, result, pdfUrl, at: d.clock.now() });
-      await d.events.log(
-        teacher.id,
-        { name: EVENT.generation_succeeded, skillId, properties: { latencyMs: result.latencyMs, outputTokens: result.outputTokens, model: result.model } },
-        d.clock.now(),
-      );
+      try {
+        await d.generations.save({ teacherId: teacher.id, skillId, topic, result, pdfUrl, at: d.clock.now() });
+        await d.events.log(
+          teacher.id,
+          { name: EVENT.generation_succeeded, skillId, properties: { latencyMs: result.latencyMs, outputTokens: result.outputTokens, model: result.model } },
+          d.clock.now(),
+        );
+      } catch (saveErr) {
+        // A successful, billed model call must never be demoted to a failure by a persistence or
+        // telemetry blip: the teacher still gets her worksheet either way.
+        console.error('[executor] generation save/log failed', saveErr);
+      }
       outcome = { ok: true, result, pdfUrl };
     } catch (err) {
       const refused = err instanceof GenerationRefusedError;

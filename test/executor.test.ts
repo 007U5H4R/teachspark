@@ -5,6 +5,7 @@ import {
   InMemoryEventLog, InMemoryGenerationStore, InMemoryTeacherRepo,
 } from '../src/adapters/memory.js';
 import { EVENT } from '../src/domain/events.js';
+import { GenerationRefusedError } from '../src/domain/types.js';
 import type { Step, Teacher } from '../src/domain/types.js';
 
 const NOW = new Date('2026-08-23T14:00:00+05:30');
@@ -92,13 +93,46 @@ describe('Executor.runStep', () => {
     expect((deps.messenger as FakeMessenger).texts().at(-1)).toContain('try again');
   });
 
-  it('failed sends log error_occurred and do not throw', async () => {
+  it('failed sends log error_occurred and do not throw, and later actions still run', async () => {
     const deps = makeDeps();
     (deps.messenger as FakeMessenger).failWith = 63016;
     const t = await makeTeacher(deps);
-    await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'send_text', body: 'hi' }] });
+    await new Executor(deps).runStep(t, {
+      updates: {},
+      events: [],
+      actions: [{ type: 'send_text', body: 'hi' }, { type: 'send_text', body: 'still sent?' }],
+    });
     const rows = await deps.events.listAll();
-    const err = rows.find((r) => r.name === EVENT.error_occurred);
-    expect(err?.properties).toMatchObject({ errorCode: 63016 });
+    const errs = rows.filter((r) => r.name === EVENT.error_occurred);
+    // one error_occurred per action: proves the loop did not stop after the first failure
+    expect(errs).toHaveLength(2);
+    for (const e of errs) expect(e.properties).toMatchObject({ errorCode: 63016, action: 'send_text' });
+  });
+
+  it('refusal: apology copy, generation_failed{reason:refusal}, no error_occurred logged', async () => {
+    const deps = makeDeps();
+    (deps.generator as FakeGenerator).failWith = new GenerationRefusedError('model refused the topic');
+    const t = await makeTeacher(deps, { state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x' });
+    const updated = await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'generate', skillId: 'worksheet', topic: 'x' }] });
+    expect(updated.state).toBe('AWAITING_TOPIC');
+    const rows = await deps.events.listAll();
+    const failed = rows.find((r) => r.name === EVENT.generation_failed);
+    expect(failed?.properties).toMatchObject({ reason: 'refusal' });
+    // a refusal is an expected product signal, not an incident -- it must never be logged as an error
+    expect(rows.some((r) => r.name === EVENT.error_occurred)).toBe(false);
+    expect((deps.messenger as FakeMessenger).texts().at(-1)).toContain("can't make material on that topic");
+  });
+
+  it('generation is called with the UPDATED teacher profile, not the stale pre-update one', async () => {
+    const deps = makeDeps();
+    const t = await makeTeacher(deps, { state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x', grade: 'Middle (Classes 6-8)' });
+    const step: Step = {
+      updates: { grade: 'High (Classes 9-12)' },
+      events: [],
+      actions: [{ type: 'generate', skillId: 'worksheet', topic: 'x' }],
+    };
+    await new Executor(deps).runStep(t, step);
+    expect((deps.generator as FakeGenerator).calls).toHaveLength(1);
+    expect((deps.generator as FakeGenerator).calls[0].grade).toBe('High (Classes 9-12)');
   });
 });
