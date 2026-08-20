@@ -45,6 +45,23 @@ describe('POST /webhooks/twilio/whatsapp', () => {
     await vi.waitFor(() => expect(inbound).toHaveLength(1));
     expect(inbound[0].media).toEqual([{ url: 'https://api.twilio.com/2010-04-01/Accounts/AC1/Messages/SM1/Media/ME1', contentType: 'image/jpeg' }]);
   });
+  it('M6: caps a forged/malformed NumMedia at 10 instead of looping unboundedly', async () => {
+    const { deps, inbound } = makeDeps();
+    const bigMedia: Record<string, string> = { NumMedia: '999' };
+    for (let i = 0; i < 15; i++) {
+      bigMedia[`MediaUrl${i}`] = `https://api.twilio.com/m/ME${i}`;
+      bigMedia[`MediaContentType${i}`] = 'image/jpeg';
+    }
+    await request(createApp(deps)).post(WEBHOOK_PATH).type('form').send({ ...form, ...bigMedia });
+    await vi.waitFor(() => expect(inbound).toHaveLength(1));
+    expect(inbound[0].media).toHaveLength(10);
+  });
+  it('M6: a non-numeric NumMedia does not throw or produce media', async () => {
+    const { deps, inbound } = makeDeps();
+    await request(createApp(deps)).post(WEBHOOK_PATH).type('form').send({ ...form, NumMedia: 'not-a-number' });
+    await vi.waitFor(() => expect(inbound).toHaveLength(1));
+    expect(inbound[0].media).toEqual([]);
+  });
 });
 
 describe('POST /webhooks/twilio/whatsapp — signature validation', () => {

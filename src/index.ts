@@ -58,7 +58,9 @@ ensurePublicBucket(sb, config.SUPABASE_PDF_BUCKET).catch((err) => {
 
 // Same non-fatal, non-blocking pattern as the PDF bucket above: a missing/unreachable papers
 // bucket only degrades paper delivery -- runPaperRender's docx upload failure is already caught
-// in the executor (apology + IDLE), so /health and the rest of the bot are unaffected.
+// in the executor (she is returned to PAPER_PREVIEW with the already-generated paper intact and
+// can retry "1) Get the Word file" once the bucket recovers -- QA-6 finding F1), so /health and
+// the rest of the bot are unaffected.
 ensurePublicBucket(sb, config.SUPABASE_PAPER_BUCKET, PAPER_BUCKET_MIME_TYPES).catch((err) => {
   console.error('[boot] ensurePublicBucket (papers) failed; paper delivery may be degraded until it succeeds', err);
 });

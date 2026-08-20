@@ -24,7 +24,9 @@ type Form = Record<string, string | undefined>;
 
 function parseInbound(body: Form): InboundMessage {
   const media: InboundMedia[] = [];
-  const numMedia = Number(body.NumMedia ?? '0'); // arrives as a string in the form body
+  // M6: NumMedia arrives as a string in the form body, attacker-controlled -- cap it so a forged
+  // or malformed value can't drive an unbounded (or negative/NaN-guarded-away) loop.
+  const numMedia = Math.min(Number(body.NumMedia) || 0, 10);
   for (let i = 0; i < numMedia; i++) {
     const url = body[`MediaUrl${i}`];
     const contentType = body[`MediaContentType${i}`];

@@ -1,9 +1,8 @@
-import { LESSON_MEDIA_TYPES, isLessonMediaType, type InboundMedia } from '../domain/types.js';
+import { isLessonMediaType, type InboundMedia } from '../domain/types.js';
 import type { FetchedMedia, MediaFetcher } from '../ports.js';
 
-// The allowlist lives in domain/types.ts (Task 20) so the pure wizard can use it without
-// importing an adapter; this module re-exports it for adapter-side callers.
-export const SUPPORTED_MEDIA_TYPES: readonly string[] = LESSON_MEDIA_TYPES;
+// The allowlist itself lives in domain/types.ts (Task 20) so the pure wizard can use it without
+// importing an adapter; this module re-exports the check for adapter-side callers.
 export const isSupportedMediaType = isLessonMediaType;
 
 export interface TwilioMediaFetcherOptions {

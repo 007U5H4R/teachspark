@@ -545,7 +545,8 @@ describe('QA Case 3 — failure injection: every paper edge degrades gracefully'
     expect(h.papers.saved).toEqual([]); // the row is only written after a successful upload
     expect(h.docBuilder.builds).toHaveLength(1); // the docx was built; only the upload failed
     const texts = h.messenger.texts();
-    expect(texts.at(-1)).toContain('Get the Word file'); // an intelligible retry message, not a dead-end apology
+    expect(texts.at(-2)).toContain('Something went wrong'); // acknowledges the failure honestly...
+    expect(texts.at(-1)).toContain('Get the Word file'); // ...then immediately re-offers the retry, not a dead-end apology
     expect(texts.some((t) => t.includes('TIER A'))).toBe(true); // and still holds the preview she was sent
     expect(texts.filter((t) => t.length > MAX_CHUNK)).toEqual([]);
 

@@ -144,7 +144,7 @@ plus `not.toContain` on `error_occurred`, `paper_media_rejected` and `paper_gene
 
 **(f) The edges received the real request.** `mediaFetcher.fetched` = `[the photo URL]`; one `generatePaper` call with one fetched media item and profile `{grade:'High (Classes 9-12)', subject:'Other', board:'CBSE'}`; exactly one `qcPaper` call; one `buildPaperDocx` call with `teacherVersion: true`, `branding` exactly `{schoolName:'Zilla Parishad High School, Wardha', logo:null}` and a 3-tier paper; one stored docx with non-zero bytes; zero stored logos (she skipped it).
 
-**(g) Final state.** `state: 'IDLE'`, `schoolName` persisted, `schoolLogoUrl: null`, `paperRedoCount: 0`, `paperJson.title` retained, `retries: 0`, and `skillsCompleted: []` — the paper flow correctly does **not** mark a core skill complete. The last text carries the join link and `Type *PAPER* for another paper`.
+**(g) Final state.** `state: 'IDLE'`, `schoolName` persisted, `schoolLogoUrl: null`, `paperRedoCount: 0`, `retries: 0`, and `skillsCompleted: []` — the paper flow correctly does **not** mark a core skill complete. The last text carries the join link and `Type *PAPER* for another paper`. **Update (whole-branch review, M1):** `paperJson`/`paperRequest` are now cleared on this terminal transition (they are read on every inbound message and are dead weight once the wizard is done) — the originally-observed "`paperJson.title` retained" is superseded; see `test/qa-paper-e2e.test.ts` case (g).
 
 **(h) Second paper.** After the first paper completes, a second run emits `paper_started … paper_key_captured` then jumps **straight to `paper_generation_started`** with no `paper_school_captured` / `paper_logo_captured`, landing in `PAPER_PREVIEW`. The second request is `{tiers:['A'], teacherVersion:false, media:[]}` — chapter-knowledge mode via `SKIP` at the media step also works.
 
@@ -190,9 +190,9 @@ Asserted: ACK 200; `state === 'IDLE'` (a sane terminal state, not a dead-end `PA
 
 `FakeDocBuilder` succeeds and `storePaperDocx` throws, which is the realistic shape (Supabase Storage 5xx after a successful build).
 
-Asserted: ACK 200; `error_occurred{where:'render_paper', message:'supabase storage 503'}` logged; `paper_exported` **not** logged; no document delivered; **`papers.saved === []`** — correct, the row is only written after a successful upload, so the table never points at a non-existent file; `docBuilder.builds` has length 1, confirming the docx really was built and only the upload failed; the last text is an explicit apology (`that paper didn't come together`), so she is **not** silently left with nothing; the preview she already received is still in her thread (a text containing `TIER A`); all texts ≤ 1500; terminal state `IDLE`, and `paper` restarts cleanly.
+Asserted: ACK 200; `error_occurred{where:'render_paper', message:'supabase storage 503'}` logged; `paper_exported` **not** logged; no document delivered; **`papers.saved === []`** — correct, the row is only written after a successful upload, so the table never points at a non-existent file; `docBuilder.builds` has length 1, confirming the docx really was built and only the upload failed; the second-to-last text acknowledges the failure honestly (`Something went wrong`) and the last text immediately re-offers the retry (`Get the Word file`) rather than a dead-end apology; the preview she already received is still in her thread (a text containing `TIER A`); all texts ≤ 1500; **terminal state `PAPER_PREVIEW`** (not `IDLE`) with `paperJson` intact and `paperRedoCount` unchanged, and re-sending `1` once Storage recovers delivers the same paper and lands her in `PAPER_IMPACT`.
 
-**Verdict: PASS** — with finding **F1** recorded below: the already-generated paper is unrecoverable after this failure.
+**Verdict: PASS.** **Update (whole-branch review, post-gate):** this case originally exercised the pre-fix behavior (terminal state `IDLE`, an apology telling her to retry, the already-generated paper unrecoverable) and is recorded as **F1** below; the assertions above and in `test/qa-paper-e2e.test.ts` case (c) now reflect the fixed behavior. F1 is **RESOLVED** — see its entry.
 
 ### 3(d) The redo cap is enforced
 
@@ -257,9 +257,11 @@ This QA agent ran no `git checkout main`, no `git merge`, no `git push`, and no 
 
 ## Findings raised by this gate
 
-### F1 — A Storage failure at render time permanently strands an already-generated paper (MEDIUM)
+### F1 — A Storage failure at render time permanently strands an already-generated paper (MEDIUM) — **RESOLVED**
 
-In `Executor.runPaperRender`'s catch block (`src/bot/executor.ts`), the teacher is moved to `state: 'IDLE'` and apologised to. Her `paperJson` is *not* cleared, but nothing can reach it any more: there is no path from `IDLE` back into `PAPER_PREVIEW`, and typing `paper` calls `startPaperWizard`, which resets `paperJson: null` and `paperRequest` to a fresh request. So a transient Supabase Storage blip costs her a paper she waited 2–3 minutes for and costs the project a paid generation, and her only option is to redo the whole wizard and pay for it again. Contrast the worksheet path, which deliberately isolates its failures so a billed generation is never lost (the `generations.save` and PDF try/catch blocks). Proven by Case 3(c). **Suggested fix (not applied):** on a `render_paper` failure, leave her in `PAPER_PREVIEW` rather than `IDLE` so the "Get the Word file" option can simply be retried against the paper already in `paperJson`. Not a launch blocker — the failure is rare and she is told — but worth one line before the pilot scales.
+Originally: in `Executor.runPaperRender`'s catch block (`src/bot/executor.ts`), the teacher was moved to `state: 'IDLE'` and apologised to. Her `paperJson` was *not* cleared, but nothing could reach it any more: there was no path from `IDLE` back into `PAPER_PREVIEW`, and typing `paper` calls `startPaperWizard`, which resets `paperJson: null` and `paperRequest` to a fresh request. So a transient Supabase Storage blip cost her a paper she waited 2–3 minutes for and cost the project a paid generation, and her only option was to redo the whole wizard and pay for it again. Contrast the worksheet path, which deliberately isolates its failures so a billed generation is never lost (the `generations.save` and PDF try/catch blocks). Proven by Case 3(c) as originally written.
+
+**Fix applied (whole-branch review):** a `render_paper` build/upload failure now returns her to `PAPER_PREVIEW` via `afterPaperRenderFailure()` (`src/bot/paper/wizard.ts`) instead of `IDLE` — `paperJson`/`paperRequest`/`paperRedoCount` are left untouched, and "1) Get the Word file" is directly retryable against the same already-generated paper once Storage recovers. Case 3(c) and `test/qa-paper-e2e.test.ts`'s case (c) were updated to assert the new terminal state and a successful retry; see also `test/paper-executor.test.ts` for the equivalent unit-level coverage (including a docx **build** failure, not just an upload failure).
 
 ### F2 — `currentSkillId` is left set throughout the paper flow (LOW, cosmetic)
 
@@ -294,7 +296,7 @@ These were accepted in earlier phases and remain open. None is a Phase 6 regress
 | 2 | Supertest end-to-end paper flow | **PASS** — 9 tests, all 5 required assertions met |
 | 3(a) | Media download failure | **PASS** |
 | 3(b) | Paper generation failure | **PASS** |
-| 3(c) | Render/upload failure | **PASS** — with finding F1 |
+| 3(c) | Render/upload failure | **PASS** — finding F1 (**resolved** in the whole-branch review) |
 | 3(d) | Redo cap enforced | **PASS** |
 | 3(e) | `RESTART` cleans up paper state | **PASS** |
 | 3(f) | Core worksheet flow unaffected | **PASS** |
