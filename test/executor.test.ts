@@ -135,4 +135,52 @@ describe('Executor.runStep', () => {
     expect((deps.generator as FakeGenerator).calls).toHaveLength(1);
     expect((deps.generator as FakeGenerator).calls[0].grade).toBe('High (Classes 9-12)');
   });
+
+  it('a send that THROWS mid-delivery does not abort the rest of the step', async () => {
+    const deps = makeDeps();
+    const t = await makeTeacher(deps);
+    const messenger = deps.messenger as FakeMessenger;
+    // Counter-based override: throw on the SECOND call only, delegate to the real fake otherwise
+    // (clearer here than the throwWith hook, which is a persistent on/off switch, not one-shot).
+    const realSendText = messenger.sendText.bind(messenger);
+    let calls = 0;
+    messenger.sendText = async (to: string, body: string) => {
+      calls++;
+      if (calls === 2) throw new Error('ECONNRESET');
+      return realSendText(to, body);
+    };
+    const step: Step = {
+      updates: {},
+      events: [],
+      actions: [
+        { type: 'send_text', body: 'one' },
+        { type: 'send_text', body: 'two' },
+        { type: 'send_text', body: 'three' },
+      ],
+    };
+    // the whole point: runStep resolves, it must never reject because one send threw
+    await expect(new Executor(deps).runStep(t, step)).resolves.toBeDefined();
+    expect(calls).toBe(3); // the third action was still attempted after the throw on the second
+    const rows = await deps.events.listAll();
+    const errs = rows.filter((r) => r.name === EVENT.error_occurred);
+    expect(errs).toHaveLength(1);
+    expect(errs[0].properties).toMatchObject({ action: 'send_text', errorCode: null, message: 'ECONNRESET' });
+    expect(messenger.texts()).toEqual(['one', 'three']);
+  });
+
+  it('a generations.save failure does not demote a successful generation', async () => {
+    const deps = makeDeps();
+    (deps.generations as InMemoryGenerationStore).failWith = new Error('db down');
+    const t = await makeTeacher(deps, { state: 'GENERATING', currentSkillId: 'worksheet', pendingTopic: 'x' });
+    const updated = await new Executor(deps).runStep(t, { updates: {}, events: [], actions: [{ type: 'generate', skillId: 'worksheet', topic: 'x' }] });
+    // NOT demoted: still AWAITING_IMPACT, not bounced back to AWAITING_TOPIC
+    expect(updated.state).toBe('AWAITING_IMPACT');
+    const rows = await deps.events.listAll();
+    const names = rows.map((r) => r.name);
+    expect(names).toContain(EVENT.worksheet_delivered);
+    expect(names).not.toContain(EVENT.generation_failed);
+    const texts = (deps.messenger as FakeMessenger).texts();
+    expect(texts.join('\n')).toContain('LEVEL 1 - SUPPORT'); // the worksheet text was actually sent
+    expect(texts.some((b) => b.includes('try again'))).toBe(false); // never received generationFailed() copy
+  });
 });

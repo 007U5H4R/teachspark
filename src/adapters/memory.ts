@@ -105,7 +105,9 @@ export class InMemoryEventLog implements EventLog {
 
 export class InMemoryGenerationStore implements GenerationStore {
   saved: GenerationSaveInput[] = [];
+  failWith: Error | null = null;
   async save(input: GenerationSaveInput): Promise<void> {
+    if (this.failWith) throw this.failWith;
     this.saved.push(input);
   }
 }
@@ -120,13 +122,16 @@ export interface FakeSend {
 export class FakeMessenger implements Messenger {
   sent: FakeSend[] = [];
   failWith: number | null = null;
+  throwWith: Error | null = null;
   private n = 0;
   async sendText(to: string, body: string): Promise<SendResult> {
+    if (this.throwWith) throw this.throwWith;
     if (this.failWith !== null) return { ok: false, sid: null, errorCode: this.failWith };
     this.sent.push({ to, kind: 'text', body, url: null });
     return { ok: true, sid: `SM${++this.n}`, errorCode: null };
   }
   async sendDocument(to: string, url: string): Promise<SendResult> {
+    if (this.throwWith) throw this.throwWith;
     if (this.failWith !== null) return { ok: false, sid: null, errorCode: this.failWith };
     this.sent.push({ to, kind: 'document', body: null, url });
     return { ok: true, sid: `SM${++this.n}`, errorCode: null };
