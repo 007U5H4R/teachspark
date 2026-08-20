@@ -24,9 +24,10 @@ describe('TwilioMessenger', () => {
     expect(params).not.toHaveProperty('body');
   });
   it('refuses bodies over MAX_BODY', async () => {
-    const { client } = fakeTwilio(async () => ({ sid: 'SM1' }));
+    const { client, create } = fakeTwilio(async () => ({ sid: 'SM1' }));
     const m = new TwilioMessenger({ ...opts, client });
     await expect(m.sendText('whatsapp:+911', 'x'.repeat(MAX_BODY + 1))).rejects.toThrow(/too long/);
+    expect(create).not.toHaveBeenCalled();
   });
   it('maps Twilio RestException to {ok:false, errorCode} instead of throwing', async () => {
     const err = Object.assign(Object.create(twilio.RestException.prototype), { code: 63016, status: 400, message: 'Outside messaging window', moreInfo: '' });
@@ -38,5 +39,27 @@ describe('TwilioMessenger', () => {
     const { client } = fakeTwilio(async () => { throw new Error('network'); });
     const m = new TwilioMessenger({ ...opts, client });
     await expect(m.sendText('whatsapp:+911', 'x')).rejects.toThrow('network');
+  });
+  it('omits statusCallback when no statusCallbackUrl is configured', async () => {
+    const { client, create } = fakeTwilio(async () => ({ sid: 'SM5' }));
+    const m = new TwilioMessenger({ accountSid: 'AC1', authToken: 'tok', from: 'whatsapp:+14155238886', client });
+    await m.sendText('whatsapp:+911', 'hi');
+    const params = create.mock.calls[0][0] as Record<string, unknown>;
+    expect(params).not.toHaveProperty('statusCallback');
+    expect(params).toEqual({ from: 'whatsapp:+14155238886', to: 'whatsapp:+911', body: 'hi' });
+  });
+  it('omits statusCallback when no statusCallbackUrl is configured (document)', async () => {
+    const { client, create } = fakeTwilio(async () => ({ sid: 'SM6' }));
+    const m = new TwilioMessenger({ accountSid: 'AC1', authToken: 'tok', from: 'whatsapp:+14155238886', client });
+    await m.sendDocument('whatsapp:+911', 'https://x.test/a.pdf');
+    const params = create.mock.calls[0][0] as Record<string, unknown>;
+    expect(params).not.toHaveProperty('statusCallback');
+    expect(params).toEqual({ from: 'whatsapp:+14155238886', to: 'whatsapp:+911', mediaUrl: ['https://x.test/a.pdf'] });
+  });
+  it('maps a RestException with no numeric code to errorCode null', async () => {
+    const err = Object.assign(Object.create(twilio.RestException.prototype), { status: 500, message: 'Unknown', moreInfo: '' });
+    const { client } = fakeTwilio(async () => { throw err; });
+    const m = new TwilioMessenger({ ...opts, client });
+    expect(await m.sendText('whatsapp:+911', 'x')).toEqual({ ok: false, sid: null, errorCode: null });
   });
 });
