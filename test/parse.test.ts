@@ -45,6 +45,11 @@ describe('parseOption', () => {
     expect(parseOption('fractions', GRADE_OPTIONS)).toBeNull();
     expect(parseOption('', GRADE_OPTIONS)).toBeNull();
   });
+  it('reaches the exact-label tier when the leading word is not an alias', () => {
+    const OPT = [{ id: 'z', label: 'Zed (X-Y)', aliases: ['unrelated'] }];
+    expect(parseOption('Zed (X-Y)', OPT)?.id).toBe('z');   // returns null before the fix
+    expect(parseOption('Zed (X-Y).', OPT)?.id).toBe('z');  // trailing punct on input also matches
+  });
 });
 
 describe('validateTopic', () => {
@@ -64,6 +69,9 @@ describe('validateTopic', () => {
     expect(validateTopic('call me 98765 43210')).toEqual({ ok: false, reason: 'pii' });
     expect(validateTopic('x'.repeat(201))).toEqual({ ok: false, reason: 'too_long' });
   });
+  it('treats a 9-digit run as below the phone-number threshold (boundary)', () => {
+    expect(validateTopic('call me 98765 4321')).toEqual({ ok: true, topic: 'call me 98765 4321' });
+  });
 });
 
 describe('chunkText', () => {
@@ -81,6 +89,10 @@ describe('chunkText', () => {
     expect(chunks.join('\n')).toBe(lines);
     const huge = 'Z'.repeat(250);
     expect(chunkText(huge, 100)).toEqual(['Z'.repeat(100), 'Z'.repeat(100), 'Z'.repeat(50)]);
+  });
+  it('never emits a whitespace-only chunk from a hard split', () => {
+    const chunks = chunkText('A' + ' '.repeat(3000) + 'B', 1500);
+    expect(chunks.every((c) => c.trim().length > 0)).toBe(true);
   });
   it('never returns empty chunks', () => {
     expect(chunkText('\n\n\nhello\n\n\n', 50)).toEqual(['hello']);

@@ -70,7 +70,7 @@ export function parseOption(body: string, options: Option[]): Option | null {
     return i >= 1 && i <= options.length ? options[i - 1] : null;
   }
   for (const o of options) {
-    if (t === o.id || t === o.label.toLowerCase() || o.aliases.includes(t)) return o;
+    if (t === o.id || t === normalize(o.label) || o.aliases.includes(t)) return o;
   }
   // leading token match, e.g. "30 min" -> alias "30", "10th class" -> alias "10th"
   const first = t.split(/\s+/)[0] ?? '';
@@ -136,7 +136,10 @@ export function chunkText(text: string, max = 1500): string[] {
         continue;
       }
       flush();
-      for (let i = 0; i < line.length; i += max) out.push(line.slice(i, i + max));
+      for (let i = 0; i < line.length; i += max) {
+        const s = line.slice(i, i + max);
+        if (s.trim().length > 0) out.push(s);
+      }
     }
     flush();
   }
