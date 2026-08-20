@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "try:generate": "tsx --env-file-if-exists=.env scripts/try-generate.ts",
+    "try:paper": "tsx --env-file-if-exists=.env scripts/try-paper.ts",
     "export:events": "tsx --env-file-if-exists=.env scripts/export-events.ts"
   },
   "dependencies": {
