@@ -1,5 +1,10 @@
 # TeachSpark pilot — recruit message
 
+> **To actually send these, use [`pitch.md`](./pitch.md)** — same copy with the
+> join link already filled in, plus sending notes. This file is the source with
+> the `{{JOIN_LINK}}` placeholder discipline intact; keep the two in sync when
+> either changes.
+
 Two forwardable variants: a personal DM and a staff-room / teacher-group post.
 Copy the text inside the fenced block only — everything outside the fences
 (these notes, the headings) is for Tushar, not for teachers.
@@ -22,6 +27,7 @@ literal placeholder until you swap in the verified link above.
 Hi [name] 👋
 I'm piloting *TeachSpark* on WhatsApp — it writes a ready-to-use worksheet for your own class in about 2 minutes, free.
 You give it your grade, subject, board and topic, and it sends back a 3-level worksheet (Support / On-level / Challenge, with an answer key) as a WhatsApp message and a PDF — plus the exact prompt, so you can do this yourself in ChatGPT or Gemini next time.
+It can also turn photos of a textbook chapter into a complete question paper — editable Word file, answer key included. Just type *PAPER* once you're in.
 
 To join: tap {{JOIN_LINK}} → send the "join" message that pops up → then type *Hi*.
 
@@ -39,6 +45,7 @@ by name.
 📚 For anyone prepping worksheets tonight —
 I'm piloting *TeachSpark*, a WhatsApp bot that writes a ready-to-use worksheet for YOUR class in about 2 minutes. Free, nothing to install.
 Give it your grade, subject, board and topic, and it sends back a 3-level worksheet (Support / On-level / Challenge + answer key) as text and a PDF — plus the exact prompt, so you can do it yourself in ChatGPT or Gemini next time.
+It can also turn photos of a textbook chapter into a complete question paper — editable Word file, answer key included. Just type *PAPER* once you're in.
 
 To join: tap {{JOIN_LINK}} → send the "join" message that pops up → then type *Hi*.
 
