@@ -1,21 +1,37 @@
 import {
   AlignmentType, BorderStyle, Document, Footer, ImageRun, PageNumber, Packer, Paragraph,
-  ShadingType, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType,
+  ShadingType, Tab, Table, TableCell, TableRow, TabStopPosition, TabStopType, TextRun, VerticalAlign, WidthType,
 } from 'docx';
 import { imageSize } from 'image-size';
 import type { PaperBranding, PaperJson, PaperQuestion, PaperTask, PaperTier } from '../domain/types.js';
 import type { DocBuilder } from '../ports.js';
 
 const FONT = 'Nirmala UI'; // ships with Windows; string shorthand also fills the complex-script (Devanagari) slot
-const NAVY = '1F3864';     // tier banner fill (no leading '#')
+const NAVY = '1F3864';     // tier banner fill / task-heading accent (no leading '#')
 const GREY = 'D9D9D9';
-const TWIPS_FULL = 9360;   // usable width at A4 with default 1" margins
+const TASK_TINT = 'E8ECF7'; // light accent wash behind task headings, matching the reference papers
+const RULE_GREY = '999999'; // neutral divider / ruled-writing-line colour
+// docx.js defaults an unstyled section to A4 (11906 twips wide) with 1" (1440 twips) margins, and
+// ships TabStopPosition.MAX = 9026 as exactly that usable width for right tab stops. We reuse the
+// same figure here (and pin page size/margins explicitly in buildPaperDocx() so it can't silently
+// drift) instead of hand-computing it — a stale hand-computed value here previously assumed a
+// Letter-width page and was ~334 twips too wide for the A4 page actually being rendered.
+const TWIPS_FULL = TabStopPosition.MAX; // 9026 = 11906 - 2*1440
+const OPTION_INDENT = 700; // MCQ/MTF lines nest one step past the question's own hanging indent (504/360 below)
 
 const run = (text: string, opts: { bold?: boolean; italics?: boolean; size?: number; color?: string } = {}) =>
   new TextRun({ text, font: FONT, size: opts.size ?? 22, bold: opts.bold, italics: opts.italics, color: opts.color }); // size is half-points: 22 = 11pt
 
 const para = (children: TextRun[] | string, opts: Partial<ConstructorParameters<typeof Paragraph>[0] & object> = {}) =>
   new Paragraph({ children: typeof children === 'string' ? [run(children)] : children, spacing: { after: 80 }, ...opts });
+
+/** Right-tab-stopped marks, e.g. "[5]" — pairs with a paragraph `tabStops` entry at
+ *  TabStopPosition.MAX and a Tab() run child so marks land in a flush column at the text margin,
+ *  instead of being padded out with literal spaces. Owner decision: keep the bracket text as-is
+ *  ("[N]") — only the positioning changes. Deliberately not bold: the type-tag run this replaces
+ *  in spirit ([MCQ] etc.) is gone entirely, and marks should read as a quiet margin note, not shout. */
+const marksRun = (marks: number) =>
+  new TextRun({ children: [new Tab(), `[${marks}]`], font: FONT, size: 20, italics: true, color: '666666' });
 
 export function optionPrefixes(language: string): string[] {
   return /hindi|हिंदी|marathi|मराठी|sanskrit/i.test(language) ? ['(क)', '(ख)', '(ग)', '(घ)'] : ['(a)', '(b)', '(c)', '(d)'];
@@ -25,8 +41,6 @@ export function answerLineCount(q: PaperQuestion): number {
   if (q.type === 'MCQ' || q.type === 'TOF' || q.type === 'MTF' || q.type === 'FIB') return 0;
   return Math.min(10, Math.max(2, q.marks + 1)); // SA/LA/CW/CB: writing space scaled by marks, capped
 }
-
-const RULE = '_'.repeat(88);
 
 /** image-size dispatches on magic bytes, so a mislabeled ICNS/JXL/HEIF can reach its
  *  DoS-prone parsers (GHSA-w3rx-r6r6-pgpr, no upstream fix). Only ever hand it JPEG or PNG. */
@@ -65,37 +79,71 @@ function headerBlock(paper: PaperJson, branding: PaperBranding): (Paragraph | Ta
   }));
   const headerTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    // Explicit grid matching the per-cell DXA widths above — some renderers mis-measure a table
+    // whose columns are only ever implied by cell widths and never declared on the table itself.
+    columnWidths: hasLogo ? [1600, TWIPS_FULL - 1600] : [TWIPS_FULL],
     borders: { top: { style: BorderStyle.NONE, size: 0 }, bottom: { style: BorderStyle.SINGLE, size: 8, color: NAVY }, left: { style: BorderStyle.NONE, size: 0 }, right: { style: BorderStyle.NONE, size: 0 }, insideHorizontal: { style: BorderStyle.NONE, size: 0 }, insideVertical: { style: BorderStyle.NONE, size: 0 } },
     rows: [new TableRow({ children: cells })],
   });
 
-  const meta: Array<[string, string]> = [
-    ['Title', paper.title],
-    ['Grade / कक्षा', paper.gradeLabel],
-    ['Chapter / पाठ', paper.chapterLabel],
-    ['Board', paper.boardLabel],
-    ['Tiers / स्तर', paper.tiers.map((t) => `${t.tier} (${t.tierLabel})`).join(' · ')],
-  ];
+  // Paper title as a proper centred heading — never a table row literally labelled "Title".
+  const titlePara = para([run(paper.title, { bold: true, size: 30 })], {
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 120, after: 120 },
+  });
+
+  // Compact meta box: one bordered table, label+value merged per cell — matches the reference
+  // papers' terse "लेबल (Label): value" convention, never a five-row label/value table.
+  // Time / Max Marks only make sense here for a single-tier paper (they otherwise vary per tier,
+  // and are already shown on each tier's own banner below); a multi-tier paper shows the tier list
+  // instead, exactly like the multi-tier reference sample does.
+  const metaField = (label: string, value: string): TextRun[] => [run(`${label}: `, { bold: true, size: 20 }), run(value, { size: 20 })];
+  const metaCell = (content: TextRun[], span = 1) => new TableCell({
+    columnSpan: span,
+    margins: { top: 60, bottom: 60, left: 100, right: 100 },
+    children: [para(content, { spacing: { after: 0 } })],
+  });
+  const metaBorder = { style: BorderStyle.SINGLE, size: 4, color: 'auto' };
+  const singleTier = paper.tiers.length === 1 ? paper.tiers[0] : null;
+  const metaColWidth = Math.floor(TWIPS_FULL / 4); // DXA widths must be integers; put the remainder in the last column
   const metaTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    columnWidths: [2600, TWIPS_FULL - 2600],
-    rows: meta.map(([k, v]) => new TableRow({
-      children: [
-        new TableCell({ shading: { fill: 'F2F2F2', type: ShadingType.CLEAR, color: 'auto' }, margins: { top: 40, bottom: 40, left: 80, right: 80 }, children: [para([run(k, { bold: true, size: 20 })], { spacing: { after: 0 } })] }),
-        new TableCell({ margins: { top: 40, bottom: 40, left: 80, right: 80 }, children: [para([run(v, { size: 20 })], { spacing: { after: 0 } })] }),
-      ],
-    })),
+    columnWidths: [metaColWidth, metaColWidth, metaColWidth, TWIPS_FULL - metaColWidth * 3],
+    borders: { top: metaBorder, bottom: metaBorder, left: metaBorder, right: metaBorder, insideHorizontal: metaBorder, insideVertical: metaBorder },
+    rows: [
+      new TableRow({
+        children: [
+          metaCell(metaField('कक्षा (Grade)', paper.gradeLabel)),
+          metaCell(metaField('विषय (Subject)', paper.subjectLabel)),
+          metaCell(metaField('पाठ (Chapter)', paper.chapterLabel)),
+          metaCell(metaField('बोर्ड (Board)', paper.boardLabel)),
+        ],
+      }),
+      new TableRow({
+        children: singleTier
+          ? [
+              metaCell(metaField('समय (Time)', singleTier.timeMinutes), 2),
+              metaCell(metaField('कुल अंक (Max Marks)', String(singleTier.totalMarks)), 2),
+            ]
+          : [metaCell(metaField('स्तर (Tiers)', paper.tiers.map((t) => `${t.tier} (${t.tierLabel})`).join(' · ')), 4)],
+      }),
+    ],
   });
+
+  // Thin divider before the paper body starts, echoing the reference papers' rule under the header.
+  const closingRule = para('', { border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: RULE_GREY, space: 1 } }, spacing: { after: 160 } });
 
   return [
     headerTable,
     para('', { spacing: { after: 60 } }),
+    titlePara,
     metaTable,
     para('', { spacing: { after: 60 } }),
     para([run('Name / नाम: ______________________    Roll No.: ________    Date / दिनांक: ____________', { size: 20 })]),
     ...(paper.generalInstructions.length > 0
       ? [para([run('Instructions / निर्देश: ', { bold: true, size: 20 }), run(paper.generalInstructions.join(' '), { italics: true, size: 20 })])]
       : []),
+    closingRule,
   ];
 }
 
@@ -114,29 +162,52 @@ function tierBanner(tier: PaperTier): Table {
 
 function questionBlock(q: PaperQuestion, prefixes: string[]): Paragraph[] {
   const out: Paragraph[] = [
-    para([run(`${q.number}. `, { bold: true }), run(`[${q.type}] `, { size: 16, color: '888888' }), run(q.text), run(`   [${q.marks}]`, { bold: true, size: 20 })], { keepLines: true, keepNext: true }),
+    // Hanging indent: the number sits near the margin, wrapped lines align under the question
+    // text (not under the number) — matches the reference papers. Marks are right-tab-stopped to
+    // the text margin instead of padded with literal spaces, so they line up in a column
+    // regardless of question length. The internal type code (MCQ/SA/FIB/...) is intentionally
+    // never printed on the page — it only drives the layout below (options / match-pairs /
+    // answer-line count).
+    para([run(`${q.number}. `, { bold: true }), run(q.text), marksRun(q.marks)], {
+      keepLines: true,
+      keepNext: true,
+      indent: { left: 504, hanging: 360 },
+      tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+    }),
   ];
   if (q.type === 'MCQ' && q.options) {
-    q.options.forEach((opt, i) => out.push(para([run(`${prefixes[i] ?? `(${i + 1})`} ${opt}`, { size: 20 })], { indent: { left: 480 }, keepLines: true, spacing: { after: 40 } })));
+    q.options.forEach((opt, i) => out.push(para([run(`${prefixes[i] ?? `(${i + 1})`} ${opt}`, { size: 20 })], { indent: { left: OPTION_INDENT }, keepLines: true, spacing: { after: 60 } })));
   }
   if (q.type === 'MTF' && q.matchPairs) {
     // right column sorted alphabetically so the printed order never mirrors the answer order
     const rights = q.matchPairs.map((p) => p.right).sort((a, b) => a.localeCompare(b));
-    q.matchPairs.forEach((p, i) => out.push(para([run(`${i + 1}) ${p.left}    —    ${String.fromCharCode(97 + i)}) ${rights[i]}`, { size: 20 })], { indent: { left: 480 }, spacing: { after: 40 } })));
+    q.matchPairs.forEach((p, i) => out.push(para([run(`${i + 1}) ${p.left}    —    ${String.fromCharCode(97 + i)}) ${rights[i]}`, { size: 20 })], { indent: { left: OPTION_INDENT }, spacing: { after: 60 } })));
   }
-  for (let i = 0; i < answerLineCount(q); i++) out.push(para([run(RULE, { color: '999999', size: 20 })], { spacing: { after: 120 } }));
+  // Ruled blank space — a bottom-bordered empty line — rather than underscore runs, so it reads as
+  // an actual writing line instead of a ragged row of "_" glyphs (especially under Devanagari).
+  for (let i = 0; i < answerLineCount(q); i++) {
+    out.push(para(' ', { border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: RULE_GREY, space: 1 } }, spacing: { after: 160 } }));
+  }
   return out;
 }
 
 function taskBlock(task: PaperTask, prefixes: string[]): (Paragraph | Table)[] {
   const out: (Paragraph | Table)[] = [
-    para([run(`${task.heading}  (${task.headingEnglish})`, { bold: true, size: 24 })], { keepNext: true, shading: { fill: GREY, type: ShadingType.CLEAR, color: 'auto' }, spacing: { before: 160, after: 60 } }),
+    // Coloured accent bar + tint, not a flat grey box — matches both reference papers' task-heading
+    // treatment and reads with clearer hierarchy than a uniform shade.
+    para([run(`${task.heading}  (${task.headingEnglish})`, { bold: true, size: 24, color: NAVY })], {
+      keepNext: true,
+      shading: { fill: TASK_TINT, type: ShadingType.CLEAR, color: 'auto' },
+      border: { left: { style: BorderStyle.SINGLE, size: 24, color: NAVY, space: 6 } },
+      spacing: { before: 240, after: 100 },
+    }),
     para([run(task.instructions, { italics: true, size: 20 })], { keepNext: true }),
   ];
   if (task.passage) {
     out.push(new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [new TableRow({ children: [new TableCell({
+        shading: { fill: 'F5F5F5', type: ShadingType.CLEAR, color: 'auto' },
         borders: { top: { style: BorderStyle.SINGLE, size: 4, color: GREY }, bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY }, left: { style: BorderStyle.SINGLE, size: 4, color: GREY }, right: { style: BorderStyle.SINGLE, size: 4, color: GREY } },
         margins: { top: 80, bottom: 80, left: 120, right: 120 },
         children: task.passage.split('\n').map((line) => para([run(line, { size: 20 })], { spacing: { after: 40 } })),
@@ -167,10 +238,17 @@ export class DocxPaperBuilder implements DocBuilder {
   async buildPaperDocx(paper: PaperJson, branding: PaperBranding, teacherVersion: boolean): Promise<Buffer> {
     const prefixes = optionPrefixes(paper.language);
     const children: (Paragraph | Table)[] = [...headerBlock(paper, branding)];
-    for (const tier of paper.tiers) {
-      children.push(para('', { spacing: { after: 60 } }), tierBanner(tier), para('', { spacing: { after: 40 } }));
+    paper.tiers.forEach((tier, tierIndex) => {
+      // Each tier starts on its own page — a multi-tier paper reads as separate tiered handouts,
+      // the way a teacher would hand them out, not one run-on document. The first tier follows
+      // straight after the header (no blank leading page).
+      children.push(
+        para('', { spacing: { after: 60 }, ...(tierIndex > 0 ? { pageBreakBefore: true } : {}) }),
+        tierBanner(tier),
+        para('', { spacing: { after: 40 } }),
+      );
       for (const task of tier.tasks) children.push(...taskBlock(task, prefixes));
-    }
+    });
     if (paper.sourceNotes.length > 0) {
       children.push(para([run(`Note: ${paper.sourceNotes.join(' ')}`, { italics: true, size: 18, color: '888888' })], { spacing: { before: 120 } }));
     }
@@ -179,7 +257,12 @@ export class DocxPaperBuilder implements DocBuilder {
     const doc = new Document({
       styles: { default: { document: { run: { font: FONT, size: 22 } } } },
       sections: [{
-        properties: {},
+        properties: {
+          // Pinned explicitly (A4, 1" margins) so TWIPS_FULL / TabStopPosition.MAX-based layout —
+          // the meta box's column widths, the right-tab-stopped marks column — can never silently
+          // drift from the page geometry it was computed against.
+          page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } },
+        },
         footers: {
           default: new Footer({
             children: [new Paragraph({

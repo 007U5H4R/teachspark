@@ -66,6 +66,30 @@ describe('DocxPaperBuilder', () => {
     const xml = docXml(await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: '', logo: null }, false));
     expect(xml).toContain('TeachSpark');
   });
+  // Regression guard for defect 1: the internal question-type enum (PaperQuestionType) must never
+  // be printed on the page — a teacher/student must never see a literal "[MCQ]" next to a question.
+  // The type must still *drive layout* (options list, answer-line count, etc.) without ever being
+  // rendered as text. Owner decision: marks stay bracketed ("[N]") — only their position changed
+  // (right tab stop instead of space-padding) — so this test also pins that marks are still present.
+  it.skipIf(!hasUnzip)('never prints the internal question-type tag, but still prints right-tab-stopped marks in brackets', async () => {
+    const xml = docXml(await new DocxPaperBuilder().buildPaperDocx(samplePaperJson(), { schoolName: 'Ryan International School', logo: null }, false));
+    for (const tag of ['[MCQ]', '[SA]', '[FIB]', '[LA]', '[CW]', '[CB]', '[TOF]', '[MTF]']) {
+      expect(xml).not.toContain(tag);
+    }
+    expect(xml).toContain('[5]');              // marks for the sample fixture's 5-mark questions — still printed
+    expect(xml).toContain('w:tab');             // right tab stop that now positions them, replacing space-padding
+    expect(xml).not.toContain('Title</w:t>');   // defect 3: no more a table row literally labelled "Title"
+  });
+  // Defect 4: a multi-tier paper must start each additional tier on a new page, like separate
+  // tiered handouts, rather than running tiers together on the same page.
+  it.skipIf(!hasUnzip)('starts each additional tier on a new page', async () => {
+    const tierA = samplePaperJson().tiers[0];
+    const tierB = { ...tierA, tier: 'B' as const, tierLabel: 'Proficient' };
+    const paper = samplePaperJson({ tiers: [tierA, tierB] });
+    const xml = docXml(await new DocxPaperBuilder().buildPaperDocx(paper, { schoolName: 'X', logo: null }, false));
+    expect(xml).toContain('w:pageBreakBefore');
+    expect((xml.match(/w:pageBreakBefore/g) ?? []).length).toBe(1); // one break between the 2 tiers; no answer key requested here
+  });
   it('embeds a PNG logo without throwing', async () => {
     // 1x1 transparent PNG
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
