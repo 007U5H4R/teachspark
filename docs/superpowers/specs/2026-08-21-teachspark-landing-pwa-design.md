@@ -123,6 +123,18 @@ SPA with four routes:
    subhead + primary CTA. Right: Spark the orb. Nav with pill active-tab. Below
    fold: 2–3 "what TeachSpark does" blurbs sourced from `pitch.md`. Fires
    `landing_view` on load.
+
+**Persistent Sign-up CTA:** the sign-up button lives in the nav bar and is shown on
+every public/marketing surface where the teacher has not yet signed up — i.e. the
+landing page (also as the hero CTA) and any future about/marketing sections. It is
+**not** shown on `/join` (already on the form), `/joined` (already signed up; CTA
+there is "Open WhatsApp"), or `/admin` (wrong audience).
+
+**Sign-up button styling — animated neon border:** the CTA has a green neon glowing
+"traveling light" border — a rotating conic-gradient that chases around the
+perimeter with a soft neon bloom, plus a subtle green halo that pulses on hover.
+Pure CSS (conic-gradient + animated `@property` angle + blur), GPU-light. Under
+`prefers-reduced-motion` the glow remains but the border motion/pulse stops.
 2. **`/join` Sign-up** — Name, Profession, Organization/School, WhatsApp Number
    (with country-code selector), City, Country. Inline validation (phone valid for
    country). Hidden honeypot field. Consent line: *"We'll only use this to connect
