@@ -90,6 +90,20 @@ describe('DocxPaperBuilder', () => {
     expect(xml).toContain('w:pageBreakBefore');
     expect((xml.match(/w:pageBreakBefore/g) ?? []).length).toBe(1); // one break between the 2 tiers; no answer key requested here
   });
+  // Defect 5, seen on the first real paper: the tier banner read "35-40 मिनट min". PaperTier.timeMinutes
+  // is specified as a bare range, but the model answers in the paper's own language and supplies the unit
+  // itself, so appending "min" unconditionally doubled it. Both directions are pinned here.
+  it.skipIf(!hasUnzip)('does not double the time unit when the model already supplied one', async () => {
+    const tier = { ...samplePaperJson().tiers[0], timeMinutes: '35-40 मिनट' };
+    const xml = docXml(await new DocxPaperBuilder().buildPaperDocx(samplePaperJson({ tiers: [tier] }), { schoolName: 'X', logo: null }, false));
+    expect(xml).toContain('35-40 मिनट');
+    expect(xml).not.toContain('मिनट min');
+  });
+  it.skipIf(!hasUnzip)('still appends a unit when the model supplied a bare range', async () => {
+    const tier = { ...samplePaperJson().tiers[0], timeMinutes: '35–40' };
+    const xml = docXml(await new DocxPaperBuilder().buildPaperDocx(samplePaperJson({ tiers: [tier] }), { schoolName: 'X', logo: null }, false));
+    expect(xml).toContain('35–40 min');
+  });
   it('embeds a PNG logo without throwing', async () => {
     // 1x1 transparent PNG
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');

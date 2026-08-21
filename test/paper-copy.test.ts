@@ -60,3 +60,21 @@ describe('paper bot copy', () => {
     expect(result).toContain('…'); // truncation marker present
   });
 });
+
+describe('timeLabel', () => {
+  it('appends "min" only when the label ends in a digit', () => {
+    expect(copy.timeLabel('35–40')).toBe('35–40 min');
+    expect(copy.timeLabel('50')).toBe('50 min');
+  });
+  it('leaves a unit the model already supplied alone, in any script', () => {
+    // The real defect: "35-40 मिनट" + " min" printed "35-40 मिनट min" on the tier banner.
+    expect(copy.timeLabel('35-40 मिनट')).toBe('35-40 मिनट');
+    expect(copy.timeLabel('35-40 minutes')).toBe('35-40 minutes');
+    expect(copy.timeLabel('40 মিনিট')).toBe('40 মিনিট');
+  });
+  it('trims, and returns empty for a blank label rather than a bare unit', () => {
+    expect(copy.timeLabel('  35–40  ')).toBe('35–40 min');
+    expect(copy.timeLabel('')).toBe('');
+    expect(copy.timeLabel('   ')).toBe('');
+  });
+});

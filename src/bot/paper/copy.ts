@@ -149,3 +149,13 @@ export function paperRefused(): string {
 export function mediaUnreadable(): string {
   return `😕 I couldn't read those pages (blur or lighting, usually). Send clearer photos — straight-on, good light — then type *DONE*.`;
 }
+
+// PaperTier.timeMinutes is specified as a bare range ("35–40"), but the model frequently answers in
+// the paper's own language and supplies the unit itself ("35-40 मिनट"). Appending "min" unconditionally
+// printed "35-40 मिनट min" on the tier banner of a real paper. Rule: a label ending in a digit still
+// needs a unit; anything else already carries one, in whatever script the paper is written in.
+export function timeLabel(timeMinutes: string): string {
+  const value = timeMinutes.trim();
+  if (value === '') return '';
+  return /\d$/.test(value) ? `${value} min` : value;
+}

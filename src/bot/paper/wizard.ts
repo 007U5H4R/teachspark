@@ -366,7 +366,7 @@ export function afterPaperRenderFailure(t: Teacher, _now: Date): Step {
 export function buildPreviewText(paper: PaperJson, qcIssues: string[]): string {
   const lines = [`📋 *${paper.title}*`, `${paper.subjectLabel} · ${paper.gradeLabel} · ${paper.chapterLabel}`, ''];
   for (const tier of paper.tiers) {
-    lines.push(`*TIER ${tier.tier} — ${tier.tierLabel}* · ${tier.timeMinutes} min · ${tier.totalMarks} marks`);
+    lines.push(`*TIER ${tier.tier} — ${tier.tierLabel}* · ${copy.timeLabel(tier.timeMinutes)} · ${tier.totalMarks} marks`);
     for (const task of tier.tasks) {
       const marks = task.questions.reduce((s, q) => s + q.marks, 0);
       lines.push(`  ${task.heading} (${task.headingEnglish}) — ${task.questions.length} Q · ${marks} marks`);

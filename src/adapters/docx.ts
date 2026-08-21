@@ -3,6 +3,7 @@ import {
   ShadingType, Tab, Table, TableCell, TableRow, TabStopPosition, TabStopType, TextRun, VerticalAlign, WidthType,
 } from 'docx';
 import { imageSize } from 'image-size';
+import { timeLabel } from '../bot/paper/copy.js'; // shared with the WhatsApp preview so both phrase the tier time identically
 import type { PaperBranding, PaperJson, PaperQuestion, PaperTask, PaperTier } from '../domain/types.js';
 import type { DocBuilder } from '../ports.js';
 
@@ -122,7 +123,7 @@ function headerBlock(paper: PaperJson, branding: PaperBranding): (Paragraph | Ta
       new TableRow({
         children: singleTier
           ? [
-              metaCell(metaField('समय (Time)', singleTier.timeMinutes), 2),
+              metaCell(metaField('समय (Time)', timeLabel(singleTier.timeMinutes)), 2),
               metaCell(metaField('कुल अंक (Max Marks)', String(singleTier.totalMarks)), 2),
             ]
           : [metaCell(metaField('स्तर (Tiers)', paper.tiers.map((t) => `${t.tier} (${t.tierLabel})`).join(' · ')), 4)],
@@ -154,7 +155,7 @@ function tierBanner(tier: PaperTier): Table {
       children: [new TableCell({
         shading: { fill: NAVY, type: ShadingType.CLEAR, color: 'auto' },
         margins: { top: 80, bottom: 80, left: 120, right: 120 },
-        children: [para([run(`TIER ${tier.tier} — ${tier.tierLabel.toUpperCase()}   ·   ${tier.timeMinutes} min   ·   ${tier.totalMarks} marks`, { bold: true, color: 'FFFFFF' })], { spacing: { after: 0 } })],
+        children: [para([run(`TIER ${tier.tier} — ${tier.tierLabel.toUpperCase()}   ·   ${timeLabel(tier.timeMinutes)}   ·   ${tier.totalMarks} marks`, { bold: true, color: 'FFFFFF' })], { spacing: { after: 0 } })],
       })],
     })],
   });
