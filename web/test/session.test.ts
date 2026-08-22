@@ -11,6 +11,10 @@ describe('session hand-off', () => {
     sessionStorage.setItem('ts_handoff', '{nope');
     expect(loadHandOff()).toBeNull();
   });
+  it('rejects a hand-off missing name even when signupId and join.url are valid', () => {
+    sessionStorage.setItem('ts_handoff', JSON.stringify({ signupId: 's1', join: { url: 'https://wa.me/1?text=join%20x', code: 'x', whatsappNumber: '+1' } }));
+    expect(loadHandOff()).toBeNull();
+  });
   it('stores the attribution source', () => {
     expect(loadSource()).toBeUndefined();
     saveSource('grp-a');

@@ -43,6 +43,9 @@ describe('api client', () => {
     expect(url).toBe('/api/events');
     expect(init.keepalive).toBe(true);
     const body = JSON.parse(init.body);
-    expect(body).toEqual({ visitorId: localStorage.getItem('ts_visitor'), name: 'join_tapped', signupId: 's1' });
+    const storedVisitorId = localStorage.getItem('ts_visitor');
+    expect(storedVisitorId).not.toBeNull();
+    expect(body.visitorId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body).toEqual({ visitorId: storedVisitorId, name: 'join_tapped', signupId: 's1' });
   });
 });

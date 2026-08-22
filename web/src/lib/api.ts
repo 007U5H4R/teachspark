@@ -42,8 +42,8 @@ export async function fetchCountries(): Promise<CountryOption[]> {
 
 /** Fire-and-forget funnel event. keepalive lets it survive the navigation that usually follows a tap. */
 export function trackEvent(name: 'landing_view' | 'join_tapped', signupId?: string): void {
-  const body = JSON.stringify({ visitorId: getVisitorId(), name, signupId });
   try {
+    const body = JSON.stringify({ visitorId: getVisitorId(), name, signupId });
     void fetch('/api/events', { method: 'POST', headers: JSON_HEADERS, body, keepalive: true }).catch(() => {});
-  } catch { /* fetch itself threw (very old browser) — analytics must never break the page */ }
+  } catch { /* analytics must never break the page */ }
 }

@@ -12,7 +12,9 @@ export function loadHandOff(): HandOff | null {
     const raw = sessionStorage.getItem(HANDOFF);
     if (!raw) return null;
     const h = JSON.parse(raw) as HandOff;
-    return h && typeof h.signupId === 'string' && h.join && typeof h.join.url === 'string' ? h : null;
+    return h && typeof h.signupId === 'string' && typeof h.name === 'string'
+      && h.join && typeof h.join.url === 'string' && typeof h.join.code === 'string'
+      && typeof h.join.whatsappNumber === 'string' ? h : null;
   } catch { return null; }
 }
 export function saveSource(src: string): void {
