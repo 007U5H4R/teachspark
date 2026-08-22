@@ -82,4 +82,33 @@ describe('Join', () => {
     await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Too many attempts/);
   });
+  it('falls back to the generic banner when a 400 field-error key has no matching form field', async () => {
+    // The server can flag keys this form never renders (source, visitorId, website). Regression
+    // pin for fix-round item 3: an unmapped key must not disappear into `errors` with nothing
+    // on screen to show it — it must fall back to the banner.
+    const user = userEvent.setup();
+    renderJoin();
+    await fillValid(user);
+    fetchMock.mockImplementationOnce(() => Promise.resolve(json(400, { error: 'validation_error', fields: { visitorId: ['bad visitor id'] } })));
+    await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Something went wrong on our side/);
+  });
+  it('clears the post-submit navigation timer on unmount so a stray navigate never fires later', async () => {
+    // Regression pin for fix-round item 1. Correlate by the 700 ms delay (the only setTimeout in
+    // this tree that uses it — Spark's own blink timers use 140 ms and a random 3-6 s cadence) so
+    // Spark's unrelated clearTimeout-on-unmount calls can't produce a false pass.
+    const user = userEvent.setup();
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    const { unmount } = renderJoin();
+    await fillValid(user);
+    await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
+    await waitFor(() => expect(setTimeoutSpy.mock.calls.some((c) => c[1] === 700)).toBe(true));
+    const navCallIndex = setTimeoutSpy.mock.calls.findIndex((c) => c[1] === 700);
+    const navTimerId = setTimeoutSpy.mock.results[navCallIndex]?.value;
+    unmount();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(navTimerId);
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+  });
 });

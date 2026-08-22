@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { ApiError, fetchCountries, submitSignup, type CountryOption } from '../lib/api.ts';
@@ -27,12 +27,19 @@ export function Join() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [honeypot, setHoneypot] = useState('');
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let alive = true;
     fetchCountries().then((list) => { if (alive && list.length) setCountries(list); }).catch(() => { /* keep the fallback */ });
     return () => { alive = false; };
   }, []);
+
+  // The post-submit hand-off (setDone → 700ms → navigate) fires from a bare setTimeout, and
+  // useNavigate's `navigate` stays callable after this component unmounts (it's bound to the
+  // router context, not this instance). Without this, a user who leaves /join inside that window
+  // gets silently yanked to /joined later. Clearing on unmount closes that hole.
+  useEffect(() => () => { if (navTimerRef.current !== null) clearTimeout(navTimerRef.current); }, []);
 
   const callingCode = countries.find((c) => c.code === values.country)?.callingCode ?? '';
   const set = (k: keyof SignupFormValues) => (e: { target: { value: string } }) => {
@@ -51,7 +58,7 @@ export function Join() {
       const res = await submitSignup({ ...values, visitorId: getVisitorId(), source: loadSource(), website: honeypot });
       saveHandOff({ signupId: res.signupId, name: values.name.trim(), join: res.join });
       setDone(true); // Spark beams for a beat before the hand-off screen
-      setTimeout(() => navigate('/joined'), 700);
+      navTimerRef.current = setTimeout(() => navigate('/joined'), 700);
     } catch (err) {
       setBusy(false);
       if (err instanceof ApiError && err.status === 422) {
@@ -59,9 +66,15 @@ export function Join() {
       } else if (err instanceof ApiError && err.status === 429) {
         setBanner('Too many attempts from this network — please try again in a few minutes.');
       } else if (err instanceof ApiError && err.status === 400 && err.fields) {
+        // The server can flag keys this form never renders (source, visitorId, website). Map only
+        // the ones we have a field for, and fall back to the banner if none survive — otherwise
+        // setErrors would silently store an error nothing displays, and the user sees no feedback
+        // at all on the page the whole funnel converges on.
+        const known = new Set(Object.keys(EMPTY));
         const mapped: FieldErrors = {};
-        for (const [k, msgs] of Object.entries(err.fields)) mapped[k as keyof SignupFormValues] = msgs[0];
-        setErrors(mapped);
+        for (const [k, msgs] of Object.entries(err.fields)) if (known.has(k)) mapped[k as keyof SignupFormValues] = msgs[0];
+        if (Object.keys(mapped).length) setErrors(mapped);
+        else setBanner("Something went wrong on our side. Please try again — if it keeps failing, message us and we'll add you by hand.");
       } else {
         setBanner("Something went wrong on our side. Please try again — if it keeps failing, message us and we'll add you by hand.");
       }
@@ -85,14 +98,14 @@ export function Join() {
       <form onSubmit={onSubmit} noValidate>
         {field('name', 'Your name', <input id="f-name" name="name" autoComplete="name" value={values.name} onChange={set('name')} aria-invalid={!!errors.name} aria-describedby={errors.name ? 'e-name' : undefined} />)}
         {field('profession', 'Profession', (
-          <select id="f-profession" name="profession" value={values.profession} onChange={set('profession')} aria-invalid={!!errors.profession}>
+          <select id="f-profession" name="profession" value={values.profession} onChange={set('profession')} aria-invalid={!!errors.profession} aria-describedby={errors.profession ? 'e-profession' : undefined}>
             <option value="">Choose…</option>
             {PROFESSION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         ))}
         {field('organization', 'School / organisation (optional)', <input id="f-organization" name="organization" autoComplete="organization" value={values.organization} onChange={set('organization')} />)}
         {field('country', 'Country', (
-          <select id="f-country" name="country" autoComplete="country" value={values.country} onChange={set('country')} aria-invalid={!!errors.country}>
+          <select id="f-country" name="country" autoComplete="country" value={values.country} onChange={set('country')} aria-invalid={!!errors.country} aria-describedby={errors.country ? 'e-country' : undefined}>
             {countries.map((c) => <option key={c.code} value={c.code}>{c.name} (+{c.callingCode})</option>)}
           </select>
         ))}
@@ -102,7 +115,7 @@ export function Join() {
             <input id="f-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel-national" placeholder="98765 43210" value={values.phone} onChange={set('phone')} aria-invalid={!!errors.phone} aria-describedby={errors.phone ? 'e-phone' : undefined} />
           </div>
         ))}
-        {field('city', 'City', <input id="f-city" name="city" autoComplete="address-level2" value={values.city} onChange={set('city')} aria-invalid={!!errors.city} />)}
+        {field('city', 'City', <input id="f-city" name="city" autoComplete="address-level2" value={values.city} onChange={set('city')} aria-invalid={!!errors.city} aria-describedby={errors.city ? 'e-city' : undefined} />)}
         <div className="hp" aria-hidden="true">
           <label htmlFor="f-website">Website</label>
           <input id="f-website" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
