@@ -64,6 +64,18 @@ describe('POST /webhooks/twilio/whatsapp', () => {
     await vi.waitFor(() => expect(inbound).toHaveLength(1));
     expect(inbound[0].media).toEqual([]);
   });
+  it('never rate-limits the WhatsApp webhook', async () => {
+    // The API router's general limit is 120/min (src/http/api.ts:48). The bot's webhook must not
+    // sit behind it: Twilio retries on a non-2xx, and a 429 storm during a busy class hour would
+    // silently drop teachers' messages. 130 > 120, so this fails the moment a limiter moves above
+    // the webhook mount.
+    const { deps } = makeDeps();
+    const app = createApp(deps);
+    for (let i = 0; i < 129; i++) await request(app).post(WEBHOOK_PATH).type('form').send(form);
+    const last = await request(app).post(WEBHOOK_PATH).type('form').send(form);
+    expect(last.status).toBe(200);
+    expect(last.text).toContain('<Response/>');
+  });
 });
 
 describe('POST /webhooks/twilio/whatsapp — signature validation', () => {

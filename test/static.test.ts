@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import express from 'express';
-import { mountSpa, WEB_DIST } from '../src/http/static.js';
+import { mountSpa, WEB_DIST, NON_SPA_ROUTES } from '../src/http/static.js';
+import { NON_SPA_ROUTES as SW_NON_SPA_ROUTES } from '../web/pwa.routes.js';
 import { createApp, type AppDeps, WEBHOOK_PATH } from '../src/http/app.js';
 import { FixedClock, InMemoryEventLog, InMemorySignupRepo, InMemoryTeacherRepo, InMemoryWebEventLog } from '../src/adapters/memory.js';
 
@@ -91,5 +92,12 @@ describe('mountSpa', () => {
     expect((await request(app).get('/health')).body).toEqual({ ok: true });
     // But the SPA fallback is not mounted
     expect((await request(app).get('/')).status).toBe(404);
+  });
+
+  it('the Express fallback and the service worker share one denylist', () => {
+    // Two copies exist because the SW cannot import server code. If they drift, an installed PWA
+    // serves the app shell for a backend route — including the live WhatsApp webhook path.
+    expect(NON_SPA_ROUTES.source).toBe(SW_NON_SPA_ROUTES.source);
+    expect(NON_SPA_ROUTES.flags).toBe(SW_NON_SPA_ROUTES.flags);
   });
 });

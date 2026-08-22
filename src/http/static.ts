@@ -11,7 +11,7 @@ const NO_CACHE = /(?:^|[\\/])(?:index\.html|sw\.js|workbox-[^\\/]+\.js|registerS
 
 // Mirrors NON_SPA_ROUTES in web/pwa.routes.ts (Task 14) exactly: the Express fallback and the
 // service worker must agree on which prefixes are never the SPA, so keep the two regexes identical.
-const NON_SPA_ROUTES = /^\/(api|webhooks|admin|internal|health)(?=[\/?#]|$)/;
+export const NON_SPA_ROUTES = /^\/(api|webhooks|admin|internal|health)(?=[\/?#]|$)/;
 
 /**
  * Serves the Vite build and falls back to index.html for client-side routes.

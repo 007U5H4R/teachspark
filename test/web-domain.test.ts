@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFile } from 'node:fs/promises';
 import { InMemorySignupRepo, InMemoryWebEventLog } from '../src/adapters/memory.js';
 import { DuplicateSignupError, WEB_EVENT, PROFESSIONS } from '../src/domain/web.js';
 
@@ -53,5 +54,15 @@ describe('constants', () => {
   it('exposes the profession enum used by the form and the API', () => {
     expect(PROFESSIONS).toContain('school_teacher');
     expect(PROFESSIONS).toContain('other');
+  });
+
+  it("the sign-up form's profession options match the server enum", async () => {
+    // Cross-workspace contract with no shared module: the client cannot import server domain code
+    // without pulling it into the browser bundle, so assert on the source text instead. Drift here
+    // blocks a real signup with a 400 the teacher cannot act on.
+    const src = await readFile(new URL('../web/src/pages/Join.tsx', import.meta.url), 'utf8');
+    const block = src.slice(src.indexOf('PROFESSION_OPTIONS'), src.indexOf('FALLBACK_COUNTRIES'));
+    const inForm = [...block.matchAll(/value: '([a-z_]+)'/g)].map((m) => m[1]);
+    expect(inForm).toEqual([...PROFESSIONS]);
   });
 });
