@@ -156,8 +156,16 @@ Prereqs: Railway CLI installed and `railway login` done, and the values from you
    ```
 
    Expect `{"ok":true}` from `/health`, and the logs to show `teachspark listening` plus the
-   join link, with no error lines. Railway builds with Railpack (`npm ci && npm run build`)
-   and starts the container with `node dist/index.js`, per `railway.json`.
+   join link, with no error lines. Railway builds with Railpack (`npm run build`) and starts the
+   container with `node dist/index.js`, per `railway.json`.
+
+   **Do not put `npm ci` back in `buildCommand`.** Railpack runs its own install first — verified
+   to include devDependencies (607 packages vs 608 for a full local install), so `vite` and `tsc`
+   are present despite `NODE_ENV=production`. A second `npm ci` wipes `node_modules` before
+   reinstalling, and Railpack mounts a Vite build cache at `web/node_modules/.vite`; a mount point
+   cannot be removed, so the build dies with
+   `EBUSY: resource busy or locked, rmdir '/app/web/node_modules/.vite'`. This only started once
+   `web/` became an npm workspace — the single-package repo had no such cache to collide with.
 
 4. **Point the Twilio sandbox at production** — Twilio Console → Sandbox settings → "When a
    message comes in" → `https://<your-app>.up.railway.app/webhooks/twilio/whatsapp` (POST) →
