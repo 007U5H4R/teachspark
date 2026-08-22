@@ -9,9 +9,14 @@ export const WEB_DIST = fileURLToPath(new URL('../../web/dist', import.meta.url)
 
 const NO_CACHE = /(?:^|[\\/])(?:index\.html|sw\.js|workbox-[^\\/]+\.js|registerSW\.js|manifest\.webmanifest)$/;
 
-// Mirrors NON_SPA_ROUTES in web/pwa.routes.ts (Task 14) exactly: the Express fallback and the
-// service worker must agree on which prefixes are never the SPA, so keep the two regexes identical.
-export const NON_SPA_ROUTES = /^\/(api|webhooks|admin|internal|health)(?=[\/?#]|$)/;
+// Mirrors NON_SPA_ROUTES in web/pwa.routes.ts exactly: the Express fallback and the service
+// worker must agree on which prefixes are never the SPA, so keep the two regexes identical.
+//
+// `admin` was removed when the dashboard landed: /admin is now an SPA page. The JSON it reads
+// lives at /api/admin/metrics, and `api` is still on this list, so the service worker never
+// intercepts it. The deprecated GET /admin/metrics alias still answers because Express matches a
+// registered route before this fallback is ever reached.
+export const NON_SPA_ROUTES = /^\/(api|webhooks|internal|health)(?=[\/?#]|$)/;
 
 /**
  * Serves the Vite build and falls back to index.html for client-side routes.

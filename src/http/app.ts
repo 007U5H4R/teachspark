@@ -5,6 +5,8 @@ import type { Clock, EventLog, SignupRepo, TeacherRepo, WebEventLog } from '../p
 import type { Config } from '../config.js';
 import { computeFunnel } from '../metrics/funnel.js';
 import { createApiRouter, type JoinInfo } from './api.js';
+import { createAdminRouter } from './admin.js';
+import { safeEqual } from './adminAuth.js';
 import { mountSpa } from './static.js';
 
 const { webhook: twilioWebhook, twiml } = twilio;
@@ -88,8 +90,13 @@ export function createApp(deps: AppDeps): express.Express {
     res.status(204).end();
   });
 
+  // DEPRECATED alias, kept for one release so docs/runbook.md and any monitoring do not break on
+  // deploy day. The real endpoint is GET /api/admin/metrics, which lives under /api so the service
+  // worker's denylist still covers it now that `admin` has been removed from that list.
   app.get('/admin/metrics', async (req: Request, res: Response) => {
-    if (req.get('authorization') !== `Bearer ${config.ADMIN_TOKEN}`) {
+    // safeEqual, not !==: a plain comparison short-circuits on the first differing byte, and this
+    // token now also unlocks a login form on a public URL.
+    if (!safeEqual(req.get('authorization') ?? '', `Bearer ${config.ADMIN_TOKEN}`)) {
       res.status(401).json({ error: 'unauthorized' });
       return;
     }
@@ -105,6 +112,16 @@ export function createApp(deps: AppDeps): express.Express {
     res.json({ sent: await deps.runNudgePass() });
   });
 
+  // BEFORE the general /api router: app.use('/api', …) also matches /api/admin/*, and when that
+  // router does not handle the path it falls straight through to the /api 404 below.
+  app.use('/api/admin', createAdminRouter({
+    adminToken: config.ADMIN_TOKEN,
+    events: deps.events,
+    teachers: deps.teachers,
+    signups: deps.signups,
+    webEvents: deps.webEvents,
+    clock: deps.clock,
+  }));
   app.use('/api', createApiRouter({ signups: deps.signups, webEvents: deps.webEvents, clock: deps.clock, join: deps.join }));
   // JSON 404 for anything else under /api -- registered after the real routes. ('/api/*' throws in Express 5.)
   app.all('/api{/*splat}', (_req: Request, res: Response) => {

@@ -60,17 +60,35 @@ describe('mountSpa', () => {
     expect((await request(createApp(deps(FIXTURE))).post('/join')).status).toBe(404);
   });
 
-  it('reserved prefixes (/admin, /internal, /webhooks, /health, /api) must not render the app', async () => {
+  it('reserved prefixes (/internal, /webhooks, /health, /api) must not render the app', async () => {
     const app = createApp(deps(FIXTURE));
     // Reserved prefixes with non-existent sub-paths must 404, not render HTML
-    for (const p of ['/admin/does-not-exist', '/internal/does-not-exist', '/internal/cron/nudges', '/webhooks/does-not-exist', '/health/sub']) {
+    for (const p of ['/internal/does-not-exist', '/internal/cron/nudges', '/webhooks/does-not-exist', '/health/sub', '/api/nope']) {
       const res = await request(app).get(p);
       expect(res.status, p).toBe(404);
       expect(res.text, `${p} should not contain app HTML`).not.toContain('id="root"');
     }
     // But registered routes still answer
     expect((await request(app).get('/health')).body).toEqual({ ok: true });
-    expect((await request(app).get('/admin/metrics')).status).toBe(401);
+  });
+
+  it('/admin renders the dashboard shell while /admin/metrics still returns JSON', async () => {
+    // `admin` left NON_SPA_ROUTES so the dashboard page can exist. The deprecated alias must keep
+    // answering anyway, because Express matches a registered route before the SPA fallback — that
+    // ordering is the whole reason removing the prefix was safe.
+    const app = createApp(deps(FIXTURE));
+    const page = await request(app).get('/admin');
+    expect(page.status).toBe(200);
+    expect(page.text).toContain('id="root"');
+
+    const alias = await request(app).get('/admin/metrics');
+    expect(alias.status).toBe(401);
+    expect(alias.body).toEqual({ error: 'unauthorized' });
+    expect(alias.text).not.toContain('id="root"');
+
+    const authed = await request(app).get('/admin/metrics').set('Authorization', 'Bearer a');
+    expect(authed.status).toBe(200);
+    expect(authed.body).toHaveProperty('teachers');
   });
 
   it('cache headers must be anchored to the served directory, not parent paths', async () => {

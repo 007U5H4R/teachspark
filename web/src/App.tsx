@@ -3,6 +3,7 @@ import { Nav } from './components/Nav.tsx';
 import { Footer } from './components/Footer.tsx';
 import { showSignupCta } from './lib/nav.ts';
 import { useScrollOnNavigation } from './lib/scrollOnNavigation.ts';
+import { Admin } from './pages/Admin.tsx';
 import { Join } from './pages/Join.tsx';
 import { Joined } from './pages/Joined.tsx';
 import { Landing } from './pages/Landing.tsx';
@@ -17,6 +18,7 @@ export function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/join" element={<Join />} />
         <Route path="/joined" element={<Joined />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<Landing />} />
       </Routes>
       <Footer />
