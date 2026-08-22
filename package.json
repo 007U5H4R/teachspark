@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["web"],
+  "workspaces": [
+    "web"
+  ],
   "engines": {
     "node": ">=24.15"
   },
@@ -22,7 +24,8 @@
     "try:generate": "tsx --env-file-if-exists=.env scripts/try-generate.ts",
     "try:paper": "tsx --env-file-if-exists=.env scripts/try-paper.ts",
     "try:render": "tsx scripts/try-render.ts",
-    "export:events": "tsx --env-file-if-exists=.env scripts/export-events.ts"
+    "export:events": "tsx --env-file-if-exists=.env scripts/export-events.ts",
+    "brand:assets": "tsx scripts/brand-assets.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.119.0",
@@ -38,6 +41,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/express": "^5.0.6",
     "@types/node": "^24.13.3",
     "@types/pdfkit": "^0.17.6",

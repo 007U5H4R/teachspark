@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { assertPublicBaseUrl } from './publicBaseUrl.ts';
 
 // The repo root holds the single .env (PUBLIC_BASE_URL lives there for Twilio already).
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -8,9 +9,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 export default defineConfig(({ mode }) => {
   // process env (Railway build) wins over .env files, same as Vite's own precedence
   const publicBaseUrl = process.env.PUBLIC_BASE_URL ?? loadEnv(mode, ROOT, 'PUBLIC_BASE_URL').PUBLIC_BASE_URL;
-  if (mode === 'production' && !publicBaseUrl) {
-    throw new Error('PUBLIC_BASE_URL must be set at build time (absolute https URL, no trailing slash): og:url/og:image are baked into index.html');
-  }
+  assertPublicBaseUrl(publicBaseUrl, mode);
   return {
     plugins: [react()],
     envDir: ROOT,
