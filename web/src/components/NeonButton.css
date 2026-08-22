@@ -1,0 +1,41 @@
+@property --neon-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.neon-btn {
+  position: relative; isolation: isolate;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 26px; border-radius: var(--pill);
+  background: var(--bg-elev); color: var(--lime);
+  font-weight: 700; text-decoration: none; white-space: nowrap;
+  transition: transform 0.15s ease;
+}
+.neon-btn--lg { padding: 18px 34px; font-size: 1.15rem; }
+.neon-btn:hover { transform: translateY(-1px); }
+.neon-btn:active { transform: translateY(0); }
+
+/* Traveling light: a conic gradient spun by an animated custom property, masked down to a 2px ring. */
+.neon-btn::before {
+  content: ''; position: absolute; inset: -2px; z-index: -1; border-radius: inherit; padding: 2px;
+  background: conic-gradient(from var(--neon-angle), transparent 0 55%, var(--lime) 78%, #eaffc2 88%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: neon-spin 2.8s linear infinite;
+}
+/* Soft bloom behind the ring. */
+.neon-btn::after {
+  content: ''; position: absolute; inset: -8px; z-index: -2; border-radius: inherit;
+  background: conic-gradient(from var(--neon-angle), transparent 0 55%, var(--lime) 85%, transparent 100%);
+  filter: blur(14px); opacity: 0.5;
+  animation: neon-spin 2.8s linear infinite, neon-pulse 2.4s ease-in-out infinite;
+}
+.neon-btn:hover::before, .neon-btn:hover::after { animation-duration: 1.3s, 1.2s; }
+.neon-btn:hover::after { opacity: 0.9; }
+
+@keyframes neon-spin { to { --neon-angle: 360deg; } }
+@keyframes neon-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.75; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-btn::before, .neon-btn::after { animation: none; }
+  .neon-btn::before { background: var(--lime); }         /* static lime ring */
+  .neon-btn::after { background: var(--lime); opacity: 0.35; } /* static glow */
+  .neon-btn:hover { transform: none; }
+}
