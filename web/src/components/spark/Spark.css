@@ -1,7 +1,9 @@
 /* web/src/components/spark/Spark.css */
 .spark { display: block; width: 100%; perspective: 900px; }
 .spark__svg { display: block; width: 100%; height: auto; overflow: visible; transform-style: preserve-3d; will-change: transform; }
-.spark__eyes { will-change: transform; }
+/* No will-change on .spark__eyes: it is animated via the SVG `transform` ATTRIBUTE, not a CSS
+   transform, so the hint would not apply to what actually changes while still paying the
+   layer-promotion cost for the page's lifetime. .spark__svg below is a real CSS transform. */
 .spark__eye-shape { opacity: 0; transition: opacity 0.18s ease; }
 .spark[data-state='default'] .spark__eye-shape--default,
 .spark[data-state='puppy']   .spark__eye-shape--puppy,

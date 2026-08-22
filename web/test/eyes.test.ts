@@ -41,18 +41,35 @@ describe('helpers', () => {
     expect(clamp(5, 0, 3)).toBe(3);
     expect(clamp(-1, 0, 3)).toBe(0);
   });
-  it('starPath builds a closed 5-point star', () => {
+  it('starPath builds a closed 5-point star that alternates outer and inner radii', () => {
     const d = starPath(0, 0, 10, 4);
     expect(d.startsWith('M')).toBe(true);
     expect(d.endsWith('Z')).toBe(true);
     expect(d.split('L')).toHaveLength(10); // 10 vertices: M + 9 L
+    // The structural assertions above are also satisfied by a decagon (outerR at every vertex),
+    // so pin the actual geometry: it must start at the top outer point and alternate radii.
+    expect(d).toContain('M0.00 -10.00'); // first vertex: straight up, at outerR
+    expect(d).toContain('L2.35 -3.24');  // second vertex: at innerR
+    const radii = (d.match(/-?\d+\.\d{2} -?\d+\.\d{2}/g) ?? []).map((pair) => {
+      const [x, y] = pair.split(' ').map(Number) as [number, number];
+      return Math.hypot(x, y);
+    });
+    expect(radii).toHaveLength(10);
+    expect(radii.filter((r) => Math.abs(r - 10) < 0.01)).toHaveLength(5); // 5 outer points
+    expect(radii.filter((r) => Math.abs(r - 4) < 0.01)).toHaveLength(5);  // 5 inner notches
   });
-  it('idlePointer stays within the orb and moves over time', () => {
+  it('idlePointer wanders a bounded envelope around the centre and keeps moving', () => {
     const c = { x: 200, y: 190 };
-    const a = idlePointer(0, c);
-    const b = idlePointer(1500, c);
-    expect(Math.hypot(a.x - c.x, a.y - c.y)).toBeLessThan(200);
-    expect(a).not.toEqual(b);
+    // Sweep a full beat of the two periods rather than sampling t=0, where the distance is
+    // exactly 90 and so proves almost nothing.
+    let max = 0;
+    for (let t = 0; t <= 60_000; t += 25) {
+      const p = idlePointer(t, c);
+      max = Math.max(max, Math.hypot(p.x - c.x, p.y - c.y));
+    }
+    expect(max).toBeGreaterThan(150); // it really does roam past the orb radius...
+    expect(max).toBeLessThan(175);    // ...but never past hypot(150, 90) = 174.93
+    expect(idlePointer(0, c)).not.toEqual(idlePointer(1500, c));
   });
 });
 

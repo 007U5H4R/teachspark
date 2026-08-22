@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { eyeOffset, idlePointer, lerp, orbTilt, resolveEyeState, starPath, type Mood, type Point } from './eyes.ts';
 import './Spark.css';
 
@@ -8,6 +8,10 @@ const CENTER: Point = { x: 200, y: 190 };
 const EYES: Point[] = [{ x: 160, y: 182 }, { x: 240, y: 182 }];
 const MAX_EYE_OFFSET = 14;
 const MAX_TILT_DEG = 7;
+// Easing factors expressed at 60 Hz; `tick` rescales them to the real frame delta.
+const EYE_EASE_60 = 0.18;
+const TILT_EASE_60 = 0.12;
+const FRAME_60_MS = 1000 / 60;
 
 export interface SparkProps {
   mood?: Mood;         // driven by the page: 'starry' on /joined or CTA hover, 'happy' after submit
@@ -38,10 +42,22 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
   const [hovered, setHovered] = useState(false);
   const [blinking, setBlinking] = useState(false);
 
+  // Gradient/filter ids must be unique per instance: two <Spark /> on one page would otherwise
+  // emit duplicate ids and every instance would resolve url(#…) to the first <defs>.
+  // React 19's useId contains delimiters that are not valid in a URL fragment, so strip them.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const bodyId = `spark-body-${uid}`;
+  const glossId = `spark-gloss-${uid}`;
+  const shadowId = `spark-shadow-${uid}`;
+  const blurId = `spark-blur-${uid}`;
+
   // Blink: a short squash on a loose cadence.
   useEffect(() => {
     let closeTimer: ReturnType<typeof setTimeout>;
-    let openTimer: ReturnType<typeof setTimeout>;
+    let openTimer: ReturnType<typeof setTimeout> | undefined;
+    // A cadence change mid-blink clears the pending open timer, so re-open first or the
+    // eyes stay shut until the next cycle.
+    setBlinking(false);
     const schedule = () => {
       const wait = blinkEveryMs ?? 3000 + Math.random() * 3000;
       closeTimer = setTimeout(() => {
@@ -60,44 +76,97 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
     const eyes = eyesRef.current;
     if (!svg || !eyes || typeof window.matchMedia !== 'function') return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) return; // blinks only
+    if (reduced) return; // blinks only — nothing below this line is registered
     const canHover = window.matchMedia('(hover: hover)').matches;
 
-    let target: Point | null = null;
+    // Raw client coords only; the SVG-space conversion happens in `tick` against a cached
+    // rect so neither the event nor the frame ever forces a layout.
+    let client: Point | null = null;
+    let rect = svg.getBoundingClientRect();
+    const measure = () => { rect = svg.getBoundingClientRect(); };
+
     const current = { ex: 0, ey: 0, rx: 0, ry: 0 };
     let raf = 0;
-    const start = performance.now();
+    let visible = true;
+    // Both of these live on the rAF clock and are seeded from the first frame's timestamp.
+    // Do NOT seed them from performance.now(): the two are not guaranteed to share a time
+    // origin (under jsdom they differ by ~700ms), and the resulting negative dt would make
+    // the easing factor negative and fling the gaze the wrong way.
+    let last = 0;  // 0 = next frame is the first
+    let start = 0; // origin for the idle drift's phase
 
-    const toSvg = (clientX: number, clientY: number): Point => {
-      const r = svg.getBoundingClientRect();
-      const s = r.width / VB || 1;
-      return { x: (clientX - r.left) / s, y: (clientY - r.top) / s };
+    const toSvg = (c: Point): Point | null => {
+      // A zero-width measurement (display:none, pre-layout) would make the scale meaningless
+      // and read client pixels as user units, pinning the eyes hard right. Treat as no pointer.
+      if (rect.width <= 0) return null;
+      const s = rect.width / VB;
+      return { x: (c.x - rect.left) / s, y: (c.y - rect.top) / s };
     };
-    const onMove = (e: PointerEvent) => { target = toSvg(e.clientX, e.clientY); };
-    const onLeave = () => { target = null; };
-    if (canHover) {
-      window.addEventListener('pointermove', onMove, { passive: true });
-      document.documentElement.addEventListener('pointerleave', onLeave); // cursor left the window: relax the gaze
-    }
+    const onMove = (e: PointerEvent) => { client = { x: e.clientX, y: e.clientY }; };
+    const onLeave = () => { client = null; }; // cursor left the window / tab hidden: relax the gaze
 
     const tick = (now: number) => {
-      const p = canHover ? target : idlePointer(now - start, CENTER);
+      if (!visible) { raf = 0; return; } // parked off-screen; the observer restarts us
+      if (start === 0) start = now;
+      // Clamp BOTH ends: the upper bound stops a backgrounded tab handing back a huge delta,
+      // and the lower bound is load-bearing — a negative dt would make Math.pow return >1 and
+      // the easing factor negative, which overshoots away from the target instead of easing.
+      const dt = last === 0 ? FRAME_60_MS : Math.min(Math.max(now - last, 0), 100);
+      last = now;
+      // Frame-rate independent easing, so 120 Hz does not converge twice as fast as 60 Hz.
+      const ke = 1 - Math.pow(1 - EYE_EASE_60, dt / FRAME_60_MS);
+      const kt = 1 - Math.pow(1 - TILT_EASE_60, dt / FRAME_60_MS);
+      const p = canHover ? (client && toSvg(client)) : idlePointer(now - start, CENTER);
       // Both eyes share one offset (computed from the midpoint) so they never cross.
       const mid = { x: (EYES[0]!.x + EYES[1]!.x) / 2, y: EYES[0]!.y };
       const o = eyeOffset(mid, p, MAX_EYE_OFFSET);
       const t = orbTilt(CENTER, p, MAX_TILT_DEG);
-      current.ex = lerp(current.ex, o.x, 0.18);
-      current.ey = lerp(current.ey, o.y, 0.18);
-      current.rx = lerp(current.rx, t.rx, 0.12);
-      current.ry = lerp(current.ry, t.ry, 0.12);
+      current.ex = lerp(current.ex, o.x, ke);
+      current.ey = lerp(current.ey, o.y, ke);
+      current.rx = lerp(current.rx, t.rx, kt);
+      current.ry = lerp(current.ry, t.ry, kt);
       eyes.setAttribute('transform', `translate(${current.ex.toFixed(2)} ${current.ey.toFixed(2)})`);
       svg.style.transform = `rotateX(${current.rx.toFixed(2)}deg) rotateY(${current.ry.toFixed(2)}deg)`;
       raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+    const startLoop = () => {
+      if (raf) return; // already running
+      last = 0; // don't bill the parked interval as one giant frame (`start` keeps the drift phase)
+      raf = requestAnimationFrame(tick);
+    };
+
+    if (canHover) {
+      window.addEventListener('pointermove', onMove, { passive: true });
+      window.addEventListener('resize', measure, { passive: true });
+      window.addEventListener('scroll', measure, { passive: true });
+      document.documentElement.addEventListener('pointerleave', onLeave);
+      window.addEventListener('blur', onLeave);
+      document.addEventListener('visibilitychange', onLeave);
+    }
+
+    // Park the loop while the orb is off-screen: on touch the idle drift would otherwise burn
+    // frames for the whole session on exactly the phones least able to afford it.
+    let observer: IntersectionObserver | undefined;
+    if (typeof IntersectionObserver === 'function') {
+      observer = new IntersectionObserver((entries) => {
+        const entry = entries[entries.length - 1];
+        if (!entry) return;
+        visible = entry.isIntersecting;
+        if (visible) startLoop();
+      });
+      observer.observe(svg);
+    }
+
+    startLoop();
     return () => {
       cancelAnimationFrame(raf);
+      raf = 0;
+      observer?.disconnect();
       window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure);
+      window.removeEventListener('blur', onLeave);
+      document.removeEventListener('visibilitychange', onLeave);
       document.documentElement.removeEventListener('pointerleave', onLeave);
     };
   }, []);
@@ -106,26 +175,26 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
   return (
     <div className={['spark', className].filter(Boolean).join(' ')} style={{ maxWidth: size }} data-state={state}
       onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
-      <svg ref={svgRef} className="spark__svg" viewBox={`0 0 ${VB} ${VB}`} role="img" aria-label="Spark, the TeachSpark mascot — a green orb with big eyes that follow your cursor">
+      <svg ref={svgRef} className="spark__svg" viewBox={`0 0 ${VB} ${VB}`} role="img" aria-label="Spark, the TeachSpark mascot">
         <defs>
-          <radialGradient id="spark-body" cx="35%" cy="30%" r="75%">
+          <radialGradient id={bodyId} cx="35%" cy="30%" r="75%">
             <stop offset="0%" stopColor="#2fd65f" />
             <stop offset="45%" stopColor="#169a3c" />
             <stop offset="100%" stopColor="#062b14" />
           </radialGradient>
-          <radialGradient id="spark-gloss" cx="30%" cy="22%" r="45%">
+          <radialGradient id={glossId} cx="30%" cy="22%" r="45%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
-          <radialGradient id="spark-shadow" cx="50%" cy="50%" r="50%">
+          <radialGradient id={shadowId} cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#1f8a3a" stopOpacity="0.6" />
             <stop offset="100%" stopColor="#000000" stopOpacity="0" />
           </radialGradient>
-          <filter id="spark-blur" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="14" /></filter>
+          <filter id={blurId} x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="14" /></filter>
         </defs>
-        <ellipse cx="200" cy="372" rx="120" ry="16" fill="url(#spark-shadow)" filter="url(#spark-blur)" />
-        <circle cx={CENTER.x} cy={CENTER.y} r="150" fill="url(#spark-body)" />
-        <ellipse cx="150" cy="110" rx="70" ry="48" fill="url(#spark-gloss)" />
+        <ellipse cx="200" cy="372" rx="120" ry="16" fill={`url(#${shadowId})`} filter={`url(#${blurId})`} />
+        <circle cx={CENTER.x} cy={CENTER.y} r="150" fill={`url(#${bodyId})`} />
+        <ellipse cx="150" cy="110" rx="70" ry="48" fill={`url(#${glossId})`} />
         <g ref={eyesRef} className="spark__eyes">
           <Eye cx={EYES[0]!.x} cy={EYES[0]!.y} side="left" />
           <Eye cx={EYES[1]!.x} cy={EYES[1]!.y} side="right" />
