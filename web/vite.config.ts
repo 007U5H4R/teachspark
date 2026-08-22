@@ -19,7 +19,10 @@ export default defineConfig(({ mode }) => {
         strategies: 'generateSW',
         registerType: 'autoUpdate', // the plugin adds skipWaiting + clientsClaim while injectRegister stays 'auto'
         injectRegister: 'auto',
-        includeAssets: ['favicon.svg', 'apple-touch-icon-180x180.png', 'og-cover.png'],
+        // Deliberately no includeAssets, and manifest-icon auto-include off: both glob publicDir in a
+        // second pass that ignores workbox.globIgnores (see the note there). globPatterns below already
+        // covers every asset the manifest and index.html reference.
+        includeManifestIcons: false,
         manifest: {
           name: 'TeachSpark',
           short_name: 'TeachSpark',
@@ -37,7 +40,12 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,svg,woff2}', 'pwa-*.png', 'maskable-icon-512x512.png', 'apple-touch-icon-180x180.png'],
-          globIgnores: ['**/og-cover.png'], // scrapers fetch it; no need to precache 60 KB into every install
+          // Keeps the 96 KB og-cover.png out of every install; only scrapers fetch it, and Vite still
+          // copies it into dist/, so /og-cover.png stays live for link previews.
+          // globIgnores filters the globPatterns pass ONLY — includeAssets and includeManifestIcons glob
+          // publicDir separately and append their hits as additional manifest entries, bypassing this
+          // line entirely. That is why og-cover.png was precached anyway until both were turned off above.
+          globIgnores: ['**/og-cover.png'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [NON_SPA_ROUTES],
           cleanupOutdatedCaches: true,
