@@ -12,6 +12,7 @@ import type {
   Teacher,
   TeacherUpdate,
 } from '../domain/types.js';
+import { DuplicateSignupError, type Signup, type SignupCreateInput, type WebEventInput, type WebEventRow } from '../domain/web.js';
 import type {
   Clock,
   DocBuilder,
@@ -30,7 +31,9 @@ import type {
   PdfBuilder,
   PdfSection,
   PdfStore,
+  SignupRepo,
   TeacherRepo,
+  WebEventLog,
 } from '../ports.js';
 
 export class FixedClock implements Clock {
@@ -285,5 +288,64 @@ export class InMemoryPapersRepo implements PapersRepo {
   async save(input: PaperSaveInput): Promise<void> {
     if (this.failWith) throw this.failWith;
     this.saved.push(input);
+  }
+}
+
+export class InMemorySignupRepo implements SignupRepo {
+  private byId = new Map<string, Signup>();
+
+  async create(input: SignupCreateInput): Promise<Signup> {
+    const existing = await this.findByPhoneE164(input.phoneE164);
+    if (existing) throw new DuplicateSignupError(existing);
+    const s: Signup = {
+      id: randomUUID(),
+      name: input.name,
+      profession: input.profession,
+      organization: input.organization,
+      phoneE164: input.phoneE164,
+      phoneRaw: input.phoneRaw,
+      city: input.city,
+      country: input.country,
+      source: input.source,
+      joinTappedAt: null,
+      teacherId: null,
+      matchedAt: null,
+      createdAt: new Date(input.now.getTime()),
+    };
+    this.byId.set(s.id, s);
+    return { ...s };
+  }
+
+  async findById(id: string): Promise<Signup | null> {
+    const s = this.byId.get(id);
+    return s ? { ...s } : null;
+  }
+
+  async findByPhoneE164(e164: string): Promise<Signup | null> {
+    for (const s of this.byId.values()) if (s.phoneE164 === e164) return { ...s };
+    return null;
+  }
+
+  async markJoinTapped(id: string, at: Date): Promise<void> {
+    const s = this.byId.get(id);
+    if (!s) throw new Error(`signup ${id} not found`);
+    if (s.joinTappedAt === null) this.byId.set(id, { ...s, joinTappedAt: new Date(at.getTime()) });
+  }
+
+  async listAll(): Promise<Signup[]> {
+    return [...this.byId.values()].map((s) => ({ ...s }));
+  }
+}
+
+export class InMemoryWebEventLog implements WebEventLog {
+  rows: WebEventRow[] = [];
+  async log(input: WebEventInput, at: Date): Promise<void> {
+    this.rows.push({ visitorId: input.visitorId, name: input.name, signupId: input.signupId, properties: input.properties ?? {}, createdAt: new Date(at.getTime()) });
+  }
+  async listAll(): Promise<WebEventRow[]> {
+    return [...this.rows];
+  }
+  names(): string[] {
+    return this.rows.map((r) => r.name);
   }
 }

@@ -13,6 +13,7 @@ import type {
   TeacherProfile,
   TeacherUpdate,
 } from './domain/types.js';
+import type { Signup, SignupCreateInput, WebEventInput, WebEventRow } from './domain/web.js';
 
 export interface Clock {
   now(): Date;
@@ -118,4 +119,19 @@ export interface PaperSaveInput {
 
 export interface PapersRepo {
   save(input: PaperSaveInput): Promise<void>;
+}
+
+export interface SignupRepo {
+  /** throws DuplicateSignupError when phone_e164 already exists */
+  create(input: SignupCreateInput): Promise<Signup>;
+  findById(id: string): Promise<Signup | null>;
+  findByPhoneE164(e164: string): Promise<Signup | null>;
+  /** sets join_tapped_at only if it is still null; throws if id is unknown */
+  markJoinTapped(id: string, at: Date): Promise<void>;
+  listAll(): Promise<Signup[]>;
+}
+
+export interface WebEventLog {
+  log(input: WebEventInput, at: Date): Promise<void>;
+  listAll(): Promise<WebEventRow[]>;
 }
