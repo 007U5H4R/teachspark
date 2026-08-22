@@ -18,7 +18,8 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         strategies: 'generateSW',
         registerType: 'autoUpdate', // the plugin adds skipWaiting + clientsClaim while injectRegister stays 'auto'
-        injectRegister: 'auto',
+        injectRegister: 'auto', // NOT false: the plugin reads the RAW value before resolving it, so any other
+                                // value silently drops workbox.skipWaiting/clientsClaim and breaks autoUpdate.
         // Deliberately no includeAssets, and manifest-icon auto-include off: both glob publicDir in a
         // second pass that ignores workbox.globIgnores (see the note there). globPatterns below already
         // covers every asset the manifest and index.html reference.
@@ -40,8 +41,10 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,svg,woff2}', 'pwa-*.png', 'maskable-icon-512x512.png', 'apple-touch-icon-180x180.png'],
-          // Keeps the 96 KB og-cover.png out of every install; only scrapers fetch it, and Vite still
-          // copies it into dist/, so /og-cover.png stays live for link previews.
+          // Defensive only: globPatterns above has no *.png catch-all, so the 96 KB scraper-only
+          // og-cover.png is not a candidate for this pass to ignore today. This line earns its keep
+          // if a broader png pattern is ever added. Vite copies the file into dist/ regardless, so
+          // /og-cover.png stays live for link previews either way.
           // globIgnores filters the globPatterns pass ONLY — includeAssets and includeManifestIcons glob
           // publicDir separately and append their hits as additional manifest entries, bypassing this
           // line entirely. That is why og-cover.png was precached anyway until both were turned off above.
