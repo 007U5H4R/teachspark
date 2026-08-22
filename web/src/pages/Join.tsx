@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { ApiError, fetchCountries, submitSignup, type CountryOption } from '../lib/api.ts';
 import { getVisitorId } from '../lib/visitor.ts';
-import { loadSource, saveHandOff } from '../lib/session.ts';
+import { loadSource, saveHandOff, type HandOff } from '../lib/session.ts';
 import { validateSignupForm, type FieldErrors, type SignupFormValues } from '../lib/validate.ts';
 
 const PROFESSION_OPTIONS: Array<{ value: string; label: string }> = [
@@ -56,9 +56,10 @@ export function Join() {
     setBusy(true);
     try {
       const res = await submitSignup({ ...values, visitorId: getVisitorId(), source: loadSource(), website: honeypot });
-      saveHandOff({ signupId: res.signupId, name: values.name.trim(), join: res.join });
+      const h: HandOff = { signupId: res.signupId, name: values.name.trim(), join: res.join };
+      saveHandOff(h);
       setDone(true); // Spark beams for a beat before the hand-off screen
-      navTimerRef.current = setTimeout(() => navigate('/joined'), 700);
+      navTimerRef.current = setTimeout(() => navigate('/joined', { state: h }), 700);
     } catch (err) {
       setBusy(false);
       if (err instanceof ApiError && err.status === 422) {
@@ -72,7 +73,7 @@ export function Join() {
         // at all on the page the whole funnel converges on.
         const known = new Set(Object.keys(EMPTY));
         const mapped: FieldErrors = {};
-        for (const [k, msgs] of Object.entries(err.fields)) if (known.has(k)) mapped[k as keyof SignupFormValues] = msgs[0];
+        for (const [k, msgs] of Object.entries(err.fields)) if (known.has(k) && msgs[0]) mapped[k as keyof SignupFormValues] = msgs[0];
         if (Object.keys(mapped).length) setErrors(mapped);
         else setBanner("Something went wrong on our side. Please try again — if it keeps failing, message us and we'll add you by hand.");
       } else {

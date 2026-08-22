@@ -1,11 +1,15 @@
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { NeonButton } from '../components/NeonButton.tsx';
 import { trackEvent } from '../lib/api.ts';
-import { loadHandOff } from '../lib/session.ts';
+import { isHandOff, loadHandOff } from '../lib/session.ts';
 
 export function Joined() {
-  const handoff = loadHandOff();
+  // Prefer the router state: it is THIS hand-off, and it works on browsers that block
+  // sessionStorage entirely (locked-down WebViews, "block all cookies"). sessionStorage is the
+  // fallback so a refresh on /joined still works wherever storage IS available.
+  const { state } = useLocation();
+  const handoff = isHandOff(state) ? state : loadHandOff();
   if (!handoff) return <Navigate to="/join" replace />;
   const firstName = handoff.name.split(/\s+/)[0] ?? handoff.name;
   const { url, code, whatsappNumber } = handoff.join;
