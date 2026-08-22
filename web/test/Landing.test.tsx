@@ -22,6 +22,7 @@ describe('Landing', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(JSON.parse(fetchMock.mock.calls[0]![1].body).name).toBe('landing_view');
     expect(sessionStorage.getItem('ts_src')).toBe('grp-a');
+    expect(sessionStorage.getItem('ts_lv')).toBe('1');
     unmount();
     render(<MemoryRouter><Landing /></MemoryRouter>);
     expect(fetchMock).toHaveBeenCalledTimes(1); // deduped within the tab session

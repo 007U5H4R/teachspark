@@ -17,7 +17,9 @@ export function Landing() {
     try {
       if (sessionStorage.getItem(VIEWED)) return;
       sessionStorage.setItem(VIEWED, '1');
-    } catch { /* private mode: fall through and track anyway */ }
+    } catch {
+      return; // storage blocked: skip the event rather than emit an uncapped one on every mount
+    }
     trackEvent('landing_view');
   }, [params]);
 
