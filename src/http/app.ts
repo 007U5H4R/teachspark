@@ -5,6 +5,7 @@ import type { Clock, EventLog, SignupRepo, TeacherRepo, WebEventLog } from '../p
 import type { Config } from '../config.js';
 import { computeFunnel } from '../metrics/funnel.js';
 import { createApiRouter, type JoinInfo } from './api.js';
+import { mountSpa } from './static.js';
 
 const { webhook: twilioWebhook, twiml } = twilio;
 const { MessagingResponse } = twiml;
@@ -109,6 +110,10 @@ export function createApp(deps: AppDeps): express.Express {
   app.all('/api{/*splat}', (_req: Request, res: Response) => {
     res.status(404).json({ error: 'not_found' });
   });
+
+  if (deps.webDist && !mountSpa(app, deps.webDist)) {
+    console.warn(`[http] SPA build not found at ${deps.webDist}; serving API only`);
+  }
 
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     // Only trust err.status for the 4xx range body-parser actually emits (e.g. entity.parse.failed

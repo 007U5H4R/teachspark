@@ -1,5 +1,6 @@
 import { loadConfig, buildJoinLink } from './config.js';
 import { createApp } from './http/app.js';
+import { WEB_DIST } from './http/static.js';
 import { createInboundHandler } from './bot/handle.js';
 import { createNudgePass, startNudgeCron } from './jobs/nudges.js';
 import type { ExecutorDeps } from './bot/executor.js';
@@ -50,7 +51,7 @@ const app = createApp({
   signups: new SupabaseSignupRepo(sb),
   webEvents: new SupabaseWebEventLog(sb),
   join: { url: deps.joinLink, code: config.TWILIO_SANDBOX_JOIN_CODE, whatsappNumber: config.TWILIO_WHATSAPP_FROM.replace(/^whatsapp:/, '') },
-  webDist: null, // Task 5 replaces this with WEB_DIST
+  webDist: WEB_DIST,
   clock: deps.clock,
 });
 
