@@ -54,7 +54,26 @@ function tally(values: Array<string | null>, limit?: number): Tally[] {
   return limit === undefined ? rows : rows.slice(0, limit);
 }
 
-export function computeLanding(signups: Signup[], opts: { fullPhones?: boolean; recentLimit?: number } = {}): LandingMetrics {
+/**
+ * Demo view of a person. Real city, country, profession and timings — those are what make the
+ * dashboard worth showing — but nothing that identifies anyone.
+ *
+ * The label is positional ("Teacher 4"), not derived from the name, so it cannot be reversed.
+ */
+function anonymise(row: RecentSignup, index: number): RecentSignup {
+  return {
+    ...row,
+    id: `demo-${index + 1}`,
+    name: `Teacher ${index + 1}`,
+    organization: row.organization === null ? null : 'School withheld',
+    phone: '••••••••',
+  };
+}
+
+export function computeLanding(
+  signups: Signup[],
+  opts: { fullPhones?: boolean; recentLimit?: number; anonymise?: boolean } = {},
+): LandingMetrics {
   const recentLimit = opts.recentLimit ?? 50;
   const newestFirst = [...signups].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   return {
@@ -65,17 +84,21 @@ export function computeLanding(signups: Signup[], opts: { fullPhones?: boolean; 
     byCity: tally(signups.map((s) => s.city), 10),
     byCountry: tally(signups.map((s) => s.country)),
     bySource: tally(signups.map((s) => s.source)),
-    recent: newestFirst.slice(0, recentLimit).map((s) => ({
-      id: s.id,
-      name: s.name,
-      profession: s.profession,
-      organization: s.organization,
-      city: s.city,
-      country: s.country,
-      phone: opts.fullPhones ? s.phoneE164 : maskPhone(s.phoneE164),
-      joinTappedAt: s.joinTappedAt ? s.joinTappedAt.toISOString() : null,
-      createdAt: s.createdAt.toISOString(),
-    })),
+    recent: newestFirst.slice(0, recentLimit).map((s, i) => {
+      const row: RecentSignup = {
+        id: s.id,
+        name: s.name,
+        profession: s.profession,
+        organization: s.organization,
+        city: s.city,
+        country: s.country,
+        // fullPhones is ignored under anonymise — the caller cannot combine them to unmask.
+        phone: opts.fullPhones && !opts.anonymise ? s.phoneE164 : maskPhone(s.phoneE164),
+        joinTappedAt: s.joinTappedAt ? s.joinTappedAt.toISOString() : null,
+        createdAt: s.createdAt.toISOString(),
+      };
+      return opts.anonymise ? anonymise(row, i) : row;
+    }),
   };
 }
 

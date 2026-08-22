@@ -98,7 +98,8 @@ and boot fails fast (`loadConfig()` in `src/config.ts`) if they're missing.
 | `SUPABASE_URL` | — (required) | Supabase project URL (Postgres + Storage). |
 | `SUPABASE_SERVICE_ROLE_KEY` | — (required) | Supabase service-role key (server-side only — never expose client-side). |
 | `SUPABASE_PDF_BUCKET` | `worksheets` | Storage bucket generated PDFs are uploaded to (created on boot if missing). |
-| `ADMIN_TOKEN` | — (required, min 8 chars) | Bearer token guarding `GET /admin/metrics`. |
+| `ADMIN_TOKEN` | — (required, min 8 chars) | Full admin. Signs in at `/admin`, and is still accepted as a Bearer token by `GET /api/admin/metrics` and the deprecated `GET /admin/metrics`. **Also the signing key for every session cookie — rotating it signs everyone out, which is the revocation mechanism.** |
+| `DEMO_TOKEN` | — (optional, min 8 chars) | Read-only demo access to `/admin`. Same real numbers, but names, schools and phone numbers are withheld **server-side** before the payload leaves. Cannot use `?phones=full` and is refused by the deprecated `/admin/metrics` alias. Must differ from `ADMIN_TOKEN` or the app refuses to boot. Omit it entirely and demo login is unavailable. |
 | `CRON_SECRET` | — (required, min 8 chars) | Shared secret (header `x-cron-secret`) guarding `POST /internal/cron/nudges`. |
 | `NUDGE_TIMEZONE` | `Asia/Kolkata` | IANA timezone used to schedule nudges and compute quiet hours. |
 | `NUDGE_CRON` | `*/10 * * * *` | Cron expression for the in-process nudge sweep. |

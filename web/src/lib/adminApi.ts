@@ -15,7 +15,10 @@ export interface RecentSignup {
   createdAt: string;
 }
 
+export type Role = 'admin' | 'demo';
+
 export interface AdminMetrics {
+  role: Role;
   funnel: {
     teachers: number; onboarded: number; activated: number; impactReported: number;
     returnedForSkill2: number; completedBoth: number; medianMinutesSaved: number | null;

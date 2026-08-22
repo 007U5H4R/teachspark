@@ -25,6 +25,21 @@ describe('loadConfig', () => {
     expect(c.NUDGE_TIMEZONE).toBe('Asia/Kolkata');
     expect(c.NUDGE_CRON).toBe('*/10 * * * *');
   });
+  it('leaves DEMO_TOKEN unset by default, so demo login is simply unavailable', () => {
+    expect(loadConfig(valid).DEMO_TOKEN).toBeUndefined();
+  });
+
+  it('accepts a distinct DEMO_TOKEN', () => {
+    expect(loadConfig({ ...valid, DEMO_TOKEN: 'demo-token-123' }).DEMO_TOKEN).toBe('demo-token-123');
+  });
+
+  it('refuses a DEMO_TOKEN identical to ADMIN_TOKEN', () => {
+    // Otherwise the "read-only" demo credential silently grants full admin, including the
+    // unredacted phone list. Failing at boot beats discovering it from a link already shared.
+    expect(() => loadConfig({ ...valid, DEMO_TOKEN: valid.ADMIN_TOKEN }))
+      .toThrow(/DEMO_TOKEN must not be the same value as ADMIN_TOKEN/);
+  });
+
   it('coerces PORT and boolean flags', () => {
     const c = loadConfig({ ...valid, PORT: '8080', TWILIO_VALIDATE_SIGNATURE: 'false' });
     expect(c.PORT).toBe(8080);

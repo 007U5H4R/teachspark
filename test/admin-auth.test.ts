@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import {
-  ADMIN_COOKIE, clearCookie, isAuthorised, mintSession, readCookie, safeEqual, sessionCookie, SESSION_MS, verifySession,
+  ADMIN_COOKIE, authorisedRole, clearCookie, mintSession, readCookie, roleForToken, safeEqual, sessionCookie, SESSION_MS, verifySession,
 } from '../src/http/adminAuth.js';
 import { createApp, type AppDeps } from '../src/http/app.js';
 import { FixedClock, InMemoryEventLog, InMemorySignupRepo, InMemoryTeacherRepo, InMemoryWebEventLog } from '../src/adapters/memory.js';
 
 const SECRET = 'super-secret-token';
+const DEMO = 'demo-viewer-token';
 const NOW = 1_700_000_000_000;
 
 function deps(): AppDeps {
   return {
-    config: { TWILIO_AUTH_TOKEN: 'tok', TWILIO_VALIDATE_SIGNATURE: false, PUBLIC_BASE_URL: 'https://x.test', ADMIN_TOKEN: SECRET, CRON_SECRET: 'c' },
+    config: { TWILIO_AUTH_TOKEN: 'tok', TWILIO_VALIDATE_SIGNATURE: false, PUBLIC_BASE_URL: 'https://x.test', ADMIN_TOKEN: SECRET, DEMO_TOKEN: DEMO, CRON_SECRET: 'c' },
     handleInbound: async () => {}, runNudgePass: async () => 0,
     teachers: new InMemoryTeacherRepo(), events: new InMemoryEventLog(),
     signups: new InMemorySignupRepo(), webEvents: new InMemoryWebEventLog(),
@@ -22,28 +23,28 @@ function deps(): AppDeps {
 
 describe('session tokens', () => {
   it('mints a session that verifies, and rejects it once expired', () => {
-    const v = mintSession(NOW, SECRET, 1000);
-    expect(verifySession(v, NOW, SECRET)).toBe(true);
-    expect(verifySession(v, NOW + 999, SECRET)).toBe(true);
-    expect(verifySession(v, NOW + 1001, SECRET)).toBe(false);
+    const v = mintSession('admin', NOW, SECRET, 1000);
+    expect(verifySession(v, NOW, SECRET)).toBe('admin');
+    expect(verifySession(v, NOW + 999, SECRET)).toBe('admin');
+    expect(verifySession(v, NOW + 1001, SECRET)).toBe(null);
   });
 
   it('rejects a session signed with a different secret — rotating ADMIN_TOKEN is the revocation', () => {
-    const v = mintSession(NOW, SECRET);
-    expect(verifySession(v, NOW, 'rotated-token')).toBe(false);
+    const v = mintSession('admin', NOW, SECRET);
+    expect(verifySession(v, NOW, 'rotated-token')).toBe(null);
   });
 
   it('cannot be forged by extending the expiry', () => {
     // The obvious attack: keep the signature, push the timestamp out.
-    const v = mintSession(NOW, SECRET, 1000);
+    const v = mintSession('admin', NOW, SECRET, 1000);
     const sig = v.slice(v.lastIndexOf('.') + 1);
-    const forged = `${NOW + SESSION_MS * 10}.${sig}`;
-    expect(verifySession(forged, NOW, SECRET)).toBe(false);
+    const forged = `admin.${NOW + SESSION_MS * 10}.${sig}`;
+    expect(verifySession(forged, NOW, SECRET)).toBe(null);
   });
 
-  it.each(['', 'nodot', '.sig', 'abc.sig', '-1.sig', `${NOW + 1000}.`, '1e9.sig'])(
+  it.each(['', 'nodot', '.sig', 'admin.abc.sig', 'admin.-1.sig', `admin.${NOW + 1000}.`, 'admin.1e9.sig', `${NOW + 1000}.sig`, `root.${NOW + 1000}.sig`])(
     'rejects the malformed value %j without throwing', (v) => {
-      expect(verifySession(v, NOW, SECRET)).toBe(false);
+      expect(verifySession(v, NOW, SECRET)).toBe(null);
     });
 
   it('safeEqual matches only identical strings, including different lengths', () => {
@@ -80,14 +81,38 @@ describe('cookie handling', () => {
   });
 });
 
-describe('isAuthorised', () => {
+describe('authorisedRole', () => {
+  const tokens = { adminToken: SECRET, demoToken: DEMO };
+
   it('accepts the bearer token or a valid cookie, and nothing else', () => {
-    const cookieHeader = `${ADMIN_COOKIE}=${mintSession(NOW, SECRET)}`;
-    expect(isAuthorised({ authorization: `Bearer ${SECRET}` }, NOW, SECRET)).toBe(true);
-    expect(isAuthorised({ cookieHeader }, NOW, SECRET)).toBe(true);
-    expect(isAuthorised({ authorization: `Bearer wrong` }, NOW, SECRET)).toBe(false);
-    expect(isAuthorised({ cookieHeader: `${ADMIN_COOKIE}=nonsense` }, NOW, SECRET)).toBe(false);
-    expect(isAuthorised({}, NOW, SECRET)).toBe(false);
+    const cookieHeader = `${ADMIN_COOKIE}=${mintSession('admin', NOW, SECRET)}`;
+    expect(authorisedRole({ authorization: `Bearer ${SECRET}` }, NOW, tokens)).toBe('admin');
+    expect(authorisedRole({ cookieHeader }, NOW, tokens)).toBe('admin');
+    expect(authorisedRole({ authorization: 'Bearer wrong' }, NOW, tokens)).toBe(null);
+    expect(authorisedRole({ cookieHeader: `${ADMIN_COOKIE}=nonsense` }, NOW, tokens)).toBe(null);
+    expect(authorisedRole({}, NOW, tokens)).toBe(null);
+  });
+
+  it('maps each token to its own role', () => {
+    expect(roleForToken(SECRET, tokens)).toBe('admin');
+    expect(roleForToken(DEMO, tokens)).toBe('demo');
+    expect(roleForToken('neither', tokens)).toBe(null);
+  });
+
+  it('grants no demo role at all when DEMO_TOKEN is unset', () => {
+    // An absent demo credential must not degrade into "any token works" or an empty-string match.
+    const adminOnly = { adminToken: SECRET, demoToken: undefined };
+    expect(roleForToken('', adminOnly)).toBe(null);
+    expect(roleForToken(DEMO, adminOnly)).toBe(null);
+    expect(roleForToken(SECRET, adminOnly)).toBe('admin');
+  });
+
+  it('a demo cookie cannot be edited into an admin one', () => {
+    // The role is inside the signed payload; swapping the prefix breaks the signature.
+    const demo = mintSession('demo', NOW, SECRET);
+    expect(verifySession(demo, NOW, SECRET)).toBe('demo');
+    const escalated = demo.replace(/^demo\./, 'admin.');
+    expect(verifySession(escalated, NOW, SECRET)).toBe(null);
   });
 });
 
@@ -150,5 +175,68 @@ describe('GET /api/admin/metrics', () => {
     const res = await request(createApp(deps())).post('/api/admin/logout');
     expect(res.status).toBe(200);
     expect((res.headers['set-cookie'] as unknown as string[])[0]).toContain('Max-Age=0');
+  });
+});
+
+describe('demo role', () => {
+  async function seeded(): Promise<AppDeps> {
+    const d = deps();
+    await d.signups.create({
+      name: 'Meera Sharma', profession: 'school_teacher', organization: 'Kendriya Vidyalaya',
+      phoneE164: '+919876543210', phoneRaw: '9876543210', city: 'Pune', country: 'IN',
+      source: 'linkedin', now: new Date(NOW),
+    });
+    return d;
+  }
+
+  it('logs in with the demo token and reports its role', async () => {
+    const res = await request(createApp(await seeded())).post('/api/admin/login').send({ token: DEMO });
+    expect(res.status).toBe(200);
+    expect(res.body.role).toBe('demo');
+  });
+
+  it('sees the real aggregate numbers — that is the point of a demo', async () => {
+    const app = createApp(await seeded());
+    const res = await request(app).get('/api/admin/metrics').set('Authorization', `Bearer ${DEMO}`);
+    expect(res.status).toBe(200);
+    expect(res.body.role).toBe('demo');
+    expect(res.body.landing.signups).toBe(1);
+    // Demographics are aggregate and non-identifying, so they stay real.
+    expect(res.body.landing.byCity).toEqual([{ name: 'Pune', count: 1 }]);
+  });
+
+  it('never receives a real name, organisation or phone digit', async () => {
+    const app = createApp(await seeded());
+    const res = await request(app).get('/api/admin/metrics').set('Authorization', `Bearer ${DEMO}`);
+    const row = res.body.landing.recent[0];
+    expect(row.name).toBe('Teacher 1');
+    expect(row.organization).toBe('School withheld');
+    expect(row.phone).toBe('••••••••');
+    // The strongest form of this check: nothing identifying anywhere in the payload.
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain('Meera');
+    expect(body).not.toContain('Kendriya');
+    expect(body).not.toContain('3210');
+    expect(body).not.toContain('9876543210');
+  });
+
+  it('cannot use ?phones=full to escape anonymisation', async () => {
+    const app = createApp(await seeded());
+    const res = await request(app).get('/api/admin/metrics?phones=full').set('Authorization', `Bearer ${DEMO}`);
+    expect(res.body.landing.recent[0].phone).toBe('••••••••');
+    expect(JSON.stringify(res.body)).not.toContain('9876543210');
+  });
+
+  it('admin still sees everything, so the redaction is scoped to the role and not global', async () => {
+    const app = createApp(await seeded());
+    const res = await request(app).get('/api/admin/metrics?phones=full').set('Authorization', `Bearer ${SECRET}`);
+    expect(res.body.landing.recent[0].name).toBe('Meera Sharma');
+    expect(res.body.landing.recent[0].phone).toBe('+919876543210');
+  });
+
+  it('is refused by the deprecated /admin/metrics alias, which stays admin-only', async () => {
+    const app = createApp(await seeded());
+    expect((await request(app).get('/admin/metrics').set('Authorization', `Bearer ${DEMO}`)).status).toBe(401);
+    expect((await request(app).get('/admin/metrics').set('Authorization', `Bearer ${SECRET}`)).status).toBe(200);
   });
 });

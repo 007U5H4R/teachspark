@@ -4,10 +4,11 @@ import { z } from 'zod';
 import type { Clock, EventLog, SignupRepo, TeacherRepo, WebEventLog } from '../ports.js';
 import { computeFunnel } from '../metrics/funnel.js';
 import { computeLanding, countWebEvents } from '../metrics/landing.js';
-import { clearCookie, isAuthorised, mintSession, safeEqual, sessionCookie, SESSION_MS } from './adminAuth.js';
+import { authorisedRole, clearCookie, mintSession, roleForToken, sessionCookie, SESSION_MS, type Role } from './adminAuth.js';
 
 export interface AdminDeps {
   adminToken: string;
+  demoToken?: string | undefined;
   events: EventLog;
   teachers: TeacherRepo;
   signups: SignupRepo;
@@ -34,24 +35,28 @@ export function createAdminRouter(deps: AdminDeps): express.Router {
     message: { error: 'rate_limited' },
   });
 
-  const authed = (req: Request): boolean =>
-    isAuthorised(
+  const tokens = { adminToken: deps.adminToken, demoToken: deps.demoToken };
+
+  const roleOf = (req: Request): Role | null =>
+    authorisedRole(
       { cookieHeader: req.headers.cookie, authorization: req.get('authorization') },
       deps.clock.now().getTime(),
-      deps.adminToken,
+      tokens,
     );
 
   router.post('/login', loginLimiter, (req: Request, res: Response) => {
     const parsed = LoginBody.safeParse(req.body);
+    const role = parsed.success ? roleForToken(parsed.data.token, tokens) : null;
     // Deliberately the same response as a wrong token: a distinct "malformed" reply would tell an
     // attacker their request shape was right.
-    if (!parsed.success || !safeEqual(parsed.data.token, deps.adminToken)) {
+    if (!role) {
       res.status(401).json({ error: 'unauthorized' });
       return;
     }
-    const value = mintSession(deps.clock.now().getTime(), deps.adminToken);
+    // Signed with ADMIN_TOKEN whichever role it is, so one rotation revokes both.
+    const value = mintSession(role, deps.clock.now().getTime(), deps.adminToken);
     res.setHeader('Set-Cookie', sessionCookie(value, req.secure, SESSION_MS));
-    res.json({ ok: true });
+    res.json({ ok: true, role });
   });
 
   router.post('/logout', (req: Request, res: Response) => {
@@ -61,17 +66,20 @@ export function createAdminRouter(deps: AdminDeps): express.Router {
 
   /** Cheap probe so the SPA can tell "logged in" from "not" without pulling the whole payload. */
   router.get('/session', (req: Request, res: Response) => {
-    res.json({ authenticated: authed(req) });
+    const role = roleOf(req);
+    res.json({ authenticated: role !== null, role });
   });
 
   router.get('/metrics', async (req: Request, res: Response) => {
-    if (!authed(req)) {
+    const role = roleOf(req);
+    if (!role) {
       res.status(401).json({ error: 'unauthorized' });
       return;
     }
     // Phones are masked by default so a normal page load never carries the contact list to the
-    // browser. Asking for them in full is a deliberate act.
-    const fullPhones = req.query.phones === 'full';
+    // browser. Asking for them in full is a deliberate act — and one the demo role never gets.
+    const fullPhones = req.query.phones === 'full' && role === 'admin';
+    const anonymise = role === 'demo';
     const [events, teachers, signups, webEvents] = await Promise.all([
       deps.events.listAll(),
       deps.teachers.listAll(),
@@ -79,8 +87,9 @@ export function createAdminRouter(deps: AdminDeps): express.Router {
       deps.webEvents.listAll(),
     ]);
     res.json({
+      role,
       funnel: computeFunnel(events, teachers),
-      landing: computeLanding(signups, { fullPhones }),
+      landing: computeLanding(signups, { fullPhones, anonymise }),
       webEvents: countWebEvents(webEvents),
       generatedAt: deps.clock.now().toISOString(),
     });

@@ -114,14 +114,15 @@ export function Admin() {
     );
   }
 
-  const { funnel, landing, webEvents, generatedAt } = view.data;
+  const { role, funnel, landing, webEvents, generatedAt } = view.data;
   const nothingYet = funnel.teachers === 0 && landing.signups === 0;
+  const isDemo = role === 'demo';
 
   return (
     <main className="admin">
       <header className="admin__head">
         <div>
-          <h1>Admin</h1>
+          <h1>Admin{isDemo && <span className="pill pill--demo">Demo</span>}</h1>
           <p className="admin__muted">As of {new Date(generatedAt).toLocaleString()}</p>
         </div>
         <div className="admin__actions">
@@ -129,6 +130,13 @@ export function Admin() {
           <button type="button" className="btn-ghost" onClick={() => void onLogout()}>Sign out</button>
         </div>
       </header>
+
+      {isDemo && (
+        <p className="admin__caveat admin__demo" role="note">
+          Demo access. Every number on this page is real; the people are not. Names, schools and
+          phone numbers are withheld before the data leaves the server.
+        </p>
+      )}
 
       {nothingYet && (
         <p className="panel__empty admin__empty">
@@ -180,7 +188,9 @@ export function Admin() {
 
       <h2 className="admin__section">Recent sign-ups</h2>
       <p className="admin__muted admin__note">
-        Phone numbers are masked. Full numbers are available from <code>/api/admin/metrics?phones=full</code>.
+        {isDemo
+          ? 'Names, schools and phone numbers are withheld on demo access.'
+          : <>Phone numbers are masked. Full numbers are available from <code>/api/admin/metrics?phones=full</code>.</>}
       </p>
       {landing.recent.length === 0 ? (
         <p className="panel__empty">Nobody has signed up through the landing page yet.</p>

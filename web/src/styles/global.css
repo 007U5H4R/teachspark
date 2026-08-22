@@ -281,3 +281,7 @@ button, input, select { font: inherit; }
   .card, .card:hover, .nav__pill, .btn-submit, .field input, .field select, .footer__links a { transition: none; transform: none; }
   .btn-submit__spinner { animation: none; }
 }
+
+/* Demo access badge — a viewer should never be unsure which data they are looking at. */
+.pill--demo { margin-left: var(--sp-3); background: var(--bg-elev); border-color: var(--border-strong); color: var(--muted); vertical-align: middle; font-weight: 600; }
+.admin__demo { border-left: 2px solid var(--border-strong); padding-left: var(--sp-3); margin-bottom: var(--sp-6); }

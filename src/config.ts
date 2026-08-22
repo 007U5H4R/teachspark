@@ -17,11 +17,23 @@ const ConfigSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_PDF_BUCKET: z.string().min(1).default('worksheets'),
   ADMIN_TOKEN: z.string().min(8),
+  /**
+   * Optional read-only credential for showing the dashboard to someone who should not see who
+   * signed up. Grants the same real numbers with individuals anonymised. Omit it and demo login
+   * is simply unavailable — there is no default, because a guessable default on a public URL
+   * would be worse than having no demo at all.
+   */
+  DEMO_TOKEN: z.string().min(8).optional(),
   CRON_SECRET: z.string().min(8),
   NUDGE_TIMEZONE: z.string().min(1).default('Asia/Kolkata'),
   NUDGE_CRON: z.string().min(1).default('*/10 * * * *'),
   SUPABASE_PAPER_BUCKET: z.string().min(1).default('papers'),
   PAPER_MODEL: z.string().min(1).default('claude-sonnet-5'),
+}).refine((c) => c.DEMO_TOKEN === undefined || c.DEMO_TOKEN !== c.ADMIN_TOKEN, {
+  // Otherwise the "read-only" demo credential silently grants full admin, including the
+  // unredacted phone list. Fail at boot rather than discovering it from a shared link.
+  error: 'DEMO_TOKEN must not be the same value as ADMIN_TOKEN',
+  path: ['DEMO_TOKEN'],
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

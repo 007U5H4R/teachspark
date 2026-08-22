@@ -16,7 +16,7 @@ export const WEBHOOK_PATH = '/webhooks/twilio/whatsapp';
 export const STATUS_PATH = '/webhooks/twilio/status';
 
 export interface AppDeps {
-  config: Pick<Config, 'TWILIO_AUTH_TOKEN' | 'TWILIO_VALIDATE_SIGNATURE' | 'PUBLIC_BASE_URL' | 'ADMIN_TOKEN' | 'CRON_SECRET'>;
+  config: Pick<Config, 'TWILIO_AUTH_TOKEN' | 'TWILIO_VALIDATE_SIGNATURE' | 'PUBLIC_BASE_URL' | 'ADMIN_TOKEN' | 'DEMO_TOKEN' | 'CRON_SECRET'>;
   handleInbound: (m: InboundMessage) => Promise<void>;
   runNudgePass: () => Promise<number>;
   teachers: TeacherRepo;
@@ -96,6 +96,7 @@ export function createApp(deps: AppDeps): express.Express {
   app.get('/admin/metrics', async (req: Request, res: Response) => {
     // safeEqual, not !==: a plain comparison short-circuits on the first differing byte, and this
     // token now also unlocks a login form on a public URL.
+    // Alias keeps ADMIN-only semantics: the demo credential never reaches this legacy path.
     if (!safeEqual(req.get('authorization') ?? '', `Bearer ${config.ADMIN_TOKEN}`)) {
       res.status(401).json({ error: 'unauthorized' });
       return;
@@ -116,6 +117,7 @@ export function createApp(deps: AppDeps): express.Express {
   // router does not handle the path it falls straight through to the /api 404 below.
   app.use('/api/admin', createAdminRouter({
     adminToken: config.ADMIN_TOKEN,
+    demoToken: config.DEMO_TOKEN,
     events: deps.events,
     teachers: deps.teachers,
     signups: deps.signups,
