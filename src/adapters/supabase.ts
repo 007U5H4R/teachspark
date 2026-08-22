@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { EventRecord, EventRow, SkillId, Teacher, TeacherState, TeacherUpdate } from '../domain/types.js';
-import type { EventLog, GenerationSaveInput, GenerationStore, PaperSaveInput, PapersRepo, TeacherRepo } from '../ports.js';
+import { DuplicateSignupError, type Profession, type Signup, type SignupCreateInput, type WebEventInput, type WebEventName, type WebEventRow } from '../domain/web.js';
+import type { EventLog, GenerationSaveInput, GenerationStore, PaperSaveInput, PapersRepo, SignupRepo, TeacherRepo, WebEventLog } from '../ports.js';
 
 export interface TeacherRow {
   id: string;
@@ -195,5 +196,113 @@ export class SupabasePapersRepo implements PapersRepo {
       created_at: input.at.toISOString(),
     });
     if (error) throw new Error(`papers.insert failed: ${error.message}`);
+  }
+}
+
+export interface SignupRow {
+  id: string;
+  name: string;
+  profession: string;
+  organization: string | null;
+  phone_e164: string;
+  phone_raw: string;
+  city: string;
+  country: string;
+  source: string | null;
+  join_tapped_at: string | null;
+  teacher_id: string | null;
+  matched_at: string | null;
+  created_at: string;
+}
+
+const SIGNUP_COLUMNS = 'id, name, profession, organization, phone_e164, phone_raw, city, country, source, join_tapped_at, teacher_id, matched_at, created_at';
+
+export function rowToSignup(r: SignupRow): Signup {
+  return {
+    id: r.id,
+    name: r.name,
+    profession: r.profession as Profession,
+    organization: r.organization,
+    phoneE164: r.phone_e164,
+    phoneRaw: r.phone_raw,
+    city: r.city,
+    country: r.country,
+    source: r.source,
+    joinTappedAt: toDate(r.join_tapped_at),
+    teacherId: r.teacher_id,
+    matchedAt: toDate(r.matched_at),
+    createdAt: new Date(r.created_at),
+  };
+}
+
+export function signupInputToRow(i: SignupCreateInput): Record<string, unknown> {
+  return {
+    name: i.name,
+    profession: i.profession,
+    organization: i.organization,
+    phone_e164: i.phoneE164,
+    phone_raw: i.phoneRaw,
+    city: i.city,
+    country: i.country,
+    source: i.source,
+    created_at: i.now.toISOString(),
+  };
+}
+
+export class SupabaseSignupRepo implements SignupRepo {
+  constructor(private sb: SupabaseClient) {}
+
+  async create(input: SignupCreateInput): Promise<Signup> {
+    const res = await this.sb.from('signups').insert(signupInputToRow(input)).select(SIGNUP_COLUMNS).single();
+    if (res.error?.code === '23505') {
+      // unique violation on phone_e164: surface the existing row so the API can say "welcome back"
+      const existing = await this.findByPhoneE164(input.phoneE164);
+      if (existing) throw new DuplicateSignupError(existing);
+    }
+    return rowToSignup(unwrap(res, 'signups.insert') as SignupRow);
+  }
+
+  async findById(id: string): Promise<Signup | null> {
+    const res = await this.sb.from('signups').select(SIGNUP_COLUMNS).eq('id', id).maybeSingle();
+    if (res.error) throw new Error(`signups.findById failed: ${res.error.message}`);
+    return res.data ? rowToSignup(res.data as SignupRow) : null;
+  }
+
+  async findByPhoneE164(e164: string): Promise<Signup | null> {
+    const res = await this.sb.from('signups').select(SIGNUP_COLUMNS).eq('phone_e164', e164).maybeSingle();
+    if (res.error) throw new Error(`signups.findByPhoneE164 failed: ${res.error.message}`);
+    return res.data ? rowToSignup(res.data as SignupRow) : null;
+  }
+
+  async markJoinTapped(id: string, at: Date): Promise<void> {
+    // Only the first tap is recorded: the WHERE join_tapped_at IS NULL makes retries no-ops.
+    const res = await this.sb.from('signups').update({ join_tapped_at: at.toISOString() }).eq('id', id).is('join_tapped_at', null).select('id');
+    if (res.error) throw new Error(`signups.markJoinTapped failed: ${res.error.message}`);
+    if ((res.data ?? []).length === 0) {
+      const exists = await this.findById(id);
+      if (!exists) throw new Error(`signup ${id} not found`);
+    }
+  }
+
+  async listAll(): Promise<Signup[]> {
+    const res = await this.sb.from('signups').select(SIGNUP_COLUMNS).order('created_at', { ascending: true }).limit(5000);
+    return (unwrap(res, 'signups.listAll') as SignupRow[]).map(rowToSignup);
+  }
+}
+
+export class SupabaseWebEventLog implements WebEventLog {
+  constructor(private sb: SupabaseClient) {}
+
+  async log(input: WebEventInput, at: Date): Promise<void> {
+    const { error } = await this.sb
+      .from('web_events')
+      .insert({ visitor_id: input.visitorId, name: input.name, signup_id: input.signupId, properties: input.properties ?? {}, created_at: at.toISOString() });
+    if (error) throw new Error(`web_events.insert failed: ${error.message}`);
+  }
+
+  async listAll(): Promise<WebEventRow[]> {
+    const res = await this.sb.from('web_events').select('visitor_id, name, signup_id, properties, created_at').order('created_at', { ascending: true }).limit(50000);
+    const rows = unwrap(res, 'web_events.listAll') as Array<{ visitor_id: string | null; name: string; signup_id: string | null; properties: Record<string, unknown>; created_at: string }>;
+    return rows.map((r) => ({ visitorId: r.visitor_id, name: r.name as WebEventName, signupId: r.signup_id, properties: r.properties ?? {}, createdAt: new Date(r.created_at) }));
   }
 }

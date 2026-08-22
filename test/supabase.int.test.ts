@@ -47,4 +47,24 @@ describe.skipIf(!url || !key)('Supabase adapters (integration)', () => {
     const { error } = await sb.from('teachers').delete().eq('id', t.id);
     expect(error).toBeNull();
   });
+
+  it('round-trips a signup and a web event, and enforces the phone uniqueness', async () => {
+    const { SupabaseSignupRepo, SupabaseWebEventLog } = await import('../src/adapters/supabase.js');
+    const { DuplicateSignupError } = await import('../src/domain/web.js');
+    const signups = new SupabaseSignupRepo(sb);
+    const webEvents = new SupabaseWebEventLog(sb);
+    const now = new Date();
+    const phone = `+91${String(Date.now()).slice(-10)}`;
+    const s = await signups.create({ name: 'Int Test', profession: 'tutor', organization: null, phoneE164: phone, phoneRaw: phone, city: 'Pune', country: 'IN', source: 'int', now });
+    expect(s.joinTappedAt).toBeNull();
+    await expect(signups.create({ name: 'Dup', profession: 'tutor', organization: null, phoneE164: phone, phoneRaw: phone, city: 'Pune', country: 'IN', source: null, now })).rejects.toBeInstanceOf(DuplicateSignupError);
+    await signups.markJoinTapped(s.id, now);
+    await signups.markJoinTapped(s.id, new Date(now.getTime() + 5000)); // idempotent
+    const again = await signups.findById(s.id);
+    expect(again?.joinTappedAt?.getTime()).toBe(now.getTime()); // first tap wins; timestamptz keeps ms precision
+    await webEvents.log({ visitorId: 'int-visitor', name: 'join_tapped', signupId: s.id }, now);
+    const rows = (await webEvents.listAll()).filter((r) => r.signupId === s.id);
+    expect(rows).toHaveLength(1);
+    await sb.from('signups').delete().eq('id', s.id); // cleanup (cascades web_events.signup_id to null)
+  });
 });
