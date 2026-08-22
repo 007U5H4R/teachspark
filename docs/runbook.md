@@ -107,8 +107,11 @@ and boot fails fast (`loadConfig()` in `src/config.ts`) if they're missing.
 
 - `npm test` — runs the full Vitest suite (unit tests plus two integration suites).
 - `npm run typecheck` — `tsc` against `tsconfig.json`, no emit.
-- `npm run build` — compiles to `dist/` via `tsconfig.build.json`; this is what Railway runs
-  before `node dist/index.js`.
+- `npm run build` — builds the web app (`npm run build -w web`) and then compiles the server to
+  `dist/` via `tsconfig.build.json`; this is what Railway runs before `node dist/index.js`.
+  The web build reads `PUBLIC_BASE_URL` at **build** time and fails fast when it is missing, not
+  `https://`, or has a trailing slash — so on Railway it must be set as a *service* variable
+  (build environment), not only at runtime. A failed build leaves the previous container serving.
 
 `test/storage.int.test.ts` and `test/supabase.int.test.ts` wrap their suite in
 `describe.skipIf(!url || !key)` and only run when `SUPABASE_URL` and
