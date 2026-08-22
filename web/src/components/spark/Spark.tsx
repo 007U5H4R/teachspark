@@ -50,6 +50,11 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
   const glossId = `spark-gloss-${uid}`;
   const shadowId = `spark-shadow-${uid}`;
   const blurId = `spark-blur-${uid}`;
+  const hazeId = `spark-haze-${uid}`;
+  const rimId = `spark-rim-${uid}`;
+  const haloId = `spark-halo-${uid}`;
+  const edgeId = `spark-edge-${uid}`;
+  const reflectBlurId = `spark-rblur-${uid}`;
 
   // Blink: a short squash on a loose cadence.
   useEffect(() => {
@@ -177,24 +182,67 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
       onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
       <svg ref={svgRef} className="spark__svg" viewBox={`0 0 ${VB} ${VB}`} role="img" aria-label="Spark, the TeachSpark mascot">
         <defs>
-          <radialGradient id={bodyId} cx="35%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#2fd65f" />
-            <stop offset="45%" stopColor="#169a3c" />
-            <stop offset="100%" stopColor="#062b14" />
+          {/* Glass, not paint. Every fill below is partly transparent, so the page background
+              reads through the sphere — that is what sells it as a translucent object rather
+              than a solid ball. The light source is upper-left; the green is a glow INSIDE the
+              sphere, low and central, not a surface colour. */}
+          <radialGradient id={bodyId} cx="47%" cy="57%" r="96%">
+            <stop offset="0%" stopColor="#54ff92" stopOpacity="0.44" />
+            <stop offset="16%" stopColor="#2ecf66" stopOpacity="0.38" />
+            <stop offset="36%" stopColor="#179544" stopOpacity="0.33" />
+            <stop offset="60%" stopColor="#0d5b2b" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#0a2b18" stopOpacity="0.32" />
           </radialGradient>
-          <radialGradient id={glossId} cx="30%" cy="22%" r="45%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+          {/* Cool haze across the upper half: glass desaturates toward grey where it is lit from
+              outside rather than glowing from within. */}
+          <radialGradient id={hazeId} cx="42%" cy="15%" r="72%">
+            <stop offset="0%" stopColor="#e8f4ec" stopOpacity="0.26" />
+            <stop offset="42%" stopColor="#95b8a4" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+          </radialGradient>
+          {/* Soft edge falloff. A stroke alone reads as a drawn outline; this radial ramp inside
+              the last 12% of the radius is what makes the edge look like light on curved glass. */}
+          <radialGradient id={edgeId} cx="50%" cy="50%" r="50%">
+            <stop offset="84%" stopColor="#e6fff0" stopOpacity="0" />
+            <stop offset="96%" stopColor="#e6fff0" stopOpacity="0.11" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.24" />
+          </radialGradient>
+          {/* Rim light. The bright edge is the single strongest cue that a sphere is glass —
+              brightest upper-left where the key light grazes it, with a dimmer bounce lower-right. */}
+          <linearGradient id={rimId} x1="12%" y1="4%" x2="88%" y2="98%">
+            <stop offset="0%" stopColor="#f6fffa" stopOpacity="0.62" />
+            <stop offset="26%" stopColor="#a5e6bd" stopOpacity="0.16" />
+            <stop offset="60%" stopColor="#2c6f45" stopOpacity="0.05" />
+            <stop offset="86%" stopColor="#8fdcac" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#d8fbe6" stopOpacity="0.34" />
+          </linearGradient>
+          {/* Atmospheric bloom so the sphere separates from a near-black page. */}
+          <radialGradient id={haloId} cx="50%" cy="50%" r="50%">
+            <stop offset="55%" stopColor="#1cb14a" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#1cb14a" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={glossId} cx="32%" cy="24%" r="42%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.34" />
+            <stop offset="55%" stopColor="#ffffff" stopOpacity="0.06" />
             <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
           </radialGradient>
-          <radialGradient id={shadowId} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#1f8a3a" stopOpacity="0.6" />
+          {/* Reflected pool, not a cast shadow: the sphere floats above a dark glossy surface. */}
+          <radialGradient id={shadowId} cx="50%" cy="38%" r="62%">
+            <stop offset="0%" stopColor="#3ee071" stopOpacity="0.34" />
+            <stop offset="34%" stopColor="#17903f" stopOpacity="0.2" />
+            <stop offset="70%" stopColor="#0a3d1d" stopOpacity="0.09" />
             <stop offset="100%" stopColor="#000000" stopOpacity="0" />
           </radialGradient>
           <filter id={blurId} x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="14" /></filter>
+          <filter id={reflectBlurId} x="-40%" y="-120%" width="180%" height="340%"><feGaussianBlur stdDeviation="20" /></filter>
         </defs>
-        <ellipse cx="200" cy="372" rx="120" ry="16" fill={`url(#${shadowId})`} filter={`url(#${blurId})`} />
+        <circle cx={CENTER.x} cy={CENTER.y} r="196" fill={`url(#${haloId})`} />
+        <ellipse cx="200" cy="368" rx="132" ry="30" fill={`url(#${shadowId})`} filter={`url(#${reflectBlurId})`} />
         <circle cx={CENTER.x} cy={CENTER.y} r="150" fill={`url(#${bodyId})`} />
-        <ellipse cx="150" cy="110" rx="70" ry="48" fill={`url(#${glossId})`} />
+        <circle cx={CENTER.x} cy={CENTER.y} r="150" fill={`url(#${hazeId})`} />
+        <circle cx={CENTER.x} cy={CENTER.y} r="150" fill={`url(#${edgeId})`} />
+        <circle cx={CENTER.x} cy={CENTER.y} r="149" fill="none" stroke={`url(#${rimId})`} strokeWidth="1.6" />
+        <ellipse cx="152" cy="112" rx="66" ry="44" fill={`url(#${glossId})`} />
         <g ref={eyesRef} className="spark__eyes">
           <Eye cx={EYES[0]!.x} cy={EYES[0]!.y} side="left" />
           <Eye cx={EYES[1]!.x} cy={EYES[1]!.y} side="right" />
