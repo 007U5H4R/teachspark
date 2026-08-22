@@ -73,7 +73,7 @@ export function Landing() {
           <article className="card"><h3>Built for your board</h3><p>CBSE, ICSE or state board, in the language you teach in. Differentiated for the class you actually have.</p></article>
           <article className="card"><h3>Private by design</h3><p>It never asks for student data — please don't send any — and you can leave anytime. No student data, ever.</p></article>
         </div>
-        <div className="section__cta">
+        <div className="section__cta" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
           <NeonButton to="/join" size="lg">Join the pilot</NeonButton>
         </div>
       </section>
