@@ -58,4 +58,38 @@ describe('mountSpa', () => {
   it('POST to an unknown non-API path is not answered with HTML 200', async () => {
     expect((await request(createApp(deps(FIXTURE))).post('/join')).status).toBe(404);
   });
+
+  it('reserved prefixes (/admin, /internal, /webhooks, /health, /api) must not render the app', async () => {
+    const app = createApp(deps(FIXTURE));
+    // Reserved prefixes with non-existent sub-paths must 404, not render HTML
+    for (const p of ['/admin/does-not-exist', '/internal/does-not-exist', '/internal/cron/nudges', '/webhooks/does-not-exist', '/health/sub']) {
+      const res = await request(app).get(p);
+      expect(res.status, p).toBe(404);
+      expect(res.text, `${p} should not contain app HTML`).not.toContain('id="root"');
+    }
+    // But registered routes still answer
+    expect((await request(app).get('/health')).body).toEqual({ ok: true });
+    expect((await request(app).get('/admin/metrics')).status).toBe(401);
+  });
+
+  it('cache headers must be anchored to the served directory, not parent paths', async () => {
+    const nestedDir = fileURLToPath(new URL('./fixtures/assets/web-dist', import.meta.url));
+    const app = createApp(deps(nestedDir));
+    // When the parent directory is literally named "assets", index.html must still be no-cache
+    const index = await request(app).get('/');
+    expect(index.status).toBe(200);
+    expect(index.headers['cache-control']).toBe('no-cache');
+    // And the hashed asset must still be immutable
+    const asset = await request(app).get('/assets/app-def456.js');
+    expect(asset.status).toBe(200);
+    expect(asset.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('a truthy-but-missing build must degrade to API-only', async () => {
+    const app = createApp(deps('/definitely/does/not/exist'));
+    // Serves /health even though build is missing
+    expect((await request(app).get('/health')).body).toEqual({ ok: true });
+    // But the SPA fallback is not mounted
+    expect((await request(app).get('/')).status).toBe(404);
+  });
 });

@@ -9,6 +9,10 @@ export const WEB_DIST = fileURLToPath(new URL('../../web/dist', import.meta.url)
 
 const NO_CACHE = /(?:^|[\\/])(?:index\.html|sw\.js|workbox-[^\\/]+\.js|registerSW\.js|manifest\.webmanifest)$/;
 
+// Mirrors NON_SPA_ROUTES in web/pwa.routes.ts (Task 14) exactly: the Express fallback and the
+// service worker must agree on which prefixes are never the SPA, so keep the two regexes identical.
+const NON_SPA_ROUTES = /^\/(api|webhooks|admin|internal|health)(?=[\/?#]|$)/;
+
 /**
  * Serves the Vite build and falls back to index.html for client-side routes.
  * Must be called AFTER every API/webhook route (the fallback is a GET catch-all).
@@ -22,7 +26,8 @@ export function mountSpa(app: express.Express, dir: string): boolean {
     express.static(dir, {
       index: false, // the fallback owns '/', so index.html always gets no-cache
       setHeaders(res, filePath) {
-        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        const rel = path.relative(dir, filePath); // filePath is absolute; anchor to the served root
+        if (rel.startsWith(`assets${path.sep}`)) {
           res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // content-hashed by Vite
         } else if (NO_CACHE.test(filePath)) {
           res.setHeader('Cache-Control', 'no-cache'); // revalidate via ETag; stale SW/manifest must not linger
@@ -35,7 +40,7 @@ export function mountSpa(app: express.Express, dir: string): boolean {
 
   // Express 5 syntax: '/{*splat}' (braces) also matches bare '/'. GET only, so POSTs never get HTML.
   app.get('/{*splat}', (req, res, next) => {
-    if (path.extname(req.path)) return next(); // a typo'd asset should 404, not render the app
+    if (NON_SPA_ROUTES.test(req.path) || path.extname(req.path)) return next(); // reserved prefix, or a typo'd asset that should 404
     res.sendFile(index, { headers: { 'Cache-Control': 'no-cache' } });
   });
   return true;
