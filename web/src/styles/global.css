@@ -88,5 +88,4 @@ button, input, select { font: inherit; }
 }
 @media (max-width: 480px) {
   .hero__title { font-size: clamp(2.4rem, 14vw, 3.6rem); }
-  .phone { grid-template-columns: 1fr; }
 }
