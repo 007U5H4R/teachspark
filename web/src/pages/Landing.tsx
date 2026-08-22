@@ -4,6 +4,7 @@ import { Spark, type SparkHandle } from '../components/spark/Spark.tsx';
 import { NeonButton } from '../components/NeonButton.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { saveSource } from '../lib/session.ts';
+import { onCtaHover } from '../lib/ctaHover.ts';
 
 const VIEWED = 'ts_lv';
 
@@ -24,6 +25,10 @@ export function Landing() {
     if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current);
   };
   useEffect(() => () => { if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current); }, []);
+
+  // The nav's Sign up button is rendered by App, outside this tree, so it announces its hover
+  // rather than calling in. Both CTAs land on the same handlers — one behaviour, one code path.
+  useEffect(() => onCtaHover((hovering) => (hovering ? onCtaEnter() : onCtaLeave())), []);
 
   useEffect(() => {
     const src = params.get('src');

@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, NavLink } from 'react-router';
 import { NeonButton } from './NeonButton.tsx';
+import { emitCtaHover } from '../lib/ctaHover.ts';
 
 // Only Home is a NavLink: NavLink's active check ignores the hash, so '/#how' would also light up on '/'.
 const ANCHORS = [
@@ -45,7 +46,11 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
           <li key={l.to}><Link to={l.to} className="nav__pill" onClick={close}>{l.label}</Link></li>
         ))}
       </ul>
-      <div className="nav__cta">{showSignup && <NeonButton to="/join">Sign up</NeonButton>}</div>
+      {/* Hovering Sign up should make Spark react exactly as the hero CTA does. The orb lives
+          inside Landing, which cannot be reached from here, so announce the hover instead. */}
+      <div className="nav__cta" onPointerEnter={() => emitCtaHover(true)} onPointerLeave={() => emitCtaHover(false)}>
+        {showSignup && <NeonButton to="/join">Sign up</NeonButton>}
+      </div>
     </nav>
   );
 }
