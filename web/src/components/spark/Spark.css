@@ -1,0 +1,14 @@
+/* web/src/components/spark/Spark.css */
+.spark { display: block; width: 100%; perspective: 900px; }
+.spark__svg { display: block; width: 100%; height: auto; overflow: visible; transform-style: preserve-3d; will-change: transform; }
+.spark__eyes { will-change: transform; }
+.spark__eye-shape { opacity: 0; transition: opacity 0.18s ease; }
+.spark[data-state='default'] .spark__eye-shape--default,
+.spark[data-state='puppy']   .spark__eye-shape--puppy,
+.spark[data-state='starry']  .spark__eye-shape--starry,
+.spark[data-state='blink']   .spark__eye-shape--blink,
+.spark[data-state='happy']   .spark__eye-shape--happy { opacity: 1; }
+.spark[data-state='blink'] .spark__eye-shape { transition-duration: 0.06s; }
+.spark__eye-shape--starry { transform-box: fill-box; transform-origin: center; animation: spark-twinkle 1.1s ease-in-out infinite; }
+@keyframes spark-twinkle { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.12) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .spark__eye-shape--starry { animation: none; } }
