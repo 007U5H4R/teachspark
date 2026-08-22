@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp, type AppDeps } from '../src/http/app.js';
 import { FixedClock, InMemoryEventLog, InMemorySignupRepo, InMemoryTeacherRepo, InMemoryWebEventLog } from '../src/adapters/memory.js';
+import type { Signup } from '../src/domain/web.js';
 
 const JOIN = { url: 'https://wa.me/14155238886?text=join%20test-code', code: 'test-code', whatsappNumber: '+14155238886' };
 const now = new Date('2026-08-23T10:00:00Z');
@@ -102,6 +103,35 @@ describe('POST /api/events', () => {
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'join_tapped' })).status).toBe(400);
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'join_tapped', signupId: '11111111-1111-4111-8111-111111111111' })).status).toBe(404);
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'signup_submitted' })).status).toBe(400); // server-only event
+  });
+});
+
+describe('public error handler hardening', () => {
+  class ThrowingSignupRepo extends InMemorySignupRepo {
+    async create(): Promise<Signup> {
+      throw new Error('db failed [42P01]: secret detail'); // shape of a real Supabase/PostgREST error
+    }
+  }
+  class WeirdStatusSignupRepo extends InMemorySignupRepo {
+    async create(): Promise<Signup> {
+      throw Object.assign(new Error('weird upstream failure'), { status: 999 }); // out-of-range, twilio-RestException-shaped
+    }
+  }
+
+  it('500 with a generic body when a repo call throws -- never echoes backend error detail', async () => {
+    const { app } = make({ signups: new ThrowingSignupRepo() });
+    const res = await request(app).post('/api/signup').send(valid);
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'server_error' });
+    expect(JSON.stringify(res.body)).not.toContain('42P01');
+    expect(JSON.stringify(res.body)).not.toContain('secret detail');
+  });
+
+  it('500 (not a crash) when the thrown error carries an out-of-range numeric status', async () => {
+    const { app } = make({ signups: new WeirdStatusSignupRepo() });
+    const res = await request(app).post('/api/signup').send(valid);
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: 'server_error' });
   });
 });
 

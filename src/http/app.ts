@@ -110,10 +110,20 @@ export function createApp(deps: AppDeps): express.Express {
     res.status(404).json({ error: 'not_found' });
   });
 
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const status = typeof (err as { status?: unknown })?.status === 'number' ? (err as { status: number }).status : 500;
-    if (status >= 500) console.error('[http] error', err);
-    if (!res.headersSent) res.status(status).json({ error: status >= 500 ? (err instanceof Error ? err.message : 'unknown') : 'bad_request' });
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    // Only trust err.status for the 4xx range body-parser actually emits (e.g. entity.parse.failed
+    // -> 400, entity.too.large -> 413). Anything else -- including a non-body-parser error that
+    // happens to carry a numeric `status` (e.g. twilio's RestException), or an out-of-range value
+    // like 0/999 that would otherwise throw ERR_HTTP_INVALID_STATUS_CODE -- is treated as a 500.
+    const rawStatus = (err as { status?: unknown })?.status;
+    const status = typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus < 500 ? rawStatus : 500;
+    if (status >= 500) {
+      console.error('[http] error', err);
+    } else {
+      console.warn('[http] error', req.method, req.path, status, err instanceof Error ? err.message : String(err));
+    }
+    // Never echo backend detail (e.g. Supabase/PostgREST error text) to anonymous /api/* clients.
+    if (!res.headersSent) res.status(status).json({ error: status >= 500 ? 'server_error' : 'bad_request' });
   });
 
   return app;
