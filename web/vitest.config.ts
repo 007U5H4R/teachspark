@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  // No VitePWA here on purpose: the test project does not need a service worker. If a test ever
+  // imports web/src/main.tsx it will fail on `virtual:pwa-register` — alias that specifier to a stub
+  // in `resolve.alias` rather than pulling the whole PWA plugin into the test build.
   plugins: [react()],
   test: {
     name: 'web',

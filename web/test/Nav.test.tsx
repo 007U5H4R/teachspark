@@ -11,7 +11,8 @@ describe('Nav', () => {
     expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/join');
     expect(screen.getByRole('link', { name: 'Sign up' })).toHaveClass('neon-btn');
     expect(screen.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#how');
-    // list-style: none strips implicit role in jsdom—we verify the attribute instead of role query
+    // Safari strips the implicit list role when list-style: none is set; jsdom applies no CSS, so it
+    // cannot reproduce that. We assert the explicit role="list" attribute the component ships instead.
     expect(container.querySelector('.nav__pills')).toHaveAttribute('role', 'list');
   });
   it('hides the CTA when showSignup is false', () => {

@@ -37,8 +37,27 @@ describe('api client', () => {
     expect(await fetchCountries()).toEqual([{ code: 'IN', name: 'India', callingCode: '91' }]);
   });
   it('trackEvent fires a keepalive POST with the visitor id and never throws', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    // trackEvent (web/src/lib/api.ts) returns void, not a promise: it is fire-and-forget, so a
+    // synchronous not.toThrow() around the call proves nothing about the rejected fetch promise it
+    // kicks off -- and Node/jsdom's unhandled-rejection tracking can't be used to check this either,
+    // because Vitest's own mock bookkeeping attaches a handler to every mocked return value
+    // regardless of what the code under test does (verified empirically). Instrument .catch on this
+    // one promise instance instead, so we observe directly whether trackEvent's own
+    // fetch(...).catch(...) actually runs -- that is what stands between a network failure and an
+    // uncaught rejection here.
+    const rejection: Promise<never> = Promise.reject(new Error('offline'));
+    let caught = false;
+    const realCatch = rejection.catch.bind(rejection);
+    (rejection as { catch: unknown }).catch = (onRejected?: ((reason: unknown) => unknown) | null) => {
+      caught = true;
+      return realCatch(onRejected as never);
+    };
+    fetchMock.mockImplementationOnce(() => rejection);
+
     expect(() => trackEvent('join_tapped', 's1')).not.toThrow();
+    expect(caught).toBe(true);
+    await rejection.catch(() => {}); // drain it through the real handler so nothing leaks as unhandled
+
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('/api/events');
     expect(init.keepalive).toBe(true);

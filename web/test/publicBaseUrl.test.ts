@@ -15,7 +15,7 @@ describe('assertPublicBaseUrl', () => {
     expect(() => assertPublicBaseUrl(undefined, 'production')).toThrow(/PUBLIC_BASE_URL must be set/);
   });
   it('throws when not https', () => {
-    expect(() => assertPublicBaseUrl('http://example.test', 'production')).toThrow(/absolute https URL/);
+    expect(() => assertPublicBaseUrl('http://example.test', 'production')).toThrow(/must be an absolute https URL/);
   });
   it('throws on a trailing slash', () => {
     expect(() => assertPublicBaseUrl('https://example.test/', 'production')).toThrow(/trailing slash/);
