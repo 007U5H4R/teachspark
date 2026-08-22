@@ -4,12 +4,14 @@ import twilio from 'twilio'; // CJS: default import + destructure (matches src/a
 import { createApp, WEBHOOK_PATH, STATUS_PATH, type AppDeps } from '../src/http/app.js';
 import { FixedClock, InMemoryEventLog, InMemoryTeacherRepo } from '../src/adapters/memory.js';
 import type { InboundMessage } from '../src/domain/types.js';
+import { webDeps } from './helpers/web-deps.js';
 
 const { getExpectedTwilioSignature } = twilio;
 
 function makeDeps(over: Partial<AppDeps> = {}): { deps: AppDeps; inbound: InboundMessage[] } {
   const inbound: InboundMessage[] = [];
   const deps: AppDeps = {
+    ...webDeps(),
     config: { TWILIO_AUTH_TOKEN: 'tok', TWILIO_VALIDATE_SIGNATURE: false, PUBLIC_BASE_URL: 'https://x.test', ADMIN_TOKEN: 'admin-secret', CRON_SECRET: 'cron-secret' },
     handleInbound: async (m) => { inbound.push(m); },
     runNudgePass: async () => 2,

@@ -23,6 +23,7 @@ import { createApp, WEBHOOK_PATH, type AppDeps } from '../src/http/app.js';
 import { createInboundHandler } from '../src/bot/handle.js';
 import { createNudgePass } from '../src/jobs/nudges.js';
 import type { ExecutorDeps } from '../src/bot/executor.js';
+import { webDeps } from './helpers/web-deps.js';
 import {
   FixedClock, FakeGenerator, FakeMessenger, FakePdfBuilder, FakePdfStore,
   FakeMediaFetcher, FakePaperGenerator, FakeDocBuilder, FakePaperStore, InMemoryPapersRepo,
@@ -124,7 +125,7 @@ function harness(opts: { validateSignature?: boolean } = {}): Harness {
     ADMIN_TOKEN,
     CRON_SECRET,
   };
-  const app = createApp({ config, handleInbound, runNudgePass: createNudgePass(exec), teachers, events, clock });
+  const app = createApp({ ...webDeps(), config, handleInbound, runNudgePass: createNudgePass(exec), teachers, events, clock });
 
   let n = 0;
   async function post(body: string) {

@@ -4,7 +4,7 @@ import { createInboundHandler } from './bot/handle.js';
 import { createNudgePass, startNudgeCron } from './jobs/nudges.js';
 import type { ExecutorDeps } from './bot/executor.js';
 import { SystemClock } from './adapters/memory.js';
-import { createSupabase, SupabaseEventLog, SupabaseGenerationStore, SupabaseTeacherRepo, SupabasePapersRepo } from './adapters/supabase.js';
+import { createSupabase, SupabaseEventLog, SupabaseGenerationStore, SupabaseTeacherRepo, SupabasePapersRepo, SupabaseSignupRepo, SupabaseWebEventLog } from './adapters/supabase.js';
 import { AnthropicGenerator } from './adapters/anthropic.js';
 import { PdfkitBuilder } from './adapters/pdf.js';
 import { SupabasePdfStore, ensurePublicBucket, SupabasePaperStore, PAPER_BUCKET_MIME_TYPES } from './adapters/storage.js';
@@ -41,7 +41,18 @@ const deps: ExecutorDeps = {
 };
 
 const runNudgePass = createNudgePass(deps);
-const app = createApp({ config, handleInbound: createInboundHandler(deps), runNudgePass, teachers: deps.teachers, events: deps.events, clock: deps.clock });
+const app = createApp({
+  config,
+  handleInbound: createInboundHandler(deps),
+  runNudgePass,
+  teachers: deps.teachers,
+  events: deps.events,
+  signups: new SupabaseSignupRepo(sb),
+  webEvents: new SupabaseWebEventLog(sb),
+  join: { url: deps.joinLink, code: config.TWILIO_SANDBOX_JOIN_CODE, whatsappNumber: config.TWILIO_WHATSAPP_FROM.replace(/^whatsapp:/, '') },
+  webDist: null, // Task 5 replaces this with WEB_DIST
+  clock: deps.clock,
+});
 
 const server = app.listen(config.PORT, '0.0.0.0', (err?: Error) => {
   if (err) throw err;

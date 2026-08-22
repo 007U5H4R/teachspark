@@ -1,9 +1,10 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
 import twilio from 'twilio'; // CJS: default import + destructure
 import type { InboundMedia, InboundMessage } from '../domain/types.js';
-import type { Clock, EventLog, TeacherRepo } from '../ports.js';
+import type { Clock, EventLog, SignupRepo, TeacherRepo, WebEventLog } from '../ports.js';
 import type { Config } from '../config.js';
 import { computeFunnel } from '../metrics/funnel.js';
+import { createApiRouter, type JoinInfo } from './api.js';
 
 const { webhook: twilioWebhook, twiml } = twilio;
 const { MessagingResponse } = twiml;
@@ -17,6 +18,10 @@ export interface AppDeps {
   runNudgePass: () => Promise<number>;
   teachers: TeacherRepo;
   events: EventLog;
+  signups: SignupRepo;
+  webEvents: WebEventLog;
+  join: JoinInfo;
+  webDist: string | null; // directory of the built SPA; null = API only (tests). Used from Task 5.
   clock: Clock;
 }
 
@@ -49,6 +54,9 @@ export function createApp(deps: AppDeps): express.Express {
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // req.protocol === 'https' behind ngrok/Railway
   app.use(express.urlencoded({ extended: false })); // must run before twilio.webhook()
+  // Order vs urlencoded is irrelevant: each parser only runs for its own Content-Type, so the
+  // Twilio form webhook is untouched. 16kb is plenty for a sign-up form.
+  app.use(express.json({ limit: '16kb' }));
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ ok: true });
@@ -96,9 +104,16 @@ export function createApp(deps: AppDeps): express.Express {
     res.json({ sent: await deps.runNudgePass() });
   });
 
+  app.use('/api', createApiRouter({ signups: deps.signups, webEvents: deps.webEvents, clock: deps.clock, join: deps.join }));
+  // JSON 404 for anything else under /api -- registered after the real routes. ('/api/*' throws in Express 5.)
+  app.all('/api{/*splat}', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'not_found' });
+  });
+
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    console.error('[http] error', err);
-    if (!res.headersSent) res.status(500).json({ error: err instanceof Error ? err.message : 'unknown' });
+    const status = typeof (err as { status?: unknown })?.status === 'number' ? (err as { status: number }).status : 500;
+    if (status >= 500) console.error('[http] error', err);
+    if (!res.headersSent) res.status(status).json({ error: status >= 500 ? (err instanceof Error ? err.message : 'unknown') : 'bad_request' });
   });
 
   return app;
