@@ -6,11 +6,13 @@ import { Nav } from '../src/components/Nav.tsx';
 
 describe('Nav', () => {
   it('renders the brand, the pill links, and the neon sign-up CTA pointing at /join', () => {
-    render(<MemoryRouter><Nav showSignup /></MemoryRouter>);
+    const { container } = render(<MemoryRouter><Nav showSignup /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'TeachSpark' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/join');
     expect(screen.getByRole('link', { name: 'Sign up' })).toHaveClass('neon-btn');
     expect(screen.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#how');
+    // list-style: none strips implicit role in jsdom—we verify the attribute instead of role query
+    expect(container.querySelector('.nav__pills')).toHaveAttribute('role', 'list');
   });
   it('hides the CTA when showSignup is false', () => {
     render(<MemoryRouter><Nav showSignup={false} /></MemoryRouter>);

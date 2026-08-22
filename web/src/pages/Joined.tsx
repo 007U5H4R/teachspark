@@ -16,7 +16,7 @@ export function Joined() {
       <h1>You're in, {firstName}! 🎉</h1>
       <p className="joined__lead">One last step: connect on WhatsApp. The button opens WhatsApp with the join message already typed for you.</p>
       <NeonButton href={url} size="lg" onClick={() => trackEvent('join_tapped', handoff.signupId)}>Open WhatsApp &amp; Join</NeonButton>
-      <ol className="steps">
+      <ol className="steps" role="list">
         <li><span className="card__num">1</span><span>Tap the button above — WhatsApp opens with <code>join {code}</code> pre-filled.</span></li>
         <li><span className="card__num">2</span><span><strong>Send</strong> that message as it is. You'll get a "connected" reply.</span></li>
         <li><span className="card__num">3</span><span>Then type <strong>Hi</strong> to start your first worksheet.</span></li>

@@ -38,6 +38,8 @@ describe('Joined', () => {
     expect(screen.getAllByText(/join captain-cheese/)).toHaveLength(2); // step 1 + manual fallback
     expect(screen.getByText(/\+14155238886/)).toBeInTheDocument();
     expect(screen.getByText(/tap the button again/i)).toBeInTheDocument();
+    // list-style: none strips implicit role in jsdom—we verify the attribute instead of role query
+    expect(container.querySelector('.steps')).toHaveAttribute('role', 'list');
   });
   it('tracks join_tapped with the signup id when the button is tapped', async () => {
     sessionStorage.setItem('ts_handoff', JSON.stringify(handoff));

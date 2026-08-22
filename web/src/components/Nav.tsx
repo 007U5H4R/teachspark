@@ -17,7 +17,7 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
         <span aria-hidden="true">{open ? '×' : '☰'}</span>
       </button>
       <Link to="/" className="nav__brand">TeachSpark</Link>
-      <ul className="nav__pills">
+      <ul className="nav__pills" role="list">
         <li><NavLink to="/" end className="nav__pill" onClick={close}>Home</NavLink></li>
         {ANCHORS.map((l) => (
           <li key={l.to}><Link to={l.to} className="nav__pill" onClick={close}>{l.label}</Link></li>
