@@ -7,6 +7,7 @@
   </defs>
   <circle cx="32" cy="32" r="29.44" fill="url(#ic-body)"/>
   <ellipse cx="22.284799999999997" cy="16.3968" rx="13.8368" ry="9.4208" fill="url(#ic-gloss)"/>
+  
   <rect x="17.8688" y="24.1984" width="7.0656" height="12.0704" rx="3.17952" fill="#fff"/>
   <rect x="33.7664" y="24.1984" width="7.0656" height="12.0704" rx="3.17952" fill="#fff"/>
 </svg>

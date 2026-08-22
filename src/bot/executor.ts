@@ -120,7 +120,7 @@ export class Executor {
       }
       outcome = { ok: false, reason: refused ? 'refusal' : 'error' };
     }
-    const followUp = afterGeneration(teacher, outcome, d.clock.now());
+    const followUp = afterGeneration(teacher, outcome, d.clock.now(), d.timezone);
     return this.runStep(teacher, followUp);
   }
 

@@ -238,7 +238,7 @@ export function transition(ctx: MachineContext): Step {
   }
 }
 
-export function afterGeneration(t: Teacher, outcome: GenerationOutcome, now: Date): Step {
+export function afterGeneration(t: Teacher, outcome: GenerationOutcome, now: Date, timezone = 'Asia/Kolkata'): Step {
   const skillId = t.currentSkillId ?? nextSkillFor(t.skillsCompleted);
   const skill = SKILLS[skillId];
   const topic = t.pendingTopic ?? '';
@@ -271,6 +271,21 @@ export function afterGeneration(t: Teacher, outcome: GenerationOutcome, now: Dat
   if (!t.activatedAt) {
     step.updates.activatedAt = now;
     step.events.push({ name: EVENT.activated, skillId });
+  }
+  // Schedule the return nudge HERE, at activation, not at skill completion.
+  //
+  // Completion requires answering both the impact and the referral question, and most teachers
+  // stop replying once they have their worksheet — the reason they came. In the live pilot 6
+  // people received a worksheet, 2 answered impact and 1 answered referral, so exactly one nudge
+  // was ever scheduled and 5 of 6 activated teachers could never be nudged at all.
+  //
+  // Guarded on both fields so this cannot spam: it never overwrites a nudge already pending, and
+  // never re-arms one that has already been sent. completeSkillAndShare still re-arms on its own
+  // terms by clearing nudgeSentAt.
+  if (!t.nudgeSentAt && !t.nudgeDueAt) {
+    const dueAt = computeNudgeDueAt(now, timezone);
+    step.updates.nudgeDueAt = dueAt;
+    step.events.push({ name: EVENT.nudge_scheduled, skillId, properties: { dueAt: dueAt.toISOString(), trigger: 'activation' } });
   }
   Object.assign(step.updates, { state: 'AWAITING_IMPACT', retries: 0 } satisfies TeacherUpdate);
   return step;

@@ -184,6 +184,24 @@ describe('afterGeneration', () => {
     expect(s.updates).toMatchObject({ state: 'AWAITING_IMPACT', activatedAt: NOW, retries: 0 });
     expect(names(s)).toEqual(expect.arrayContaining([EVENT.worksheet_delivered, EVENT.pdf_delivered, EVENT.reusable_prompt_sent, EVENT.impact_prompt_sent, EVENT.activated]));
   });
+  it('arms the return nudge at activation, not only at skill completion', () => {
+    // The whole point of the fix: completion needs both the impact AND referral answers, and most
+    // teachers stop replying once they have the worksheet they came for. In the live pilot 6
+    // activated and 1 completed, so 5 of 6 could never be nudged at all.
+    const s = afterGeneration(t, { ok: true, result, pdfUrl: null }, NOW);
+    expect(names(s)).toContain(EVENT.nudge_scheduled);
+    expect(s.updates.nudgeDueAt).toBeInstanceOf(Date);
+    expect(s.updates.nudgeDueAt!.getTime()).toBeGreaterThan(NOW.getTime());
+  });
+
+  it('does not arm a second nudge over a pending one, or re-arm one already sent', () => {
+    // Guards against nudge spam for a teacher who generates several worksheets in a row.
+    const pending = afterGeneration({ ...t, nudgeDueAt: NOW }, { ok: true, result, pdfUrl: null }, NOW);
+    expect(names(pending)).not.toContain(EVENT.nudge_scheduled);
+    const alreadyNudged = afterGeneration({ ...t, nudgeSentAt: NOW }, { ok: true, result, pdfUrl: null }, NOW);
+    expect(names(alreadyNudged)).not.toContain(EVENT.nudge_scheduled);
+  });
+
   it('does not re-activate and notes a missing pdf', () => {
     const s = afterGeneration({ ...t, activatedAt: NOW }, { ok: true, result, pdfUrl: null }, NOW);
     expect(s.updates.activatedAt).toBeUndefined();

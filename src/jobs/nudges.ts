@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { Executor, type ExecutorDeps } from '../bot/executor.js';
 import { buildNudgeStep } from '../bot/machine.js';
+import { computeNudgeDueAt } from '../bot/nudge.js';
 import { hasNextSkill } from '../bot/skills.js';
 import { EVENT } from '../domain/events.js';
 import { isPaperState } from '../domain/types.js';
@@ -15,6 +16,12 @@ export interface NudgePass {
   /** Resolves once no sweep is in flight (immediately, with 0, if already idle). Never rejects. */
   whenIdle(): Promise<number>;
 }
+
+/**
+ * A teacher who messaged within this window is treated as mid-conversation, so her nudge is
+ * pushed out instead of fired. Everyone else gets nudged whatever state they are parked in.
+ */
+const ACTIVE_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 export function createNudgePass(deps: ExecutorDeps): NudgePass {
   const executor = new Executor(deps);
@@ -35,10 +42,22 @@ export function createNudgePass(deps: ExecutorDeps): NudgePass {
           await deps.teachers.update(t.id, { nudgeDueAt: null });
           continue;
         }
-        if (t.state !== 'IDLE') {
-          if (isPaperState(t.state)) continue; // parked mid-paper-wizard: keep the nudge; it fires when she returns to IDLE
-          // mid-core-conversation: don't interrupt; drop this nudge
-          await deps.teachers.update(t.id, { nudgeDueAt: null });
+        // Parked mid-paper-wizard: keep the nudge pending rather than sending. buildNudgeStep
+        // resets state to AWAITING_TOPIC, which would throw away her uploaded chapter photos.
+        if (isPaperState(t.state)) continue;
+
+        // Being mid-flow is NOT a reason to discard the nudge. This used to drop any non-IDLE
+        // teacher, and in the live pilot every single one of the 10 was parked in some AWAITING_*
+        // state — so the rule discarded every nudge that existed, silently, logging nothing.
+        //
+        // What actually matters is whether she is in a conversation RIGHT NOW. A nudge that is
+        // due is already ~20h past her last message, so the only real risk is interrupting
+        // someone who has just started replying again.
+        const sinceInbound = t.lastInboundAt ? now.getTime() - t.lastInboundAt.getTime() : Infinity;
+        if (sinceInbound < ACTIVE_WINDOW_MS) {
+          const dueAt = computeNudgeDueAt(t.lastInboundAt ?? now, deps.timezone);
+          await deps.teachers.update(t.id, { nudgeDueAt: dueAt });
+          await deps.events.log(t.id, { name: EVENT.nudge_deferred, properties: { dueAt: dueAt.toISOString(), sinceInboundMs: sinceInbound } }, now);
           continue;
         }
         await executor.runStep(t, buildNudgeStep(t, now));

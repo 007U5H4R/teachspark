@@ -45,13 +45,34 @@ describe('createNudgePass', () => {
     expect(after?.nudgeDueAt).toEqual(PAST); // preserved, not cleared
     expect((deps.messenger as FakeMessenger).sent).toHaveLength(0);
   });
-  it('skips teachers who are mid-conversation (clears the due nudge)', async () => {
+  it('nudges a teacher stalled mid-flow instead of discarding her nudge', async () => {
+    // This used to drop the nudge for ANY non-IDLE teacher. In the live pilot all 10 teachers were
+    // parked in some AWAITING_* state, so that rule silently discarded every nudge there was.
+    // Being stalled mid-flow is precisely who a re-engagement nudge is for.
     const deps = makeDeps();
-    const t = await deps.teachers.create({ waFrom: 'whatsapp:+912', waId: null, profileName: null, now: PAST });
-    await deps.teachers.update(t.id, { state: 'AWAITING_TOPIC', grade: 'g', subject: 's', board: 'b', skillsCompleted: ['worksheet'], nudgeDueAt: PAST, nudgeSentAt: null });
-    expect(await createNudgePass(deps)()).toBe(0);
+    const STALE = new Date(NOW.getTime() - 20 * 3600_000);
+    const t = await deps.teachers.create({ waFrom: 'whatsapp:+912', waId: null, profileName: null, now: STALE });
+    await deps.teachers.update(t.id, { state: 'AWAITING_TOPIC', grade: 'g', subject: 's', board: 'b', skillsCompleted: ['worksheet'], nudgeDueAt: PAST, nudgeSentAt: null, lastInboundAt: STALE });
+    expect(await createNudgePass(deps)()).toBe(1);
     const after = await deps.teachers.findByWaFrom('whatsapp:+912');
-    expect(after?.nudgeDueAt).toBeNull();
+    expect(after?.nudgeSentAt).toEqual(NOW);
+    expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.nudge_sent);
+  });
+
+  it('defers rather than drops when she messaged moments ago, and says so in the event log', async () => {
+    // The one case the old state check was really protecting against: do not interrupt someone
+    // who is replying right now. Deferring reschedules; it must never null the due date, which is
+    // what made the old drop invisible and permanent.
+    const deps = makeDeps();
+    const RECENT = new Date(NOW.getTime() - 5 * 60_000);
+    const t = await deps.teachers.create({ waFrom: 'whatsapp:+913', waId: null, profileName: null, now: RECENT });
+    await deps.teachers.update(t.id, { state: 'AWAITING_TOPIC', grade: 'g', subject: 's', board: 'b', skillsCompleted: ['worksheet'], nudgeDueAt: PAST, nudgeSentAt: null, lastInboundAt: RECENT });
+    expect(await createNudgePass(deps)()).toBe(0);
+    const after = await deps.teachers.findByWaFrom('whatsapp:+913');
+    expect(after?.nudgeDueAt).not.toBeNull();                       // rescheduled, not discarded
+    expect(after?.nudgeDueAt!.getTime()).toBeGreaterThan(NOW.getTime());
+    expect(after?.nudgeSentAt).toBeNull();
+    expect((deps.events as InMemoryEventLog).names()).toContain(EVENT.nudge_deferred);
     expect((deps.messenger as FakeMessenger).sent).toHaveLength(0);
   });
   it('skips teachers with no remaining skill', async () => {

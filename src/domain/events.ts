@@ -25,6 +25,10 @@ export const EVENT = {
   nudge_scheduled: 'nudge_scheduled',
   nudge_sent: 'nudge_sent',
   nudge_failed: 'nudge_failed',
+  /** A due nudge was postponed because the teacher is mid-conversation. Emitted so a nudge that
+   *  does not fire is visible in metrics instead of vanishing, which is how the old silent drop
+   *  hid the fact that every nudge in the pilot was being discarded. */
+  nudge_deferred: 'nudge_deferred',
   nudge_reopened: 'nudge_reopened',
   help_requested: 'help_requested',
   restarted: 'restarted',

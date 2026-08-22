@@ -86,7 +86,12 @@ describe('QA Case 2 — simulated full conversation (pure machine, no I/O)', () 
       EVENT.message_received, EVENT.subject_captured,
       EVENT.message_received, EVENT.board_captured, EVENT.onboarding_completed, EVENT.microlesson_sent,
       EVENT.message_received, EVENT.topic_provided,
+      // nudge_scheduled now fires HERE, at activation, as well as at completion below. The return
+      // nudge used to be armed only on completion, which requires answering both the impact and
+      // referral questions — in the live pilot 6 teachers activated, 1 completed, so 5 could never
+      // be nudged. Arming at activation is the fix; the completion one re-arms for the next skill.
       EVENT.worksheet_delivered, EVENT.pdf_delivered, EVENT.reusable_prompt_sent, EVENT.impact_prompt_sent, EVENT.activated,
+      EVENT.nudge_scheduled,
       EVENT.message_received, EVENT.impact_reported,
       EVENT.message_received, EVENT.referral_reported, EVENT.skill_completed, EVENT.share_cta_sent, EVENT.nudge_scheduled,
     ];

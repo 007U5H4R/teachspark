@@ -15,9 +15,71 @@ for (const f of FONT_FILES) if (!existsSync(f)) throw new Error(`missing font fi
 const BG = '#0a0a0a';
 const LIME = '#b6ff3b';
 
-/** Spark: the same gradients as web/src/components/spark/Spark.tsx, eyes looking slightly right. */
-function orb(cx: number, cy: number, r: number, id: string): string {
+/** The eyes, drawn identically in both variants. Offset right so the static orb looks alive. */
+function eyes(cx: number, cy: number, r: number): string {
   const ew = r * 0.24, eh = r * 0.41, rx = ew * 0.45;
+  return `
+  <rect x="${cx - r * 0.36 - ew / 2}" y="${cy - r * 0.06 - eh / 2}" width="${ew}" height="${eh}" rx="${rx}" fill="#fff"/>
+  <rect x="${cx + r * 0.18 - ew / 2}" y="${cy - r * 0.06 - eh / 2}" width="${ew}" height="${eh}" rx="${rx}" fill="#fff"/>`;
+}
+
+/**
+ * Translucent glass Spark, mirroring the gradients in web/src/components/spark/Spark.tsx so the
+ * link preview matches the page it links to. Offsets are expressed as fractions of `r`, which is
+ * how they map back: Spark's viewBox is 400 with r=150, so e.g. its halo at r=196 is 1.31r here.
+ *
+ * ONLY safe on a dark background. Every fill is partly transparent, so on transparency this
+ * renders as a faint smudge — which is why the icons below use the solid variant instead.
+ */
+function glassOrb(cx: number, cy: number, r: number, id: string): string {
+  return `
+  <defs>
+    <radialGradient id="${id}-body" cx="47%" cy="57%" r="96%">
+      <stop offset="0%" stop-color="#54ff92" stop-opacity=".44"/><stop offset="16%" stop-color="#2ecf66" stop-opacity=".38"/>
+      <stop offset="36%" stop-color="#179544" stop-opacity=".33"/><stop offset="60%" stop-color="#0d5b2b" stop-opacity=".30"/>
+      <stop offset="100%" stop-color="#0a2b18" stop-opacity=".32"/>
+    </radialGradient>
+    <radialGradient id="${id}-haze" cx="42%" cy="15%" r="72%">
+      <stop offset="0%" stop-color="#e8f4ec" stop-opacity=".26"/><stop offset="42%" stop-color="#95b8a4" stop-opacity=".10"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="${id}-edge" cx="50%" cy="50%" r="50%">
+      <stop offset="84%" stop-color="#e6fff0" stop-opacity="0"/><stop offset="96%" stop-color="#e6fff0" stop-opacity=".11"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity=".24"/>
+    </radialGradient>
+    <linearGradient id="${id}-rim" x1="12%" y1="4%" x2="88%" y2="98%">
+      <stop offset="0%" stop-color="#f6fffa" stop-opacity=".62"/><stop offset="26%" stop-color="#a5e6bd" stop-opacity=".16"/>
+      <stop offset="60%" stop-color="#2c6f45" stop-opacity=".05"/><stop offset="86%" stop-color="#8fdcac" stop-opacity=".20"/>
+      <stop offset="100%" stop-color="#d8fbe6" stop-opacity=".34"/>
+    </linearGradient>
+    <radialGradient id="${id}-halo" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#1cb14a" stop-opacity=".22"/><stop offset="100%" stop-color="#1cb14a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="${id}-gloss" cx="32%" cy="24%" r="42%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".34"/><stop offset="55%" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="${id}-pool" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3ee071" stop-opacity=".30"/><stop offset="45%" stop-color="#17903f" stop-opacity=".14"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="${cx}" cy="${cy}" r="${r * 1.31}" fill="url(#${id}-halo)"/>
+  <ellipse cx="${cx}" cy="${cy + r * 1.19}" rx="${r * 0.95}" ry="${r * 0.26}" fill="url(#${id}-pool)"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-body)"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-haze)"/>
+  <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-edge)"/>
+  <circle cx="${cx}" cy="${cy}" r="${r * 0.993}" fill="none" stroke="url(#${id}-rim)" stroke-width="${Math.max(1, r * 0.011)}"/>
+  <ellipse cx="${cx - r * 0.32}" cy="${cy - r * 0.52}" rx="${r * 0.44}" ry="${r * 0.29}" fill="url(#${id}-gloss)"/>
+  ${eyes(cx, cy, r)}`;
+}
+
+/**
+ * Solid Spark for the app icons. Deliberately NOT the glass treatment: the regular PWA icons are
+ * rendered on transparency and have to stay legible at 48px on a home screen, where a translucent
+ * sphere reads as a smudge.
+ */
+function solidOrb(cx: number, cy: number, r: number, id: string): string {
   return `
   <defs>
     <radialGradient id="${id}-body" cx="35%" cy="30%" r="75%"><stop offset="0%" stop-color="#2fd65f"/><stop offset="45%" stop-color="#169a3c"/><stop offset="100%" stop-color="#062b14"/></radialGradient>
@@ -25,8 +87,7 @@ function orb(cx: number, cy: number, r: number, id: string): string {
   </defs>
   <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-body)"/>
   <ellipse cx="${cx - r * 0.33}" cy="${cy - r * 0.53}" rx="${r * 0.47}" ry="${r * 0.32}" fill="url(#${id}-gloss)"/>
-  <rect x="${cx - r * 0.36 - ew / 2}" y="${cy - r * 0.06 - eh / 2}" width="${ew}" height="${eh}" rx="${rx}" fill="#fff"/>
-  <rect x="${cx + r * 0.18 - ew / 2}" y="${cy - r * 0.06 - eh / 2}" width="${ew}" height="${eh}" rx="${rx}" fill="#fff"/>`;
+  ${eyes(cx, cy, r)}`;
 }
 
 function render(svg: string, width: number, out: string): void {
@@ -41,8 +102,7 @@ mkdirSync(OUT_DIR, { recursive: true });
 // 1) Open Graph cover 1200x630
 const og = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="${BG}"/>
-  <ellipse cx="250" cy="520" rx="150" ry="20" fill="#1f8a3a" opacity=".35"/>
-  ${orb(250, 315, 150, 'og')}
+  ${glassOrb(250, 300, 150, 'og')}
   <text x="470" y="300" font-family="Inter" font-weight="700" font-size="104" fill="#fff" letter-spacing="-3">TeachSpark</text>
   <text x="474" y="362" font-family="Inter" font-weight="400" font-size="36" fill="${LIME}">Ready-to-use worksheets, on WhatsApp</text>
   <text x="474" y="412" font-family="Inter" font-weight="400" font-size="26" fill="#a3a3a3">3 levels + answer key + PDF, in about 2 minutes.</text>
@@ -59,7 +119,7 @@ const iconSvg = (size: number, padded: boolean) => {
   const r = padded ? size * 0.3 : size * 0.46;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   ${padded ? `<rect width="${size}" height="${size}" fill="${BG}"/>` : ''}
-  ${orb(size / 2, size / 2, r, 'ic')}
+  ${solidOrb(size / 2, size / 2, r, 'ic')}
 </svg>`;
 };
 render(iconSvg(192, false), 192, resolve(OUT_DIR, 'pwa-192x192.png'));
