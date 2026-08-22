@@ -6,9 +6,22 @@
   padding: 13px 26px; border-radius: var(--pill);
   background: var(--bg-elev); color: var(--lime);
   font-weight: 700; text-decoration: none; white-space: nowrap;
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 .neon-btn--lg { padding: 18px 34px; font-size: 1.15rem; }
+/* The label owns the icon+text row so a brand mark (e.g. WhatsApp on /joined) sits on the
+   baseline with the text instead of stacking above it. */
+.neon-btn__label { display: inline-flex; align-items: center; gap: 10px; }
+.neon-btn__label svg { width: 1.15em; height: 1.15em; flex: none; }
+
+/* 320px (iPhone SE 1st gen, some Androids) is below the 375 responsive gate but still a real
+   device. At full size the nowrap label "Open WhatsApp & Join" is ~306px of min-content and
+   pushed /joined to a 330px scrollWidth. This override lives HERE, not in global.css: media
+   queries add no specificity, and Vite emits this file after global.css, so the same selector
+   declared there loses to the rule above it. */
+@media (max-width: 380px) {
+  .neon-btn--lg { padding: 16px 20px; font-size: 1rem; }
+}
 .neon-btn:hover { transform: translateY(-1px); }
 .neon-btn:active { transform: translateY(0); }
 

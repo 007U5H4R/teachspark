@@ -17,6 +17,18 @@ describe('Landing', () => {
     expect(screen.getByRole('heading', { name: /How it works/ })).toHaveAttribute('id', 'how');
     expect(screen.getByText(/No student data/)).toBeInTheDocument();
   });
+  it('puts the headline before the pitch and the CTA in the DOM', () => {
+    // Regression guard. The hero used to read eyebrow -> CTA -> headline, which on a 375px phone
+    // put the product's name at y=615 — below the practical fold, after the button. A teacher
+    // opening the WhatsApp link met a green orb and grey text before she met the product.
+    // DOM order is the reading order for assistive tech, so assert it here rather than in CSS.
+    const { container } = render(<MemoryRouter><Landing /></MemoryRouter>);
+    const hero = container.querySelector('.hero')!;
+    const order = [...hero.children].map((el) => el.className);
+    expect(order.indexOf('hero__title')).toBe(0);
+    expect(order.indexOf('hero__title')).toBeLessThan(order.indexOf('hero__eyebrow'));
+    expect(order.indexOf('hero__eyebrow')).toBeLessThan(order.indexOf('hero__actions'));
+  });
   it('tracks landing_view once per session and stores ?src=', () => {
     const { unmount } = render(<MemoryRouter initialEntries={['/?src=grp-a']}><Landing /></MemoryRouter>);
     expect(fetchMock).toHaveBeenCalledTimes(1);

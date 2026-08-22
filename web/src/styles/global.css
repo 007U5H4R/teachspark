@@ -2,11 +2,14 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
+html { scroll-behavior: smooth; }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden; /* the orb glow may bleed past the viewport on small screens */
 }
@@ -14,78 +17,223 @@ a { color: inherit; }
 button, input, select { font: inherit; }
 :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
 
-.shell { max-width: var(--shell-max); margin: 0 auto; padding: 0 var(--gutter); }
+/* #root is the flex column so the footer sits at the bottom of short pages (/joined) instead of
+   floating mid-screen. The shell keeps the page's max width and gutters. */
+#root { display: flex; flex-direction: column; }
+/* min-width:0 for the same reason as .shell > main below: as a flex item of #root it would
+   otherwise refuse to shrink under its widest nowrap descendant. */
+.shell { display: flex; flex-direction: column; flex: 1; min-width: 0; width: 100%; max-width: var(--shell-max); margin: 0 auto; padding: 0 var(--gutter); }
+/* min-width:0 is load-bearing, not tidying. A flex item defaults to min-width:auto and so refuses
+   to shrink below its min-content — and the /joined CTA is a nowrap label ~306px wide, which
+   pushed the page to 330px on a 320px viewport. */
+.shell > main { flex: 1; min-width: 0; }
 
-/* Nav */
-.nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 20px 0; position: relative; }
-.nav__brand { font-weight: 700; font-size: 1.25rem; text-decoration: none; letter-spacing: -0.01em; }
-.nav__pills { display: flex; gap: 4px; padding: 4px; border-radius: var(--pill); background: var(--bg-elev); border: 1px solid var(--border); list-style: none; margin: 0; }
-.nav__pill { padding: 10px 22px; border-radius: var(--pill); text-decoration: none; color: var(--text); font-weight: 500; font-size: 0.95rem; }
+/* ---------------------------------------------------------------- Nav */
+.nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-4); padding: var(--sp-5) 0; position: relative; }
+.nav__brand { font-weight: 700; font-size: var(--fs-xl); text-decoration: none; letter-spacing: var(--ls-snug); }
+.nav__pills { display: flex; gap: var(--sp-1); padding: var(--sp-1); border-radius: var(--pill); background: var(--bg-elev); border: 1px solid var(--border); list-style: none; margin: 0; }
+.nav__pill { padding: 10px 22px; border-radius: var(--pill); text-decoration: none; color: var(--text); font-weight: 500; font-size: 0.95rem; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.nav__pill:hover { background: var(--bg-card-hover); }
 .nav__pill[aria-current='page'] { background: var(--lime); color: var(--lime-ink); font-weight: 700; }
-.nav__cta { justify-self: end; display: flex; align-items: center; gap: 12px; }
-.nav__toggle { display: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); }
+.nav__pill[aria-current='page']:hover { background: var(--lime); }
+.nav__cta { justify-self: end; display: flex; align-items: center; gap: var(--sp-3); }
+.nav__toggle { display: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out); }
+.nav__toggle:hover { border-color: var(--border-strong); }
 
-/* Hero */
-.hero { display: grid; grid-template-columns: 1.1fr 0.9fr; align-items: center; gap: 32px; min-height: calc(100svh - 96px); padding: 24px 0 48px; }
-.hero__eyebrow { color: var(--muted); font-size: 1.1rem; max-width: 24ch; line-height: 1.45; margin: 0 0 20px; }
-.hero__title { font-size: clamp(2.6rem, 9vw, 7.5rem); line-height: 0.95; letter-spacing: -0.03em; margin: 24px 0 0; }
+/* ---------------------------------------------------------------- Hero
+   The title spans BOTH columns on its own row. That is load-bearing, not cosmetic: in a single
+   ~620px column "Ready-to-use" (6.82em at weight 800) breaks at its hyphen and the headline
+   sprawls over five lines. Across the full 1104px content box it sets on two clean lines. */
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title title"
+    "lead  orb"
+    "cta   orb";
+  column-gap: var(--sp-12);
+  align-items: center;
+  padding: var(--sp-2) 0 var(--sp-16);
+}
+/* Atmosphere. A radial wash keeps the dark page from reading as an empty canvas; done in CSS
+   rather than an image so it costs zero bytes on a teacher's mobile data. */
+.hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  /* Deliberately NOT bled past the hero's own box. An earlier version used inset:-20% -25% to
+     widen the wash and pushed documentElement.scrollWidth to 1540 on a 1440 viewport — horizontal
+     scroll on all three breakpoints. body{overflow-x:hidden} hid the scrollbar, and because a
+     ::before is a pseudo-element no querySelectorAll sweep can see it, so only a scrollWidth
+     check catches this. Keep the horizontal insets at 0. */
+  inset: -20% 0 auto 0;
+  height: 90%;
+  background: radial-gradient(58% 55% at 68% 42%, rgba(22, 154, 60, 0.24), transparent 72%);
+  pointer-events: none;
+}
+.hero__title {
+  grid-area: title;
+  font-size: var(--fs-display);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  margin: 0 0 var(--sp-6);
+  text-wrap: balance;
+  hyphens: manual; /* never auto-break "Ready-to-use" at its hyphen */
+}
 .hero__title strong { font-weight: 800; display: block; }
-.hero__title span { font-weight: 300; display: block; }
-.hero__actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 28px; }
-.hero__orb { justify-self: center; width: min(100%, 460px); }
+.hero__title span { font-weight: 300; display: block; color: var(--muted); }
+.hero__eyebrow { grid-area: lead; color: var(--muted); font-size: var(--fs-lg); max-width: 46ch; line-height: var(--lh-base); margin: 0; }
+.hero__actions { grid-area: cta; display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; margin-top: var(--sp-7); }
+.hero__orb { grid-area: orb; justify-self: center; width: min(38vw, 340px); }
 
-/* Sections */
-.section { padding: 56px 0; border-top: 1px solid var(--border); }
-.section h2 { font-size: clamp(1.6rem, 3.5vw, 2.4rem); letter-spacing: -0.02em; margin: 0 0 24px; }
-.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
-.card h3 { margin: 0 0 8px; font-size: 1.1rem; }
-.card p { margin: 0; color: var(--muted); line-height: 1.5; }
-.card__num { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--lime); color: var(--lime-ink); font-weight: 800; margin-bottom: 14px; }
+/* ---------------------------------------------------------------- Sections */
+.section { padding: var(--sp-16) 0; border-top: 1px solid var(--border); }
+.section h2 { font-size: var(--fs-2xl); letter-spacing: var(--ls-snug); margin: 0 0 var(--sp-2); }
+.section__lead { color: var(--muted); margin: 0 0 var(--sp-8); max-width: 60ch; line-height: var(--lh-base); }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  transition: border-color var(--dur-base) var(--ease-out), background var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
+.card:hover { border-color: var(--border-strong); background: var(--bg-card-hover); transform: translateY(-2px); }
+.card h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-md); }
+.card p { margin: 0; color: var(--muted); line-height: var(--lh-base); }
+.card__num { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--lime); color: var(--lime-ink); font-weight: 800; margin-bottom: var(--sp-3); }
 
-/* Forms */
-.form { max-width: 560px; margin: 0 auto; padding: 24px 0 64px; }
-.form h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.02em; margin: 0 0 8px; }
-.form__lead { color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
-.field { display: grid; gap: 6px; margin-bottom: 18px; }
+/* The closing CTA is the last conversion point on the page; centre it and give it room. */
+.section__cta { display: flex; justify-content: center; margin-top: var(--sp-12); }
+
+/* ---------------------------------------------------------------- Forms
+   The panel is what stops the form floating on an empty canvas at desktop widths. */
+.form { max-width: 560px; margin: 0 auto; padding: var(--sp-6) 0 var(--sp-20); }
+.form__head { text-align: center; margin-bottom: var(--sp-8); }
+.form h1 { font-size: var(--fs-3xl); letter-spacing: var(--ls-snug); line-height: var(--lh-snug); margin: 0 0 var(--sp-3); text-wrap: balance; }
+.form__lead { color: var(--muted); margin: 0; line-height: var(--lh-base); text-wrap: balance; }
+.form__panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-8); box-shadow: var(--shadow-md); }
+.field { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-5); }
 .field label { font-weight: 600; font-size: 0.95rem; }
-.field input, .field select { width: 100%; min-height: 48px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); }
-.field input:focus, .field select:focus { border-color: var(--lime); outline: none; }
+.field input, .field select {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.field input::placeholder { color: var(--muted-dim); }
+.field input:hover, .field select:hover { border-color: var(--border-strong); }
+/* A lime ring AND border, replacing the global :focus-visible outline this rule outranks. */
+.field input:focus, .field select:focus { border-color: var(--lime); outline: none; box-shadow: 0 0 0 3px var(--lime-tint); }
+/* appearance:none is visual only — the select keeps its native dropdown and keyboard behaviour. */
+.field select {
+  appearance: none;
+  padding-right: var(--sp-10);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23a3a3a3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--sp-4) center;
+}
 .field--error input, .field--error select { border-color: var(--danger); }
-.field__error { color: var(--danger); font-size: 0.875rem; }
-.phone { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
-.phone__cc { display: grid; place-items: center; min-width: 64px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--muted); }
-.consent { color: var(--muted); font-size: 0.875rem; line-height: 1.5; margin: 8px 0 20px; }
-.banner { border-radius: 14px; padding: 12px 14px; margin-bottom: 18px; background: #2a1414; border: 1px solid #5a2323; color: #ffb4b4; }
+.field--error input:focus, .field--error select:focus { box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.14); }
+.field__error { color: var(--danger); font-size: var(--fs-sm); }
+.phone { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2); }
+.phone__cc { display: grid; place-items: center; min-width: 64px; padding: 0 var(--sp-3); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-elev); color: var(--muted); }
+.consent { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-base); margin: var(--sp-5) 0 var(--sp-5); padding-top: var(--sp-5); border-top: 1px solid var(--border); }
+.banner { border-radius: var(--radius-md); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-5); background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); }
 .hp { display: none; }
-.btn-submit { width: 100%; min-height: 52px; border-radius: var(--pill); border: 0; background: var(--lime); color: var(--lime-ink); font-weight: 800; font-size: 1.05rem; cursor: pointer; }
-.btn-submit[disabled] { opacity: 0.6; cursor: progress; }
+.btn-submit {
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--pill);
+  border: 0;
+  background: var(--lime);
+  color: var(--lime-ink);
+  font-weight: 800;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.btn-submit:hover:not([disabled]) { filter: brightness(1.08); box-shadow: var(--glow-lime); }
+.btn-submit:active:not([disabled]) { transform: translateY(1px); }
+.btn-submit[disabled] { opacity: 0.65; cursor: progress; }
+/* Working state: the button is the only progress affordance the form has, so give it a real one. */
+.btn-submit__spinner { display: inline-block; width: 16px; height: 16px; margin-right: var(--sp-2); vertical-align: -2px; border: 2px solid rgba(10, 10, 10, 0.3); border-top-color: var(--lime-ink); border-radius: 50%; animation: ts-spin 700ms linear infinite; }
+@keyframes ts-spin { to { transform: rotate(360deg); } }
 
-/* Joined */
-.joined { text-align: center; max-width: 640px; margin: 0 auto; padding: 16px 0 64px; }
-.joined h1 { font-size: clamp(2rem, 6vw, 3.5rem); letter-spacing: -0.02em; margin: 16px 0 8px; }
-.joined__lead { color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
-.steps { text-align: left; display: grid; gap: 12px; margin: 28px auto 0; padding: 0; list-style: none; max-width: 460px; }
-.steps li { display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start; }
-.steps code, .joined code { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 2px 8px; }
-.joined__fallback { color: var(--muted); font-size: 0.9rem; margin-top: 28px; line-height: 1.6; }
+/* ---------------------------------------------------------------- Joined */
+.joined { text-align: center; max-width: 640px; margin: 0 auto; padding: var(--sp-4) 0 var(--sp-16); }
+.joined h1 { font-size: var(--fs-3xl); letter-spacing: var(--ls-snug); line-height: var(--lh-snug); margin: var(--sp-4) 0 var(--sp-2); text-wrap: balance; }
+.joined__lead { color: var(--muted); margin: 0 0 var(--sp-7); line-height: var(--lh-base); text-wrap: balance; }
+.steps { text-align: left; display: grid; gap: var(--sp-4); margin: var(--sp-10) auto 0; padding: var(--sp-6); list-style: none; max-width: 480px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.steps li { display: grid; grid-template-columns: 32px 1fr; gap: var(--sp-3); align-items: start; line-height: var(--lh-base); }
+/* The join code is a literal string the teacher must send. Wrapping it mid-phrase made it read as
+   two separate codes across two lines, so it never breaks. */
+.steps code, .joined code { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px var(--sp-2); white-space: nowrap; font-size: 0.9em; }
+.joined__fallback { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--sp-7); line-height: 1.8; }
 
-/* Responsive */
+/* ---------------------------------------------------------------- Footer */
+/* Small top margin on purpose: every page already ends in generous bottom padding (.section,
+   .form, .joined), so a large margin here stacks with it into ~130px of dead space. */
+.footer { border-top: 1px solid var(--border); margin-top: var(--sp-2); padding: var(--sp-10) 0 var(--sp-12); display: grid; grid-template-columns: minmax(0, 1.4fr) auto; gap: var(--sp-8); align-items: start; }
+.footer__brand { font-weight: 700; font-size: var(--fs-lg); letter-spacing: var(--ls-snug); margin: 0 0 var(--sp-2); }
+.footer__blurb { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-base); margin: 0; max-width: 44ch; }
+.footer__promise { display: inline-flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-4); padding: 6px var(--sp-3); border-radius: var(--pill); border: 1px solid var(--border); background: var(--bg-elev); color: var(--muted); font-size: var(--fs-xs); }
+.footer__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lime); }
+.footer__links { display: grid; gap: var(--sp-3); list-style: none; margin: 0; padding: 0; justify-items: start; }
+.footer__links a { color: var(--muted); text-decoration: none; font-size: var(--fs-sm); transition: color var(--dur-fast) var(--ease-out); }
+.footer__links a:hover { color: var(--text); }
+.footer__legal { grid-column: 1 / -1; color: var(--muted-dim); font-size: var(--fs-xs); margin: 0; padding-top: var(--sp-6); border-top: 1px solid var(--border); }
+
+/* ---------------------------------------------------------------- Responsive */
 @media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; min-height: auto; text-align: center; }
-  .hero__orb { order: -1; width: min(70vw, 320px); }
-  .hero__eyebrow { max-width: none; margin-inline: auto; }
-  .hero__actions { justify-content: center; }
+  /* Headline first, then the orb, then the pitch and the button. Before this the order was
+     orb -> paragraph -> button -> headline, which put the product's name below the fold on a
+     phone: a teacher opening the WhatsApp link met a green ball and small grey text. */
+  .hero {
+    grid-template-columns: 1fr;
+    grid-template-areas: "title" "orb" "lead" "cta";
+    text-align: center;
+    row-gap: var(--sp-2);
+    padding-bottom: var(--sp-12);
+  }
+  .hero__title { margin-bottom: var(--sp-4); }
+  .hero__orb { width: min(52vw, 220px); margin: var(--sp-2) auto var(--sp-5); }
+  .hero__eyebrow { max-width: none; margin-inline: auto; font-size: var(--fs-md); }
+  .hero__actions { justify-content: center; margin-top: var(--sp-6); }
+  .hero::before { inset: -10% 0 auto 0; height: 60%; background: radial-gradient(70% 45% at 50% 30%, rgba(22, 154, 60, 0.22), transparent 70%); }
   .cards { grid-template-columns: 1fr; }
+  .section { padding: var(--sp-12) 0; }
+  .footer { grid-template-columns: 1fr; gap: var(--sp-6); }
 }
 @media (max-width: 768px) {
   .nav { grid-template-columns: auto 1fr auto; }
-  .nav__pills { display: none; position: absolute; top: 76px; left: 0; right: 0; flex-direction: column; z-index: 20; }
+  .nav__pills { display: none; position: absolute; top: 76px; left: 0; right: 0; flex-direction: column; z-index: 20; box-shadow: var(--shadow-lg); }
   .nav--open .nav__pills { display: flex; }
   .nav__pill { padding: 14px 20px; }
   .nav__toggle { display: inline-grid; place-items: center; }
   .nav__cta .neon-btn { padding: 10px 16px; font-size: 0.9rem; }
+  .form__panel { padding: var(--sp-5); border-radius: var(--radius); }
+  .steps { padding: var(--sp-5); }
 }
 @media (max-width: 480px) {
-  .hero__title { font-size: clamp(2.4rem, 14vw, 3.6rem); }
+  .form { padding-bottom: var(--sp-14); }
+  .form__panel { padding: var(--sp-4); }
+}
+/* 320px (iPhone SE 1st gen and some Androids) is below the 375 gate but still a real device.
+   The large CTA's nowrap label does not fit there at full size; shrink it rather than let the
+   page scroll sideways on the screen where the hand-off happens. */
+@media (max-width: 380px) {
+  .steps { padding: var(--sp-4); }
+}
+
+/* Motion is opt-out in one place rather than per-component. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .card, .card:hover, .nav__pill, .btn-submit, .field input, .field select, .footer__links a { transition: none; transform: none; }
+  .btn-submit__spinner { animation: none; }
 }

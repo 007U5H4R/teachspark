@@ -1,5 +1,6 @@
 import { Route, Routes, useLocation } from 'react-router';
 import { Nav } from './components/Nav.tsx';
+import { Footer } from './components/Footer.tsx';
 import { showSignupCta } from './lib/nav.ts';
 import { Join } from './pages/Join.tsx';
 import { Joined } from './pages/Joined.tsx';
@@ -16,6 +17,7 @@ export function App() {
         <Route path="/joined" element={<Joined />} />
         <Route path="*" element={<Landing />} />
       </Routes>
+      <Footer />
     </div>
   );
 }

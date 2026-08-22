@@ -1,18 +1,94 @@
 :root {
+  /* ---------- Colour ----------
+     Unchanged from the original palette: every pair below was contrast-measured in the Task 15
+     browser pass (muted-on-bg 7.85:1, text-on-bg 18.16:1, lime-ink-on-lime 16.36:1). Do not
+     retune these without re-measuring. */
   --bg: #0a0a0a;
   --bg-elev: #141414;
   --bg-card: #181818;
   --border: #262626;
   --text: #f5f5f5;
   --muted: #a3a3a3;
+  /* The dimmest grey still allowed on --bg. Measured 5.73:1; the 4.5:1 AA floor for normal text
+     is reached at about #787878, so do NOT darken this. An earlier draft used #6b6b6b for the
+     footer legal line and the input placeholder — that measures 3.72:1 and fails. */
+  --muted-dim: #8a8a8a;
   --lime: #b6ff3b;
   --lime-ink: #0a0a0a;
   --green: #169a3c;
   --danger: #ff6b6b;
-  --radius: 20px;
-  --pill: 999px;
+
+  /* Derived surfaces for interaction states. Kept as separate tokens so a hover treatment is a
+     token swap rather than a hand-mixed colour at the call site. */
+  --border-strong: #383838;
+  --bg-card-hover: #1e1e1e;
+  --lime-tint: rgba(182, 255, 59, 0.12);
+  --danger-bg: #2a1414;
+  --danger-border: #5a2323;
+  --danger-text: #ffb4b4;
+
+  /* ---------- Spacing (4px base) ----------
+     Every margin/padding in global.css resolves to one of these. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-14: 56px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+
+  /* ---------- Type ----------
+     --fs-display is the hero, and its ceiling is not arbitrary. Measured in Inter: "Worksheets on
+     WhatsApp" is 12.0em wide at weight 300, and the hero title spans the full 1104px content box,
+     so 1104/12.0 = 92px is the hard limit before it wraps. 5.25rem (84px) leaves margin for the
+     system-ui fallback if the webfont fails. Raising this WILL break the headline. */
+  --fs-xs: 0.8125rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-md: 1.0625rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: clamp(1.6rem, 3.5vw, 2.4rem);
+  --fs-3xl: clamp(1.9rem, 4.5vw, 2.75rem);
+  --fs-display: clamp(2.75rem, 6.8vw, 5.25rem);
+
+  --lh-tight: 1.02;
+  --lh-snug: 1.25;
+  --lh-base: 1.55;
+  --ls-tight: -0.035em;
+  --ls-snug: -0.02em;
+
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* ---------- Radii ---------- */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius: 20px;
+  --radius-lg: 28px;
+  --pill: 999px;
+
+  /* ---------- Elevation ---------- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 28px 70px -24px rgba(0, 0, 0, 0.85);
+  --glow-lime: 0 0 30px -6px rgba(182, 255, 59, 0.4);
+
+  /* ---------- Motion ----------
+     Every transition in global.css uses these. All of them are disabled wholesale by the
+     prefers-reduced-motion block at the bottom of global.css. */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* ---------- Layout ---------- */
   --shell-max: 1200px;
   --gutter: clamp(16px, 4vw, 48px);
+
   color-scheme: dark;
 }

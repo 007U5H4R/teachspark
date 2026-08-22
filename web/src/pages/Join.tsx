@@ -92,9 +92,12 @@ export function Join() {
 
   return (
     <main className="form">
-      <div style={{ width: 120, margin: '0 auto 8px' }}><Spark mood={done ? 'happy' : 'default'} size={120} /></div>
-      <h1>Join the TeachSpark pilot</h1>
-      <p className="form__lead">Tell us a little about yourself and we'll hand you the WhatsApp link. Takes 30 seconds.</p>
+      <div className="form__head">
+        <div style={{ width: 120, margin: '0 auto 8px' }}><Spark mood={done ? 'happy' : 'default'} size={120} /></div>
+        <h1>Join the TeachSpark pilot</h1>
+        <p className="form__lead">Tell us a little about yourself and we'll hand you the WhatsApp link. Takes 30 seconds.</p>
+      </div>
+      <div className="form__panel">
       {banner && <div className="banner" role="alert">{banner}</div>}
       <form onSubmit={onSubmit} noValidate>
         {field('name', 'Your name', <input id="f-name" name="name" autoComplete="name" value={values.name} onChange={set('name')} aria-invalid={!!errors.name} aria-describedby={errors.name ? 'e-name' : undefined} />)}
@@ -122,8 +125,11 @@ export function Join() {
           <input id="f-website" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
         </div>
         <p className="consent">We'll only use this to connect you to TeachSpark on WhatsApp. No student data, ever.</p>
-        <button type="submit" className="btn-submit" disabled={busy}>{busy ? 'One moment…' : 'Get my WhatsApp link'}</button>
+        <button type="submit" className="btn-submit" disabled={busy}>
+          {busy ? <><span className="btn-submit__spinner" aria-hidden="true" />One moment…</> : 'Get my WhatsApp link'}
+        </button>
       </form>
+      </div>
     </main>
   );
 }

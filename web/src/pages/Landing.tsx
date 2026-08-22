@@ -25,19 +25,20 @@ export function Landing() {
 
   return (
     <main>
+      {/* Flat children: the grid-template-areas in global.css place these, and the DOM order is
+          the reading order — headline first on every breakpoint. */}
       <section className="hero">
-        <div>
-          <p className="hero__eyebrow">A WhatsApp bot that writes a ready-to-use worksheet for your own class in about 2 minutes. Free pilot for teachers.</p>
-          <div className="hero__actions" onPointerEnter={() => setCtaHover(true)} onPointerLeave={() => setCtaHover(false)}>
-            <NeonButton to="/join" size="lg">Get started →</NeonButton>
-          </div>
-          <h1 className="hero__title"><strong>Ready-to-use</strong><span>Worksheets on WhatsApp</span></h1>
+        <h1 className="hero__title"><strong>Ready-to-use</strong><span>Worksheets on WhatsApp</span></h1>
+        <p className="hero__eyebrow">A WhatsApp bot that writes a ready-to-use worksheet for your own class in about 2 minutes. Free pilot for teachers.</p>
+        <div className="hero__actions" onPointerEnter={() => setCtaHover(true)} onPointerLeave={() => setCtaHover(false)}>
+          <NeonButton to="/join" size="lg">Get started →</NeonButton>
         </div>
         <div className="hero__orb"><Spark mood={ctaHover ? 'starry' : 'default'} /></div>
       </section>
 
       <section className="section" aria-labelledby="how">
         <h2 id="how">How it works</h2>
+        <p className="section__lead">Three steps, all inside WhatsApp. Nothing to install and no account to make.</p>
         <div className="cards">
           <article className="card"><span className="card__num">1</span><h3>Tell it your class</h3><p>Tap your grade, subject and board from a short menu, then type your topic. No login, no app — just WhatsApp.</p></article>
           <article className="card"><span className="card__num">2</span><h3>Get a 3-level worksheet</h3><p>Support / On-level / Challenge, with an answer key — as a WhatsApp message and a PDF, in about two minutes.</p></article>
@@ -47,12 +48,13 @@ export function Landing() {
 
       <section className="section" aria-labelledby="why">
         <h2 id="why">Why teachers use it</h2>
+        <p className="section__lead">Built around what actually happens the night before a lesson.</p>
         <div className="cards">
           <article className="card"><h3>Question papers from photos</h3><p>Type <strong>PAPER</strong>, send photos of a textbook chapter, and get a complete question paper back as an editable Word file — answer key included.</p></article>
           <article className="card"><h3>Built for your board</h3><p>CBSE, ICSE or state board, in the language you teach in. Differentiated for the class you actually have.</p></article>
           <article className="card"><h3>Private by design</h3><p>It never asks for student data — please don't send any — and you can leave anytime. No student data, ever.</p></article>
         </div>
-        <div className="hero__actions" style={{ marginTop: 32 }}>
+        <div className="section__cta">
           <NeonButton to="/join" size="lg">Join the pilot</NeonButton>
         </div>
       </section>
