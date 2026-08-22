@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Spark } from '../components/spark/Spark.tsx';
+import { Spark, type SparkHandle } from '../components/spark/Spark.tsx';
 import { NeonButton } from '../components/NeonButton.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { saveSource } from '../lib/session.ts';
@@ -10,6 +10,20 @@ const VIEWED = 'ts_lv';
 export function Landing() {
   const [params] = useSearchParams();
   const [ctaHover, setCtaHover] = useState(false);
+  const sparkRef = useRef<SparkHandle>(null);
+  const curiousTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // "What's that?" — fires only on a genuine dwell, not on every pass of the cursor, and the
+  // timer is cleared on leave and on unmount so a glancing hover never fires it late.
+  const onCtaEnter = () => {
+    setCtaHover(true);
+    curiousTimerRef.current = setTimeout(() => sparkRef.current?.signal('curious'), 420);
+  };
+  const onCtaLeave = () => {
+    setCtaHover(false);
+    if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current);
+  };
+  useEffect(() => () => { if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current); }, []);
 
   useEffect(() => {
     const src = params.get('src');
@@ -30,10 +44,10 @@ export function Landing() {
       <section className="hero">
         <h1 className="hero__title"><strong>Ready-to-use</strong><span>Worksheets on WhatsApp</span></h1>
         <p className="hero__eyebrow">A WhatsApp bot that writes a ready-to-use worksheet for your own class in about 2 minutes. Free pilot for teachers.</p>
-        <div className="hero__actions" onPointerEnter={() => setCtaHover(true)} onPointerLeave={() => setCtaHover(false)}>
+        <div className="hero__actions" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
           <NeonButton to="/join" size="lg">Get started →</NeonButton>
         </div>
-        <div className="hero__orb"><Spark mood={ctaHover ? 'starry' : 'default'} /></div>
+        <div className="hero__orb"><Spark ref={sparkRef} mood={ctaHover ? 'starry' : 'default'} /></div>
       </section>
 
       <section className="section" aria-labelledby="how">

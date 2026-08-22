@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { Spark } from '../components/spark/Spark.tsx';
+import { Spark, type SparkHandle } from '../components/spark/Spark.tsx';
 import { ApiError, fetchCountries, submitSignup, type CountryOption } from '../lib/api.ts';
 import { getVisitorId } from '../lib/visitor.ts';
 import { loadSource, saveHandOff, type HandOff } from '../lib/session.ts';
@@ -28,6 +28,7 @@ export function Join() {
   const [done, setDone] = useState(false);
   const [honeypot, setHoneypot] = useState('');
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sparkRef = useRef<SparkHandle>(null);
 
   useEffect(() => {
     let alive = true;
@@ -52,16 +53,21 @@ export function Join() {
     setBanner(null);
     const fieldErrors = validateSignupForm(values);
     setErrors(fieldErrors);
-    if (Object.keys(fieldErrors).length) return;
+    if (Object.keys(fieldErrors).length) { sparkRef.current?.signal('error'); return; }
     setBusy(true);
+    sparkRef.current?.signal('thinking'); // sustained: released on whichever branch resolves below
     try {
       const res = await submitSignup({ ...values, visitorId: getVisitorId(), source: loadSource(), website: honeypot });
       const h: HandOff = { signupId: res.signupId, name: values.name.trim(), join: res.join };
       saveHandOff(h);
       setDone(true); // Spark beams for a beat before the hand-off screen
+      sparkRef.current?.clear('thinking');
+      sparkRef.current?.signal('success');
       navTimerRef.current = setTimeout(() => navigate('/joined', { state: h }), 700);
     } catch (err) {
       setBusy(false);
+      sparkRef.current?.clear('thinking');
+      sparkRef.current?.signal('error');
       if (err instanceof ApiError && err.status === 422) {
         setErrors({ phone: "That doesn't look like a valid WhatsApp number for the selected country" });
       } else if (err instanceof ApiError && err.status === 429) {
@@ -93,7 +99,10 @@ export function Join() {
   return (
     <main className="form">
       <div className="form__head">
-        <div style={{ width: 120, margin: '0 auto 8px' }}><Spark mood={done ? 'happy' : 'default'} size={120} /></div>
+        {/* Calm mode: this orb sits beside a form the teacher is filling in, so it tracks and
+            blinks but never wanders, sleeps or gets curious. It still reacts to real events —
+            thinking / success / error are signalled explicitly from onSubmit. */}
+        <div style={{ width: 120, margin: '0 auto 8px' }}><Spark ref={sparkRef} expressive={false} mood={done ? 'happy' : 'default'} size={120} /></div>
         <h1>Join the TeachSpark pilot</h1>
         <p className="form__lead">Tell us a little about yourself and we'll hand you the WhatsApp link. Takes 30 seconds.</p>
       </div>

@@ -1,5 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { eyeOffset, idlePointer, lerp, orbTilt, resolveEyeState, starPath, type Mood, type Point } from './eyes.ts';
+import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from 'react';
+import { eyeOffset, idlePointer, orbTilt, resolveEyeState, starPath, type Mood, type Point } from './eyes.ts';
+import { applyBlink, eyeRect, lerpShape, NEUTRAL, shapeFor, type Behavior, type EyeShape } from './eyeShape.ts';
+import { breathe, lookAround, saccade, smoothSpeed, stepSpring, tuningForSpeed, type Spring } from './gaze.ts';
+import { activeBehavior, BEHAVIORS, initialMachine, release, request, setBase, tick, type Machine } from './sparkState.ts';
+import { blinkAmount, planBlink, type BlinkPlan } from './blink.ts';
 import './Spark.css';
 
 // Geometry in SVG user units (viewBox 0 0 400 400).
@@ -8,39 +12,69 @@ const CENTER: Point = { x: 200, y: 190 };
 const EYES: Point[] = [{ x: 160, y: 182 }, { x: 240, y: 182 }];
 const MAX_EYE_OFFSET = 14;
 const MAX_TILT_DEG = 7;
-// Easing factors expressed at 60 Hz; `tick` rescales them to the real frame delta.
-const EYE_EASE_60 = 0.18;
 const TILT_EASE_60 = 0.12;
 const FRAME_60_MS = 1000 / 60;
 
+const SLEEP_AFTER_MS = 45_000;
+const LOOK_AROUND_AFTER_MS = 9_000;
+const LOOK_AROUND_EVERY_MS = 14_000;
+
 export interface SparkProps {
-  mood?: Mood;         // driven by the page: 'starry' on /joined or CTA hover, 'happy' after submit
-  size?: number;       // CSS max width in px; the SVG scales to its container
-  blinkEveryMs?: number; // fixed cadence (tests); default = random 3–6s
+  mood?: Mood;           // driven by the page: 'starry' on /joined or CTA hover, 'happy' after submit
+  size?: number;         // CSS max width in px; the SVG scales to its container
+  blinkEveryMs?: number; // fixed cadence (tests); default = a varied, weighted schedule
   className?: string;
+  /**
+   * Calm mode. On /join the orb sits beside a form the teacher is filling in, and an orb that
+   * gets curious, thinks and falls asleep there competes with the one conversion that page
+   * exists for. Calm keeps gaze + blink and drops the rest.
+   */
+  expressive?: boolean;
+  ref?: Ref<SparkHandle>;
+}
+
+/** Imperative so a page can react to a real event without re-rendering the orb. */
+export interface SparkHandle {
+  signal(behavior: Behavior): void;
+  clear(behavior: Behavior): void;
 }
 
 function Eye({ cx, cy, side }: { cx: number; cy: number; side: 'left' | 'right' }) {
   const tilt = side === 'left' ? -6 : 6;
+  const r = eyeRect(NEUTRAL, cx, cy, side);
   return (
     <g data-eye={side}>
-      <rect className="spark__eye-shape spark__eye-shape--default" x={cx - 18} y={cy - 31} width={36} height={62} rx={16} fill="#fff" />
+      {/* The neutral eye is now a parametric rect the animation loop rewrites each frame; the
+          three drawn expressions below stay as-is and cross-fade over it by data-state. */}
+      <rect className="spark__eye-shape spark__eye-shape--default" x={r.x} y={r.y} width={r.width} height={r.height} rx={r.rx} fill="#fff" />
       <g className="spark__eye-shape spark__eye-shape--puppy" transform={`rotate(${tilt} ${cx} ${cy})`}>
         <rect x={cx - 23} y={cy - 38} width={46} height={76} rx={22} fill="#fff" />
         <circle cx={cx - 8} cy={cy - 20} r={6} fill="#b6ff3b" />
       </g>
       <path className="spark__eye-shape spark__eye-shape--starry" d={starPath(cx, cy, 34, 14)} fill="#fff" />
-      <rect className="spark__eye-shape spark__eye-shape--blink" x={cx - 20} y={cy - 3} width={40} height={6} rx={3} fill="#fff" />
       <path className="spark__eye-shape spark__eye-shape--happy" d={`M ${cx - 22} ${cy + 8} Q ${cx} ${cy - 24} ${cx + 22} ${cy + 8}`} stroke="#fff" strokeWidth={9} strokeLinecap="round" fill="none" />
     </g>
   );
 }
 
-export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }: SparkProps) {
+export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, expressive = true, ref }: SparkProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const eyesRef = useRef<SVGGElement>(null);
   const [hovered, setHovered] = useState(false);
   const [blinking, setBlinking] = useState(false);
+  const [behavior, setBehavior] = useState<Behavior>('tracking');
+
+  // The machine lives in a ref so the loop can mutate it without re-rendering; `setBehavior`
+  // mirrors it to an attribute only when it actually changes.
+  const machineRef = useRef<Machine>(initialMachine());
+  const blinkRef = useRef<{ start: number; plan: BlinkPlan } | null>(null);
+  const expressiveRef = useRef(expressive);
+  expressiveRef.current = expressive;
+
+  useImperativeHandle(ref, () => ({
+    signal(b) { machineRef.current = request(machineRef.current, b, performance.now()); },
+    clear(b) { machineRef.current = release(machineRef.current, b); },
+  }), []);
 
   // Gradient/filter ids must be unique per instance: two <Spark /> on one page would otherwise
   // emit duplicate ids and every instance would resolve url(#…) to the first <defs>.
@@ -56,49 +90,107 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
   const edgeId = `spark-edge-${uid}`;
   const reflectBlurId = `spark-rblur-${uid}`;
 
-  // Blink: a short squash on a loose cadence.
+  // Blink scheduling. Timers own WHEN; the rAF loop below owns how it looks, reading the plan so
+  // the lid eases rather than snapping. `blinkEveryMs` keeps the exact deterministic shape the
+  // tests pin: close at the interval, open 140ms later.
   useEffect(() => {
     let closeTimer: ReturnType<typeof setTimeout>;
     let openTimer: ReturnType<typeof setTimeout> | undefined;
-    // A cadence change mid-blink clears the pending open timer, so re-open first or the
-    // eyes stay shut until the next cycle.
     setBlinking(false);
     const schedule = () => {
-      const wait = blinkEveryMs ?? 3000 + Math.random() * 3000;
+      const plan = planBlink(Math.random, blinkEveryMs);
+      const firstClose = plan.beats[0]![0];
+      const lastOpen = plan.beats[plan.beats.length - 1]![1];
+      const wait = blinkEveryMs ?? plan.nextAtMs - lastOpen;
       closeTimer = setTimeout(() => {
+        blinkRef.current = { start: performance.now(), plan };
         setBlinking(true);
-        openTimer = setTimeout(() => { setBlinking(false); schedule(); }, 140);
+        openTimer = setTimeout(() => {
+          blinkRef.current = null;
+          setBlinking(false);
+          schedule();
+        }, lastOpen - firstClose);
       }, wait);
     };
     schedule();
     return () => { clearTimeout(closeTimer); clearTimeout(openTimer); };
   }, [blinkEveryMs]);
 
-  // Gaze: follow the pointer (hover devices) or wander (touch). Eased every frame, written straight
-  // to the DOM so tracking never re-renders React.
+  // One loop drives gaze, shape and tilt, writing straight to the DOM. Nothing here re-renders
+  // React — that property is why pointer movement stays free.
   useEffect(() => {
     const svg = svgRef.current;
     const eyes = eyesRef.current;
     if (!svg || !eyes || typeof window.matchMedia !== 'function') return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) return; // blinks only — nothing below this line is registered
     const canHover = window.matchMedia('(hover: hover)').matches;
+    const rects = Array.from(svg.querySelectorAll<SVGRectElement>('.spark__eye-shape--default'));
+    if (rects.length !== 2) return;
 
-    // Raw client coords only; the SVG-space conversion happens in `tick` against a cached
-    // rect so neither the event nor the frame ever forces a layout.
+    // Reduced motion keeps a gentle gaze instead of freezing: losing the tracking entirely also
+    // loses the feedback that the orb is a live element. Amplitude drops, extras go.
+    const amp = reduced ? 0.4 : 1;
+
     let client: Point | null = null;
     let rect = svg.getBoundingClientRect();
     const measure = () => { rect = svg.getBoundingClientRect(); };
 
-    const current = { ex: 0, ey: 0, rx: 0, ry: 0 };
+    let spring: Spring = { x: 0, y: 0, vx: 0, vy: 0 };
+    let shape: EyeShape = { ...NEUTRAL };
+    let tiltX = 0;
+    let tiltY = 0;
+    let speed = 0;
+    let prevPointer: Point | null = null;
     let raf = 0;
     let visible = true;
-    // Both of these live on the rAF clock and are seeded from the first frame's timestamp.
-    // Do NOT seed them from performance.now(): the two are not guaranteed to share a time
-    // origin (under jsdom they differ by ~700ms), and the resulting negative dt would make
-    // the easing factor negative and fling the gaze the wrong way.
-    let last = 0;  // 0 = next frame is the first
-    let start = 0; // origin for the idle drift's phase
+    let last = 0;
+    let start = 0;
+    let lastPointerMs = 0;
+    let seenPointer = false;
+    let lookStart = 0;
+    let lastLookMs = 0;
+    let lastState = '';
+
+    const onMove = (e: PointerEvent) => {
+      client = { x: e.clientX, y: e.clientY };
+      lastPointerMs = performance.now();
+      if (!seenPointer) {
+        seenPointer = true;
+        // "I noticed you." Only once per mount, and only when the orb can actually be seen.
+        if (expressiveRef.current && visible && !reduced) {
+          machineRef.current = request(machineRef.current, 'attention', lastPointerMs);
+        }
+      }
+      if (machineRef.current.base === 'sleeping') {
+        machineRef.current = setBase(machineRef.current, 'tracking');
+        if (expressiveRef.current) machineRef.current = request(machineRef.current, 'waking', lastPointerMs);
+      }
+    };
+    const onLeave = () => { client = null; };
+
+    const gazeTarget = (b: Behavior, now: number, maxOff: number): Point => {
+      const mode = BEHAVIORS[b].gaze;
+      const reach = BEHAVIORS[b].reach * maxOff;
+      switch (mode) {
+        case 'up':
+          // Thinking: off the cursor, up and to one side, with slow shifts rather than a hold.
+          return { x: Math.sin(now / 1400) * reach * 0.55, y: -reach * 0.8 };
+        case 'down':
+          return { x: -reach * 0.25, y: reach * 0.9 };
+        case 'away':
+          return { x: reach * 0.85, y: -reach * 0.2 };
+        case 'rest':
+          return { x: 0, y: reach };
+        case 'hold':
+          return { x: spring.x, y: spring.y };
+        case 'cursor':
+        default: {
+          const mid = { x: (EYES[0]!.x + EYES[1]!.x) / 2, y: EYES[0]!.y };
+          const p = canHover ? (client && toSvg(client)) : idlePointer(now - start, CENTER);
+          return eyeOffset(mid, p, reach);
+        }
+      }
+    };
 
     const toSvg = (c: Point): Point | null => {
       // A zero-width measurement (display:none, pre-layout) would make the scale meaningless
@@ -107,37 +199,85 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
       const s = rect.width / VB;
       return { x: (c.x - rect.left) / s, y: (c.y - rect.top) / s };
     };
-    const onMove = (e: PointerEvent) => { client = { x: e.clientX, y: e.clientY }; };
-    const onLeave = () => { client = null; }; // cursor left the window / tab hidden: relax the gaze
 
-    const tick = (now: number) => {
-      if (!visible) { raf = 0; return; } // parked off-screen; the observer restarts us
-      if (start === 0) start = now;
-      // Clamp BOTH ends: the upper bound stops a backgrounded tab handing back a huge delta,
-      // and the lower bound is load-bearing — a negative dt would make Math.pow return >1 and
-      // the easing factor negative, which overshoots away from the target instead of easing.
+    const tickFrame = (now: number) => {
+      if (!visible) { raf = 0; return; }
+      if (start === 0) { start = now; lastPointerMs = now; lastLookMs = now; }
       const dt = last === 0 ? FRAME_60_MS : Math.min(Math.max(now - last, 0), 100);
       last = now;
-      // Frame-rate independent easing, so 120 Hz does not converge twice as fast as 60 Hz.
-      const ke = 1 - Math.pow(1 - EYE_EASE_60, dt / FRAME_60_MS);
+      const dts = dt / 1000;
+
+      let m = tick(machineRef.current, now);
+
+      if (expressiveRef.current && !reduced) {
+        const idleFor = now - lastPointerMs;
+        if (idleFor > SLEEP_AFTER_MS && !m.overlay) m = setBase(m, 'sleeping');
+        // A rare glance around while dwelling — often enough to feel alive, rare enough not to nag.
+        if (m.base === 'tracking' && !m.overlay && idleFor > LOOK_AROUND_AFTER_MS && now - lastLookMs > LOOK_AROUND_EVERY_MS && lookStart === 0) {
+          lookStart = now;
+        }
+      }
+      machineRef.current = m;
+
+      const b = activeBehavior(m);
+      if (b !== lastState) { lastState = b; setBehavior(b); }
+
+      // Pointer speed drives how eagerly the spring reacts.
+      const pointerSvg = canHover && client ? toSvg(client) : null;
+      if (pointerSvg && prevPointer) speed = smoothSpeed(speed, pointerSvg.x - prevPointer.x, pointerSvg.y - prevPointer.y, dts);
+      prevPointer = pointerSvg;
+
+      let target = gazeTarget(b, now, MAX_EYE_OFFSET * amp);
+
+      // The idle glance overrides the resting gaze, then hands control straight back.
+      if (lookStart !== 0) {
+        const l = lookAround(now - lookStart, MAX_EYE_OFFSET * amp);
+        if (l.done) { lookStart = 0; lastLookMs = now; }
+        else target = { x: l.x, y: l.y };
+      }
+
+      const tune = reduced ? { stiffness: 90, damping: 26 } : tuningForSpeed(speed);
+      spring = stepSpring(spring, target.x, target.y, dts, tune.stiffness, tune.damping);
+
+      // Micro-saccades ride on top of the settled gaze, never on the spring's own state, so they
+      // cannot accumulate into drift.
+      const s = reduced ? { x: 0, y: 0 } : saccade(now);
+      const bob = b === 'thinking' || b === 'sleeping' ? breathe(now, reduced ? 0 : 1.2, 3400) : 0;
+      eyes.setAttribute('transform', `translate(${(spring.x + s.x).toFixed(2)} ${(spring.y + s.y + bob).toFixed(2)})`);
+
+      // Shape eases toward the active behaviour's target, then the blink collapses whatever it is.
+      const want = shapeFor(b);
+      shape = lerpShape(shape, want, 1 - Math.pow(1 - 0.12, dt / FRAME_60_MS));
+      const bl = blinkRef.current ? blinkAmount(blinkRef.current.plan, now - blinkRef.current.start) : 0;
+      const drawn = applyBlink(shape, bl);
+      for (let i = 0; i < 2; i++) {
+        const el = rects[i]!;
+        const side = i === 0 ? 'left' : 'right';
+        const e = eyeRect(drawn, EYES[i]!.x, EYES[i]!.y, side);
+        el.setAttribute('x', String(e.x));
+        el.setAttribute('y', String(e.y));
+        el.setAttribute('width', String(e.width));
+        el.setAttribute('height', String(e.height));
+        el.setAttribute('rx', String(e.rx));
+        if (e.transform) el.setAttribute('transform', e.transform);
+        else el.removeAttribute('transform');
+      }
+
+      // Orb parallax keeps the old exponential ease — it is a background effect and does not want
+      // the spring's overshoot.
+      const t = orbTilt(CENTER, pointerSvg, MAX_TILT_DEG * amp);
       const kt = 1 - Math.pow(1 - TILT_EASE_60, dt / FRAME_60_MS);
-      const p = canHover ? (client && toSvg(client)) : idlePointer(now - start, CENTER);
-      // Both eyes share one offset (computed from the midpoint) so they never cross.
-      const mid = { x: (EYES[0]!.x + EYES[1]!.x) / 2, y: EYES[0]!.y };
-      const o = eyeOffset(mid, p, MAX_EYE_OFFSET);
-      const t = orbTilt(CENTER, p, MAX_TILT_DEG);
-      current.ex = lerp(current.ex, o.x, ke);
-      current.ey = lerp(current.ey, o.y, ke);
-      current.rx = lerp(current.rx, t.rx, kt);
-      current.ry = lerp(current.ry, t.ry, kt);
-      eyes.setAttribute('transform', `translate(${current.ex.toFixed(2)} ${current.ey.toFixed(2)})`);
-      svg.style.transform = `rotateX(${current.rx.toFixed(2)}deg) rotateY(${current.ry.toFixed(2)}deg)`;
-      raf = requestAnimationFrame(tick);
+      tiltX += (t.rx - tiltX) * kt;
+      tiltY += (t.ry - tiltY) * kt;
+      svg.style.transform = `rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg)`;
+
+      raf = requestAnimationFrame(tickFrame);
     };
+
     const startLoop = () => {
-      if (raf) return; // already running
-      last = 0; // don't bill the parked interval as one giant frame (`start` keeps the drift phase)
-      raf = requestAnimationFrame(tick);
+      if (raf) return;
+      last = 0; // don't bill the parked interval as one giant frame
+      raf = requestAnimationFrame(tickFrame);
     };
 
     if (canHover) {
@@ -178,7 +318,7 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className }:
 
   const state = resolveEyeState({ mood, hovered, blinking });
   return (
-    <div className={['spark', className].filter(Boolean).join(' ')} style={{ maxWidth: size }} data-state={state}
+    <div className={['spark', className].filter(Boolean).join(' ')} style={{ maxWidth: size }} data-state={state} data-behavior={behavior}
       onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
       <svg ref={svgRef} className="spark__svg" viewBox={`0 0 ${VB} ${VB}`} role="img" aria-label="Spark, the TeachSpark mascot">
         <defs>
