@@ -146,15 +146,14 @@ export function Admin() {
 
       <h2 className="admin__section">Acquisition</h2>
       <p className="admin__muted admin__note">
-        Two ways in. A landing sign-up can later become a teacher, so the two columns overlap —
-        “reconciled” is the size of that overlap, not a separate group.
+        Two ways in. A landing sign-up can later become a teacher, so these do not simply add up —
+        someone who signs up here and then messages the bot appears on both sides.
       </p>
       <div className="stats stats--split">
         <Stat label="Teachers (WhatsApp direct)" value={funnel.teachers} hint="Distinct numbers that messaged the bot" />
         <Stat label="Activated" value={funnel.activated} hint="Reached an activated state" />
         <Stat label="Sign-ups (landing funnel)" value={landing.signups} hint="One row per phone number" />
         <Stat label="Tapped through to WhatsApp" value={landing.joinTapped} hint="Indicative, not exact — see note below" />
-        <Stat label="Reconciled to a teacher" value={landing.matched} hint="Phase 2 will fill this in" />
       </div>
       <p className="admin__caveat">
         “Tapped through” is indicative. The sign-up endpoint returns a usable id for an
