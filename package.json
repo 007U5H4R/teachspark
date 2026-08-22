@@ -3,15 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": ["web"],
   "engines": {
-    "node": ">=24"
+    "node": ">=24.15"
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && tsc -p tsconfig.build.json",
+    "build:web": "npm run build -w web",
+    "build:api": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=.env dist/index.js",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && npm run typecheck -w web",
     "test": "vitest run",
+    "test:api": "vitest run --project api",
+    "test:web": "vitest run --project web",
     "test:watch": "vitest",
     "try:generate": "tsx --env-file-if-exists=.env scripts/try-generate.ts",
     "try:paper": "tsx --env-file-if-exists=.env scripts/try-paper.ts",
