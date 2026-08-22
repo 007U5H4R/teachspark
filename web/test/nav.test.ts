@@ -10,4 +10,11 @@ describe('showSignupCta', () => {
     expect(showSignupCta('/admin')).toBe(false);
     expect(showSignupCta('/admin/metrics')).toBe(false);
   });
+  it('does not false-match paths that merely start with /admin', () => {
+    expect(showSignupCta('/admins')).toBe(true);
+    expect(showSignupCta('/administrator')).toBe(true);
+    expect(showSignupCta('/admin-guide')).toBe(true);
+    expect(showSignupCta('/admin')).toBe(false);
+    expect(showSignupCta('/admin/metrics')).toBe(false);
+  });
 });
