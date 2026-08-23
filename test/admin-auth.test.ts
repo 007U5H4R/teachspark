@@ -206,27 +206,30 @@ describe('demo role', () => {
     expect(res.body.funnel.teachers).toBe(40);
   });
 
-  it('never receives a real name, organisation or phone digit', async () => {
+  it('shows the synthetic fake names, keeps phones masked, and never leaks the real DB row', async () => {
     const app = createApp(await seeded());
     const res = await request(app).get('/api/admin/metrics').set('Authorization', `Bearer ${DEMO}`);
     const row = res.body.landing.recent[0];
-    expect(row.name).toBe('Teacher 1');
-    // The synthetic seed varies organization (some rows have none), but whichever it is, the
-    // anonymiser must never let a real org name through — only null or the withheld label.
-    expect([null, 'School withheld']).toContain(row.organization);
-    expect(row.phone).toBe('••••••••');
-    // The strongest form of this check: nothing identifying anywhere in the payload.
+    // The seed's fake-but-realistic name is shown as-is (it is not a real person), NOT the
+    // "Teacher N" anonymiser label — the dataset is synthetic, so there is nothing to hide.
+    expect(typeof row.name).toBe('string');
+    expect(row.name.length).toBeGreaterThan(0);
+    expect(row.name).not.toMatch(/^Teacher \d+$/);
+    // Phones stay masked purely so the table isn't a wall of numbers.
+    expect(row.phone).toMatch(/^•+( \d{4})?$/);
+    // The real DB row (the seeded Pune/Meera Sharma sign-up) must never surface — demo ignores the
+    // DB entirely. Match the FULL identifying strings, not substrings: the synthetic seed contains
+    // unrelated fakes (e.g. a "Meera Joshi") that share a first name but are not the real person.
     const body = JSON.stringify(res.body);
-    expect(body).not.toContain('Meera');
-    expect(body).not.toContain('Kendriya');
-    expect(body).not.toContain('3210');
+    expect(body).not.toContain('Meera Sharma');
+    expect(body).not.toContain('Kendriya Vidyalaya');
     expect(body).not.toContain('9876543210');
   });
 
-  it('cannot use ?phones=full to escape anonymisation', async () => {
+  it('keeps phones masked even with ?phones=full, and never leaks the real DB number', async () => {
     const app = createApp(await seeded());
     const res = await request(app).get('/api/admin/metrics?phones=full').set('Authorization', `Bearer ${DEMO}`);
-    expect(res.body.landing.recent[0].phone).toBe('••••••••');
+    expect(res.body.landing.recent[0].phone).toMatch(/^•/);
     expect(JSON.stringify(res.body)).not.toContain('9876543210');
   });
 

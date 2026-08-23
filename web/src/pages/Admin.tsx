@@ -134,8 +134,8 @@ export function Admin() {
 
       {isDemo && (
         <p className="admin__caveat admin__demo" role="note">
-          Demo access. Every number on this page is real; the people are not. Names, schools and
-          phone numbers are withheld before the data leaves the server.
+          Demo access. This dashboard is populated with a synthetic sample dataset — the teachers,
+          names and schools are illustrative, not real people. Phone numbers are masked.
         </p>
       )}
 
@@ -190,7 +190,7 @@ export function Admin() {
       <h2 className="admin__section">Recent sign-ups</h2>
       <p className="admin__muted admin__note">
         {isDemo
-          ? 'Names, schools and phone numbers are withheld on demo access.'
+          ? 'Sample data — names and schools are illustrative; phone numbers are masked.'
           : <>Phone numbers are masked. Full numbers are available from <code>/api/admin/metrics?phones=full</code>.</>}
       </p>
       {landing.recent.length === 0 ? (

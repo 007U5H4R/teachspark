@@ -85,10 +85,13 @@ export function createAdminRouter(deps: AdminDeps): express.Router {
     // dataset (src/metrics/demoSeed.ts) so the real pilot's data — and the graded funnel it
     // feeds — stay completely untouched by anything demo-related.
     if (role === 'demo') {
+      // The dataset is 100% synthetic, so there is no real person to protect — show the seed's
+      // fake names and schools as-is (anonymise:false). Phones stay masked (fullPhones defaults
+      // off) purely so the table doesn't render a wall of full numbers.
       res.json({
         role,
         funnel: demoFunnel(),
-        landing: computeLanding(demoSignups(deps.clock.now()), { anonymise: true }),
+        landing: computeLanding(demoSignups(deps.clock.now()), { anonymise: false }),
         webEvents: demoWebEvents(),
         generatedAt: deps.clock.now().toISOString(),
       });

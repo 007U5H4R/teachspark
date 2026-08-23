@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CITY_COORDS, indiaOutlinePath, project, VIEW_H, VIEW_W } from './cities.ts';
+import { CITY_COORDS, LAKSHADWEEP, indiaIslandPaths, indiaOutlinePath, project, VIEW_H, VIEW_W } from './cities.ts';
 import './IndiaMap.css';
 
 export interface IndiaMapSignup { city: string }
@@ -31,6 +31,7 @@ export function IndiaMap({ recent }: IndiaMapProps) {
   const plotted = useMemo(() => tallies.filter((t) => CITY_COORDS[t.city] !== undefined), [tallies]);
 
   const outlineD = useMemo(() => indiaOutlinePath(), []);
+  const islandPaths = useMemo(() => indiaIslandPaths(), []);
   const maxCount = plotted.reduce((m, t) => Math.max(m, t.count), 0);
   const radiusFor = (count: number): number => {
     if (maxCount <= 0) return MIN_RADIUS;
@@ -55,13 +56,20 @@ export function IndiaMap({ recent }: IndiaMapProps) {
             aria-label={`Map of India with ${totalCities} cities marked, ${totalTeachers} teachers total`}
           >
             <path className="india-map__outline" d={outlineD} />
-            {plotted.map(({ city, count }) => {
+            {islandPaths.map((d, i) => (
+              <path key={`island-${i}`} className="india-map__island-outline" d={d} />
+            ))}
+            {LAKSHADWEEP.map((coords, i) => {
+              const { x, y } = project(coords);
+              return <circle key={`lak-${i}`} cx={x} cy={y} r={1.4} className="india-map__island" />;
+            })}
+            {plotted.map(({ city, count }, i) => {
               const coords = CITY_COORDS[city]!;
               const { x, y } = project(coords);
               const r = radiusFor(count);
               return (
                 <g key={city} className="india-map__marker">
-                  <circle cx={x} cy={y} r={r} className="india-map__dot">
+                  <circle cx={x} cy={y} r={r} className="india-map__dot" style={{ animationDelay: `${(i % 8) * 0.16}s` }}>
                     <title>{`${city} — ${count}`}</title>
                   </circle>
                 </g>

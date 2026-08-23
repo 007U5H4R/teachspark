@@ -3,6 +3,7 @@
    dark theme defined in web/src/styles/tokens.css without importing or editing that file. */
 
 .india-map {
+  --neon: #39ff14; /* neon green — outline + dots */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -14,25 +15,62 @@
   height: auto;
   max-width: 320px;
   display: block;
+  overflow: visible; /* let the glow spill past the viewBox edges */
 }
 
 .india-map__outline {
-  fill: var(--bg-elev, #141414);
-  stroke: var(--border-strong, #383838);
-  stroke-width: 1;
+  fill: rgba(57, 255, 20, 0.04);
+  stroke: var(--neon);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(57, 255, 20, 0.75));
 }
 
+/* Each dot glows neon and breathes between bright and dim. */
 .india-map__dot {
-  fill: var(--lime, #b6ff3b);
-  fill-opacity: 0.55;
-  stroke: var(--green, #169a3c);
+  fill: var(--neon);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: india-pulse 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes india-pulse {
+  0% {
+    opacity: 0.4;
+    filter: drop-shadow(0 0 1px rgba(57, 255, 20, 0.5));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(57, 255, 20, 0.95));
+  }
+}
+
+/* Island territories: real polygon outlines (Andaman & Nicobar) + small dots (Lakshadweep). */
+.india-map__island-outline {
+  fill: rgba(57, 255, 20, 0.06);
+  stroke: var(--neon);
   stroke-width: 1;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 2px rgba(57, 255, 20, 0.7));
+}
+
+.india-map__island {
+  fill: var(--neon);
+  opacity: 0.6;
+  filter: drop-shadow(0 0 1.5px rgba(57, 255, 20, 0.7));
 }
 
 .india-map__label {
-  fill: var(--muted, #a3a3a3);
+  fill: var(--neon);
+  opacity: 0.85;
   font-size: 7px;
   pointer-events: none;
+}
+
+/* Respect reduced-motion: hold the dots at a steady mid glow instead of pulsing. */
+@media (prefers-reduced-motion: reduce) {
+  .india-map__dot { animation: none; opacity: 0.9; filter: drop-shadow(0 0 4px rgba(57, 255, 20, 0.85)); }
 }
 
 .india-map__caption {

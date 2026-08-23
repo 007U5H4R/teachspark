@@ -7,7 +7,7 @@ describe('IndiaMap', () => {
     const { container } = render(
       <IndiaMap recent={[{ city: 'Mumbai' }, { city: 'Mumbai' }, { city: 'Delhi' }]} />,
     );
-    const circles = container.querySelectorAll('circle');
+    const circles = container.querySelectorAll('.india-map__dot');
     expect(circles).toHaveLength(2); // Mumbai + Delhi, one marker each (not one per row)
     expect(screen.getByText(/Mumbai — 2/)).toBeInTheDocument();
     expect(screen.getByText(/Delhi — 1/)).toBeInTheDocument();
@@ -21,7 +21,7 @@ describe('IndiaMap', () => {
 
   it('ignores an unrecognised city without crashing', () => {
     const { container } = render(<IndiaMap recent={[{ city: 'Atlantis' }, { city: 'Pune' }]} />);
-    const circles = container.querySelectorAll('circle');
+    const circles = container.querySelectorAll('.india-map__dot');
     expect(circles).toHaveLength(1); // only Pune is in the coordinate lookup
     expect(screen.getByText(/Pune — 1/)).toBeInTheDocument();
   });
