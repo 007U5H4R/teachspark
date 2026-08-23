@@ -7,3 +7,6 @@ coverage/
 out/
 .DS_Store
 web/dev-dist/
+
+# Source screen recording for the demo (41MB). Only the compressed web/public/demo.mp4 ships.
+/TeachSpark.mp4

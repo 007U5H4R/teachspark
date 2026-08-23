@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { NeonButton } from '../components/NeonButton.tsx';
+import { PhoneDemo } from '../components/PhoneDemo.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { isHandOff, loadHandOff } from '../lib/session.ts';
 
@@ -31,6 +32,10 @@ export function Joined() {
       <NeonButton href={url} size="lg" onClick={() => trackEvent('join_tapped', handoff.signupId)}>
         <WhatsAppMark />Open WhatsApp &amp; Join
       </NeonButton>
+      <section className="joined__demo" aria-label="Onboarding walkthrough">
+        <p className="joined__demo-label">Prefer to watch first? Here's the full walkthrough:</p>
+        <PhoneDemo />
+      </section>
       <ol className="steps" role="list">
         <li><span className="card__num">1</span><span>Tap the green button above — WhatsApp opens with the message <code>join {code}</code> already typed for you.</span></li>
         <li><span className="card__num">2</span><span><strong>Send</strong> that message (or, if it isn't there, type <code>join {code}</code> yourself and send it) to enter the TeachSpark sandbox. You'll get a "connected" reply back.</span></li>

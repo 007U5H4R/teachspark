@@ -45,6 +45,7 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
         {ANCHORS.map((l) => (
           <li key={l.to}><Link to={l.to} className="nav__pill" onClick={close}>{l.label}</Link></li>
         ))}
+        <li><NavLink to="/demo" className="nav__pill" onClick={close}>Demo</NavLink></li>
       </ul>
       {/* Hovering Sign up should make Spark react exactly as the hero CTA does. The orb lives
           inside Landing, which cannot be reached from here, so announce the hover instead. */}
