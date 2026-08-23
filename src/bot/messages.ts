@@ -1,22 +1,57 @@
 import type { TeacherProfile } from '../domain/types.js';
-import { renderMenu, GRADE_OPTIONS, SUBJECT_OPTIONS, BOARD_OPTIONS, IMPACT_OPTIONS, REFERRAL_OPTIONS, type TopicRejection } from './parse.js';
+import { renderMenu, GRADE_OPTIONS, SUBJECT_OPTIONS, BOARD_OPTIONS, IMPACT_OPTIONS, REFERRAL_OPTIONS, CHOICE_OPTIONS, CONFIRM_OPTIONS, type TopicRejection } from './parse.js';
 import type { Skill } from './skills.js';
 
 export const BOT_NAME = 'TeachSpark';
 
 export function welcome(): string {
   return [
-    `👋 Hi! I'm *${BOT_NAME}*. In about 2 minutes I'll teach you one AI skill and we'll make a ready-to-use worksheet for YOUR class — free.`,
+    `👋 Hi! I'm *${BOT_NAME}*. In about 2 minutes I'll teach you one AI skill and we'll make ready-to-use classroom material for YOUR class — free.`,
     '',
-    'First, which grade do you mainly teach?',
-    renderMenu(GRADE_OPTIONS),
+    "Here's what I can make for you:",
+    renderMenu(CHOICE_OPTIONS),
     '',
-    'Reply with the number 🙂',
+    'Other commands anytime: *HELP* · *CLEAR* · *RESTART*',
+    'Reply with a number 🙂',
   ].join('\n');
+}
+
+/** Shorter choice prompt for returning teachers / the AWAITING_CHOICE reprompt. */
+export function chooseWhatToMake(): string {
+  return [
+    'What would you like to make?',
+    renderMenu(CHOICE_OPTIONS),
+    '',
+    'Reply with a number 🙂',
+  ].join('\n');
+}
+
+/** The grade question that welcome() used to ask, now shown once a make-option needs onboarding. */
+export function askGrade(): string {
+  return `First, which grade do you mainly teach?\n${renderMenu(GRADE_OPTIONS)}\n\nReply with the number 🙂`;
 }
 
 export function restarted(): string {
   return `Okay — starting fresh.\n\n${welcome()}`;
+}
+
+export function clearConfirm(): string {
+  return [
+    '🧹 Clear your current session?',
+    '',
+    "This clears your progress here with me and starts you fresh — it does *not* delete anything. Any worksheets, quizzes or papers I've already sent you stay in your WhatsApp chat.",
+    '',
+    'Are you sure?',
+    renderMenu(CONFIRM_OPTIONS),
+  ].join('\n');
+}
+
+export function cleared(): string {
+  return `✅ Cleared — starting you fresh. Your grade, subject and board are still saved.\n\n${chooseWhatToMake()}`;
+}
+
+export function clearCancelled(): string {
+  return 'No problem — nothing was cleared. Carry on 🙂';
 }
 
 export function askSubject(): string {
@@ -85,9 +120,15 @@ export function help(): string {
   return [
     `ℹ️ *${BOT_NAME}* teaches you one AI skill at a time and makes classroom material for YOUR class.`,
     '',
+    'I can make three things for you:',
+    '• A *worksheet* — 3 levels + an answer key',
+    '• A *quiz* — a 5-question exit ticket',
+    '• A *question paper* — built from photos of your lesson (Word file)',
+    '',
     'Commands:',
-    '• *NEW* — make another worksheet or quiz',
-    '• *PAPER* — turn photos of a lesson into a full question paper (Word file)',
+    '• *NEW* (or *MENU*) — choose what to make',
+    '• *PAPER* — jump straight to a question paper',
+    '• *CLEAR* — clear this session and start fresh (keeps your grade / subject / board)',
     '• *RESTART* — change your grade / subject / board',
     '• *HELP* — this message',
     '',

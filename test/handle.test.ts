@@ -33,17 +33,17 @@ describe('createInboundHandler', () => {
     await handle(msg('hi'));
     const t = await deps.teachers.findByWaFrom('whatsapp:+911');
     expect(t).not.toBeNull();
-    expect(t?.state).toBe('AWAITING_GRADE');
+    expect(t?.state).toBe('AWAITING_CHOICE');
     expect((deps.events as InMemoryEventLog).names()).toEqual(
       expect.arrayContaining([EVENT.session_started, EVENT.message_received, EVENT.welcome_sent]),
     );
-    expect((deps.messenger as FakeMessenger).texts()[0]).toContain('which grade');
+    expect((deps.messenger as FakeMessenger).texts()[0]).toContain('Worksheet');
   });
 
   it('drives the whole funnel end-to-end with fakes', async () => {
     const deps = makeDeps();
     const handle = createInboundHandler(deps);
-    for (const body of ['hi', '2', '1', '1', 'Comparing fractions', '2', '1']) await handle(msg(body));
+    for (const body of ['hi', '1', '2', '1', '1', 'Comparing fractions', '2', '1']) await handle(msg(body));
     const t = await deps.teachers.findByWaFrom('whatsapp:+911');
     expect(t?.state).toBe('IDLE');
     expect(t?.skillsCompleted).toEqual(['worksheet']);
@@ -65,6 +65,7 @@ describe('createInboundHandler', () => {
     const deps = makeDeps();
     const handle = createInboundHandler(deps);
     await handle(msg('hi'));
+    await handle(msg('1')); // pick worksheet -> AWAITING_GRADE
     await Promise.all([handle(msg('2')), handle(msg('2'))]);
     const t = await deps.teachers.findByWaFrom('whatsapp:+911');
     // exactly one grade capture; the second concurrent message got still-working

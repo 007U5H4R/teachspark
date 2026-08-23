@@ -44,6 +44,14 @@ describe('Join', () => {
     expect(screen.getByLabelText(/WhatsApp number/)).toBeInTheDocument();
     expect(screen.getByLabelText(/City/)).toBeInTheDocument();
     expect(screen.getByText(/No student data, ever/)).toBeInTheDocument();
+    // Required fields are starred; organization is the one unmarked (optional) field.
+    for (const label of [/Your name/, /Profession/, /Country/, /WhatsApp number/, /City/]) {
+      expect(screen.getByLabelText(label).closest('.field')?.querySelector('label .req')).toBeInTheDocument();
+    }
+    const orgLabel = screen.getByText(/School \/ organisation/);
+    expect(orgLabel.textContent).not.toMatch(/optional/i);
+    expect(orgLabel.querySelector('.req')).toBeNull();
+    expect(screen.getByText('* required')).toBeInTheDocument();
     expect(document.querySelector('input[name="website"]')).toHaveAttribute('tabindex', '-1');
     await waitFor(() => expect(screen.getByRole('option', { name: /United States/ })).toBeInTheDocument());
     expect(screen.getByLabelText(/Country/)).toHaveValue('IN');

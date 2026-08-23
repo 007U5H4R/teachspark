@@ -149,8 +149,10 @@ function harness(opts: { validateSignature?: boolean } = {}): Harness {
 }
 
 const TOPIC = 'Comparing fractions with unlike denominators';
-/** Hi -> grade 2 -> subject 1 -> board 1 -> topic -> impact 2 -> referral 1 */
-const FUNNEL = ['Hi', '2', '1', '1', TOPIC, '2', '1'];
+/** Hi -> choice 1 (worksheet) -> grade 2 -> subject 1 -> board 1 -> topic -> impact 2 -> referral 1 */
+const FUNNEL = ['Hi', '1', '2', '1', '1', TOPIC, '2', '1'];
+/** Hi -> choice 1 (worksheet) -> grade 2 -> subject 1 -> board 1 : lands her AWAITING_TOPIC */
+const ONBOARD = ['Hi', '1', '2', '1', '1'];
 
 // ---------------------------------------------------------------------------
 // Case 2 — supertest end-to-end over the whole stack
@@ -182,7 +184,7 @@ describe('QA Case 2 — end-to-end funnel over HTTP (app + handler + executor + 
 
   it('(a) every inbound POST is ACKed 200 with empty TwiML inside Twilio\'s window', async () => {
     const { acks } = await drive();
-    expect(acks).toHaveLength(7);
+    expect(acks).toHaveLength(8);
     for (const a of acks) {
       expect(a.status).toBe(200);
       expect(a.contentType).toContain('xml');
@@ -208,7 +210,7 @@ describe('QA Case 2 — end-to-end funnel over HTTP (app + handler + executor + 
     const { eventCount, eventNames } = await drive();
     expect(eventCount).toBeGreaterThanOrEqual(18);
     expect(eventNames).toEqual(expect.arrayContaining([
-      EVENT.session_started, EVENT.message_received, EVENT.welcome_sent, EVENT.grade_captured,
+      EVENT.session_started, EVENT.message_received, EVENT.welcome_sent, EVENT.output_type_selected, EVENT.grade_captured,
       EVENT.subject_captured, EVENT.board_captured, EVENT.onboarding_completed, EVENT.microlesson_sent,
       EVENT.topic_provided, EVENT.generation_started, EVENT.generation_succeeded, EVENT.worksheet_delivered,
       EVENT.pdf_delivered, EVENT.reusable_prompt_sent, EVENT.impact_prompt_sent, EVENT.activated,
@@ -306,12 +308,13 @@ describe('QA Case 3 — failure injection: every edge degrades gracefully', () =
     h.messenger.failWith = 63016;
 
     const first = await h.post('Hi');
-    const second = await h.post('2');
+    const choice = await h.post('1'); // pick worksheet at the choice menu
+    const second = await h.post('2'); // grade
 
-    expect([first.status, second.status]).toEqual([200, 200]); // Twilio must never see a retryable error
+    expect([first.status, choice.status, second.status]).toEqual([200, 200, 200]); // Twilio must never see a retryable error
     expect(h.messenger.sent).toEqual([]); // nothing was actually delivered
     const errors = h.events.rows.filter((r) => r.name === EVENT.error_occurred);
-    expect(errors.length).toBeGreaterThanOrEqual(2);
+    expect(errors.length).toBeGreaterThanOrEqual(3);
     expect(errors[0].properties).toMatchObject({ action: 'send_text', errorCode: 63016 });
     // the conversation state still advanced, so nothing is lost once she re-joins the sandbox
     expect((await h.teacher()).state).toBe('AWAITING_SUBJECT');
@@ -329,12 +332,12 @@ describe('QA Case 3 — failure injection: every edge degrades gracefully', () =
     const res = await h.post('Hi');
     expect(res.status).toBe(200);
     expect(h.events.names()).toContain(EVENT.error_occurred);
-    expect((await h.teacher()).state).toBe('AWAITING_GRADE');
+    expect((await h.teacher()).state).toBe('AWAITING_CHOICE');
   });
 
   it('(b) Anthropic down: apology + back to AWAITING_TOPIC, generation_failed logged', async () => {
     const h = harness();
-    for (const body of ['Hi', '2', '1', '1']) await h.post(body);
+    for (const body of ONBOARD) await h.post(body);
     h.generator.failWith = new Error('api down');
 
     const res = await h.post(TOPIC);
@@ -369,7 +372,7 @@ describe('QA Case 3 — failure injection: every edge degrades gracefully', () =
 
   it('(c) Supabase Storage down: the worksheet TEXT still lands, pdf_failed logged, no PDF cost to her', async () => {
     const h = harness();
-    for (const body of ['Hi', '2', '1', '1']) await h.post(body);
+    for (const body of ONBOARD) await h.post(body);
     h.pdfStore.failWith = new Error('bucket down');
 
     const res = await h.post(TOPIC);
@@ -401,7 +404,7 @@ describe('QA Case 3 — failure injection: every edge degrades gracefully', () =
     // generation_succeeded log sits inside the same try block it is skipped too, so /admin/metrics
     // under-counts successes relative to worksheet_delivered. Delivery itself is correctly unaffected.
     const h = harness();
-    for (const body of ['Hi', '2', '1', '1']) await h.post(body);
+    for (const body of ONBOARD) await h.post(body);
     h.generations.failWith = new Error('generations table down');
 
     const res = await h.post(TOPIC);
@@ -509,7 +512,7 @@ describe('QA Case 5 — security', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('<Response/>');
     await vi.waitFor(() => expect(h.events.names()).toContain(EVENT.welcome_sent), { timeout: 5_000, interval: 5 });
-    expect((await h.teacher()).state).toBe('AWAITING_GRADE');
+    expect((await h.teacher()).state).toBe('AWAITING_CHOICE');
   });
 
   it('(d) the webhook does not leak the framework banner and health needs no auth', async () => {

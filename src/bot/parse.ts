@@ -1,4 +1,4 @@
-export type Command = 'help' | 'restart' | 'new' | 'paper';
+export type Command = 'help' | 'restart' | 'new' | 'paper' | 'clear';
 
 export const FREE_TEXT_MAX = 40;
 
@@ -18,6 +18,7 @@ export function parseCommand(body: string): Command | null {
   if (['restart', 'reset', 'start over'].includes(t)) return 'restart';
   if (['new', 'menu', 'start', 'again', 'another', 'next'].includes(t)) return 'new';
   if (['paper', 'qp', 'question paper'].includes(t)) return 'paper';
+  if (['clear', 'clear chat', 'clear screen', 'wipe'].includes(t)) return 'clear';
   return null;
 }
 
@@ -26,6 +27,17 @@ export interface Option {
   label: string;
   aliases: string[];
 }
+
+export const CHOICE_OPTIONS: Option[] = [
+  { id: 'worksheet', label: 'Worksheet — 3 levels + answer key', aliases: ['worksheet', 'sheet', 'worksheets', 'work sheet'] },
+  { id: 'quiz', label: 'Quiz — 5-question exit ticket', aliases: ['quiz', 'exit ticket', 'exit', 'test', 'ticket'] },
+  { id: 'paper', label: 'Question paper — from your lesson photos', aliases: ['paper', 'question paper', 'qp', 'exam', 'question'] },
+];
+
+export const CONFIRM_OPTIONS: Option[] = [
+  { id: 'yes', label: 'Yes — clear and start fresh', aliases: ['yes', 'y', 'ok', 'okay', 'confirm', 'haan', 'sure', 'clear'] },
+  { id: 'no', label: 'No — keep what I have', aliases: ['no', 'n', 'cancel', 'keep', 'nahi', 'stop'] },
+];
 
 export const GRADE_OPTIONS: Option[] = [
   { id: 'primary', label: 'Primary (Classes 1-5)', aliases: ['primary', 'lower', 'kg', 'nursery', '1-5', 'class 1', 'class 2', 'class 3', 'class 4', 'class 5', 'grade 1', 'grade 2', 'grade 3', 'grade 4', 'grade 5', '1st', '2nd', '3rd', '4th', '5th'] },

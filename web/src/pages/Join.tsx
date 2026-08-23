@@ -88,9 +88,9 @@ export function Join() {
     }
   }
 
-  const field = (k: keyof SignupFormValues, label: string, input: ReactNode) => (
+  const field = (k: keyof SignupFormValues, label: string, input: ReactNode, required = true) => (
     <div className={`field${errors[k] ? ' field--error' : ''}`}>
-      <label htmlFor={`f-${k}`}>{label}</label>
+      <label htmlFor={`f-${k}`}>{label}{required && <span className="req" aria-hidden="true"> *</span>}</label>
       {input}
       {errors[k] && <span className="field__error" id={`e-${k}`}>{errors[k]}</span>}
     </div>
@@ -109,26 +109,27 @@ export function Join() {
       <div className="form__panel">
       {banner && <div className="banner" role="alert">{banner}</div>}
       <form onSubmit={onSubmit} noValidate>
-        {field('name', 'Your name', <input id="f-name" name="name" autoComplete="name" value={values.name} onChange={set('name')} aria-invalid={!!errors.name} aria-describedby={errors.name ? 'e-name' : undefined} />)}
+        <p className="form__req-note">* required</p>
+        {field('name', 'Your name', <input id="f-name" name="name" autoComplete="name" aria-required="true" value={values.name} onChange={set('name')} aria-invalid={!!errors.name} aria-describedby={errors.name ? 'e-name' : undefined} />)}
         {field('profession', 'Profession', (
-          <select id="f-profession" name="profession" value={values.profession} onChange={set('profession')} aria-invalid={!!errors.profession} aria-describedby={errors.profession ? 'e-profession' : undefined}>
+          <select id="f-profession" name="profession" aria-required="true" value={values.profession} onChange={set('profession')} aria-invalid={!!errors.profession} aria-describedby={errors.profession ? 'e-profession' : undefined}>
             <option value="">Choose…</option>
             {PROFESSION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         ))}
-        {field('organization', 'School / organisation (optional)', <input id="f-organization" name="organization" autoComplete="organization" value={values.organization} onChange={set('organization')} />)}
+        {field('organization', 'School / organisation', <input id="f-organization" name="organization" autoComplete="organization" value={values.organization} onChange={set('organization')} />, false)}
         {field('country', 'Country', (
-          <select id="f-country" name="country" autoComplete="country" value={values.country} onChange={set('country')} aria-invalid={!!errors.country} aria-describedby={errors.country ? 'e-country' : undefined}>
+          <select id="f-country" name="country" autoComplete="country" aria-required="true" value={values.country} onChange={set('country')} aria-invalid={!!errors.country} aria-describedby={errors.country ? 'e-country' : undefined}>
             {countries.map((c) => <option key={c.code} value={c.code}>{c.name} (+{c.callingCode})</option>)}
           </select>
         ))}
         {field('phone', 'WhatsApp number', (
           <div className="phone">
             <span className="phone__cc" aria-hidden="true">+{callingCode}</span>
-            <input id="f-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel-national" placeholder="98765 43210" value={values.phone} onChange={set('phone')} aria-invalid={!!errors.phone} aria-describedby={errors.phone ? 'e-phone' : undefined} />
+            <input id="f-phone" name="phone" type="tel" inputMode="tel" autoComplete="tel-national" aria-required="true" placeholder="98765 43210" value={values.phone} onChange={set('phone')} aria-invalid={!!errors.phone} aria-describedby={errors.phone ? 'e-phone' : undefined} />
           </div>
         ))}
-        {field('city', 'City', <input id="f-city" name="city" autoComplete="address-level2" value={values.city} onChange={set('city')} aria-invalid={!!errors.city} aria-describedby={errors.city ? 'e-city' : undefined} />)}
+        {field('city', 'City', <input id="f-city" name="city" autoComplete="address-level2" aria-required="true" value={values.city} onChange={set('city')} aria-invalid={!!errors.city} aria-describedby={errors.city ? 'e-city' : undefined} />)}
         <div className="hp" aria-hidden="true">
           <label htmlFor="f-website">Website</label>
           <input id="f-website" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />

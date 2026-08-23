@@ -4,7 +4,8 @@ import { EVENT } from '../domain/events.js';
 import { SKILLS, hasNextSkill, nextSkillFor } from './skills.js';
 import * as msg from './messages.js';
 import {
-  BOARD_OPTIONS, FREE_TEXT_MAX, GRADE_OPTIONS, IMPACT_OPTIONS, REFERRAL_OPTIONS, SUBJECT_OPTIONS,
+  BOARD_OPTIONS, CHOICE_OPTIONS, CONFIRM_OPTIONS, FREE_TEXT_MAX, GRADE_OPTIONS, IMPACT_OPTIONS,
+  REFERRAL_OPTIONS, SUBJECT_OPTIONS,
   chunkText, containsPii, parseCommand, parseOption, renderMenu, validateTopic, type Option,
 } from './parse.js';
 import { computeNudgeDueAt } from './nudge.js';
@@ -37,15 +38,23 @@ function newStep(t: Teacher, now: Date): Step {
 }
 
 function welcome(step: Step): Step {
-  step.updates.state = 'AWAITING_GRADE';
+  step.updates.state = 'AWAITING_CHOICE';
   step.updates.retries = 0;
   step.events.push({ name: EVENT.welcome_sent });
   step.actions.push(text(msg.welcome()));
   return step;
 }
 
-function startSkill(t: Teacher, step: Step, profile: TeacherProfile, completed: SkillId[] = t.skillsCompleted): Step {
-  const skill = SKILLS[nextSkillFor(completed)];
+/** Show the shorter "what would you like to make?" choice menu (NEW/MENU, IDLE, choice reprompt). */
+function chooseMenu(step: Step): Step {
+  step.updates.state = 'AWAITING_CHOICE';
+  step.updates.retries = 0;
+  step.actions.push(text(msg.chooseWhatToMake()));
+  return step;
+}
+
+function startSkill(t: Teacher, step: Step, profile: TeacherProfile, skillId?: SkillId): Step {
+  const skill = SKILLS[skillId ?? nextSkillFor(t.skillsCompleted)];
   Object.assign(step.updates, { state: 'AWAITING_TOPIC', currentSkillId: skill.id, retries: 0, pendingTopic: null } satisfies TeacherUpdate);
   step.events.push({ name: EVENT.microlesson_sent, skillId: skill.id });
   step.actions.push(text(skill.microLesson(profile)));
@@ -115,15 +124,21 @@ export function transition(ctx: MachineContext): Step {
   }
   if (cmd === 'restart') {
     Object.assign(step.updates, {
-      grade: null, subject: null, board: null, currentSkillId: null, pendingTopic: null, state: 'AWAITING_GRADE', retries: 0,
+      grade: null, subject: null, board: null, currentSkillId: null, pendingTopic: null, state: 'AWAITING_CHOICE', retries: 0,
       paperRequest: null, paperJson: null, paperRedoCount: 0,
     } satisfies TeacherUpdate);
     step.events.push({ name: EVENT.restarted }, { name: EVENT.welcome_sent });
     step.actions.push(text(msg.restarted()));
     return step;
   }
+  if (cmd === 'clear') {
+    Object.assign(step.updates, { state: 'AWAITING_CLEAR_CONFIRM', retries: 0 } satisfies TeacherUpdate);
+    step.events.push({ name: EVENT.clear_requested });
+    step.actions.push(text(msg.clearConfirm()));
+    return step;
+  }
   if (cmd === 'new' && t.state !== 'GENERATING' && t.state !== 'PAPER_GENERATING') {
-    return profile ? startSkill(t, step, profile) : welcome(step);
+    return chooseMenu(step);
   }
   if (cmd === 'paper' && t.state !== 'GENERATING' && t.state !== 'PAPER_GENERATING') {
     return profile ? startPaperWizard(t, step, profile) : welcome(step);
@@ -136,6 +151,43 @@ export function transition(ctx: MachineContext): Step {
   switch (coreState) {
     case 'NEW':
       return welcome(step);
+
+    case 'AWAITING_CHOICE': {
+      const r = resolveMenu(t, step, body, CHOICE_OPTIONS, false);
+      if (!r) return step;
+      const choice = (r.option?.id ?? 'worksheet') as 'worksheet' | 'quiz' | 'paper';
+      step.events.push({ name: EVENT.output_type_selected, properties: { choice, via: r.via } });
+      if (choice === 'paper') {
+        const p: TeacherProfile = profile ?? { grade: 'Other', subject: 'Other', board: 'Other' };
+        return startPaperWizard(t, step, p);
+      }
+      // worksheet | quiz
+      if (profile) return startSkill(t, step, profile, choice);
+      // Not onboarded yet: remember the choice and collect grade → subject → board first.
+      Object.assign(step.updates, { currentSkillId: choice, state: 'AWAITING_GRADE', retries: 0 } satisfies TeacherUpdate);
+      step.actions.push(text(msg.askGrade()));
+      return step;
+    }
+
+    case 'AWAITING_CLEAR_CONFIRM': {
+      const r = resolveMenu(t, step, body, CONFIRM_OPTIONS, false);
+      if (!r) return step;
+      if (r.option?.id === 'yes') {
+        // Reset only the current session; KEEP grade/subject/board (the profile). Deletes nothing.
+        Object.assign(step.updates, {
+          currentSkillId: null, pendingTopic: null, paperRequest: null, paperJson: null, paperRedoCount: 0,
+          retries: 0, state: 'AWAITING_CHOICE',
+        } satisfies TeacherUpdate);
+        step.events.push({ name: EVENT.cleared });
+        step.actions.push(text(msg.cleared()));
+        return step;
+      }
+      // 'no' or skipped after retries: leave everything intact.
+      step.updates.state = 'IDLE';
+      step.events.push({ name: EVENT.clear_cancelled });
+      step.actions.push(text(msg.clearCancelled()));
+      return step;
+    }
 
     case 'AWAITING_GRADE': {
       const r = resolveMenu(t, step, body, GRADE_OPTIONS, true);
@@ -164,7 +216,9 @@ export function transition(ctx: MachineContext): Step {
       step.updates.board = board;
       step.events.push({ name: EVENT.board_captured, properties: { value: board, via: r.via } }, { name: EVENT.onboarding_completed });
       const p: TeacherProfile = { grade: t.grade ?? 'Other', subject: t.subject ?? 'Other', board };
-      return startSkill(t, step, p);
+      // Start the skill she picked at the choice menu (remembered in currentSkillId), not just the
+      // next uncompleted skill — so choosing "Quiz" before onboarding still lands her on the quiz.
+      return startSkill(t, step, p, t.currentSkillId ?? undefined);
     }
 
     case 'AWAITING_TOPIC': {
@@ -220,7 +274,7 @@ export function transition(ctx: MachineContext): Step {
     }
 
     case 'IDLE':
-      return profile ? startSkill(t, step, profile) : welcome(step);
+      return chooseMenu(step);
 
     default: {
       // Compile-time: this switch is exhaustive over CoreTeacherState ONLY — adding a

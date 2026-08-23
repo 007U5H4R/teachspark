@@ -20,8 +20,15 @@
    bar, and it is why the gaze translate on .spark__eyes survives the blink untouched. */
 .spark[data-state='blink'] .spark__eye-shape--default { opacity: 1; transition-duration: 0.06s; }
 
-.spark__eye-shape--starry { transform-box: fill-box; transform-origin: center; animation: spark-twinkle 1.1s ease-in-out infinite; }
-@keyframes spark-twinkle { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.12) rotate(8deg); } }
+.spark__eye-shape--starry {
+  transform-box: fill-box; transform-origin: center;
+  animation: spark-twinkle 1.1s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px var(--gold));
+}
+@keyframes spark-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.16) rotate(10deg); }
+}
 
 /* Orb brightness is part of the expression, not decoration: it rises on notice and acknowledgment
    and falls away as the orb rests. Kept small — a big swing reads as a light bulb, not a mood. */

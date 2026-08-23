@@ -1,5 +1,7 @@
 export type CoreTeacherState =
   | 'NEW'
+  | 'AWAITING_CHOICE'
+  | 'AWAITING_CLEAR_CONFIRM'
   | 'AWAITING_GRADE'
   | 'AWAITING_SUBJECT'
   | 'AWAITING_BOARD'

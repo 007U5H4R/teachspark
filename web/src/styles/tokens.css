@@ -17,6 +17,7 @@
   --lime-ink: #0a0a0a;
   --green: #169a3c;
   --danger: #ff6b6b;
+  --gold: #ffcf3f;
 
   /* Derived surfaces for interaction states. Kept as separate tokens so a hover treatment is a
      token swap rather than a hand-mixed colour at the call site. */

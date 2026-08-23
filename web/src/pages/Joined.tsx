@@ -32,12 +32,12 @@ export function Joined() {
         <WhatsAppMark />Open WhatsApp &amp; Join
       </NeonButton>
       <ol className="steps" role="list">
-        <li><span className="card__num">1</span><span>Tap the button above — WhatsApp opens with <code>join {code}</code> pre-filled.</span></li>
-        <li><span className="card__num">2</span><span><strong>Send</strong> that message as it is. You'll get a "connected" reply.</span></li>
-        <li><span className="card__num">3</span><span>Then type <strong>Hi</strong> to start your first worksheet.</span></li>
+        <li><span className="card__num">1</span><span>Tap the green button above — WhatsApp opens with the message <code>join {code}</code> already typed for you.</span></li>
+        <li><span className="card__num">2</span><span><strong>Send</strong> that message (or, if it isn't there, type <code>join {code}</code> yourself and send it) to enter the TeachSpark sandbox. You'll get a "connected" reply back.</span></li>
+        <li><span className="card__num">3</span><span>Then type <strong>Hi</strong> to begin — TeachSpark will greet you and show what you can make (worksheet, quiz or question paper).</span></li>
       </ol>
       <p className="joined__fallback">
-        Didn't open? Save <strong>{whatsappNumber}</strong> in your contacts and send it <code>join {code}</code> yourself.<br />
+        Didn't open? Save <strong>{whatsappNumber}</strong> in your contacts and type <code>join {code}</code> yourself, then send it.<br />
         It's a small pilot — if it ever stops replying, just tap the button again to rejoin.
       </p>
     </main>

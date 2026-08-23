@@ -53,7 +53,7 @@ describe('QA Case 2 — simulated full conversation (pure machine, no I/O)', () 
     pdfUrl: 'https://x.test/a.pdf',
   };
 
-  /** hi → 2 → maths → 1 → topic → (generation) → 2 → 1, threading the teacher through every step. */
+  /** hi → 1 (worksheet) → 2 → maths → 1 → topic → (generation) → 2 → 1, threading the teacher through every step. */
   function drive() {
     let t = teacher();
     const eventNames: string[] = [];
@@ -68,20 +68,23 @@ describe('QA Case 2 — simulated full conversation (pure machine, no I/O)', () 
     };
 
     const sWelcome = record(run(t, 'hi', at(0)));
-    const sGrade = record(run(t, '2', at(30)));
-    const sSubject = record(run(t, 'maths', at(60)));
-    const sBoard = record(run(t, '1', at(90)));
-    const sTopic = record(run(t, 'Comparing fractions', at(120)));
-    const sGenerated = record(afterGeneration(t, OUTCOME, at(150)));
-    const sImpact = record(run(t, '2', at(180)));
-    const sReferral = record(run(t, '1', at(210)));
+    const sChoice = record(run(t, '1', at(30)));      // pick "Worksheet" at the choice menu
+    const sGrade = record(run(t, '2', at(60)));
+    const sSubject = record(run(t, 'maths', at(90)));
+    const sBoard = record(run(t, '1', at(120)));
+    const sTopic = record(run(t, 'Comparing fractions', at(150)));
+    const sGenerated = record(afterGeneration(t, OUTCOME, at(180)));
+    const sImpact = record(run(t, '2', at(210)));
+    const sReferral = record(run(t, '1', at(240)));
 
-    return { t, eventNames, bodies, steps, sWelcome, sGrade, sSubject, sBoard, sTopic, sGenerated, sImpact, sReferral, finalNow: at(210) };
+    return { t, eventNames, bodies, steps, sWelcome, sChoice, sGrade, sSubject, sBoard, sTopic, sGenerated, sImpact, sReferral, finalNow: at(240) };
   }
 
   it('(a) emits the PRD funnel events in exactly this order', () => {
     const expected = [
       EVENT.message_received, EVENT.welcome_sent,
+      // she picks an output type right after the welcome — this is the new choice-first step
+      EVENT.message_received, EVENT.output_type_selected,
       EVENT.message_received, EVENT.grade_captured,
       EVENT.message_received, EVENT.subject_captured,
       EVENT.message_received, EVENT.board_captured, EVENT.onboarding_completed, EVENT.microlesson_sent,
@@ -117,20 +120,21 @@ describe('QA Case 2 — simulated full conversation (pure machine, no I/O)', () 
     expect(due.getTime()).toBeGreaterThan(finalNow.getTime());
     expect(due.getTime() - finalNow.getTime()).toBeLessThan(DAY_MS);
     expect(t.nudgeSentAt).toBeNull();
-    expect(t.activatedAt).toEqual(at(150));
+    expect(t.activatedAt).toEqual(at(180));
   });
 
   it('walks the expected states and hands the executor a generate action + the PDF', () => {
-    const { sWelcome, sGrade, sSubject, sBoard, sTopic, sGenerated, sImpact, steps } = drive();
-    expect([sWelcome, sGrade, sSubject, sBoard, sTopic, sGenerated, sImpact].map((s) => s.updates.state))
-      .toEqual(['AWAITING_GRADE', 'AWAITING_SUBJECT', 'AWAITING_BOARD', 'AWAITING_TOPIC', 'GENERATING', 'AWAITING_IMPACT', 'AWAITING_REFERRAL']);
+    const { sWelcome, sChoice, sGrade, sSubject, sBoard, sTopic, sGenerated, sImpact, steps } = drive();
+    expect([sWelcome, sChoice, sGrade, sSubject, sBoard, sTopic, sGenerated, sImpact].map((s) => s.updates.state))
+      .toEqual(['AWAITING_CHOICE', 'AWAITING_GRADE', 'AWAITING_SUBJECT', 'AWAITING_BOARD', 'AWAITING_TOPIC', 'GENERATING', 'AWAITING_IMPACT', 'AWAITING_REFERRAL']);
+    expect(sChoice.updates.currentSkillId).toBe('worksheet');
     expect(sGrade.updates.grade).toBe('Middle (Classes 6-8)');
     expect(sSubject.updates.subject).toBe('Maths');
     expect(sBoard.updates.board).toBe('CBSE');
     expect(sTopic.actions).toContainEqual({ type: 'generate', skillId: 'worksheet', topic: 'Comparing fractions' });
     expect(sGenerated.actions).toContainEqual({ type: 'send_document', url: 'https://x.test/a.pdf' });
     // the generate action is the ONLY non-send action before the fake outcome is applied
-    const preGenerate = steps.slice(0, 5).flatMap((s) => s.actions).filter((a) => a.type !== 'send_text');
+    const preGenerate = steps.slice(0, 6).flatMap((s) => s.actions).filter((a) => a.type !== 'send_text');
     expect(preGenerate).toEqual([{ type: 'generate', skillId: 'worksheet', topic: 'Comparing fractions' }]);
   });
 
@@ -151,21 +155,21 @@ describe('QA Case 3 — edge cases', () => {
     const second = run(t, 'hi'); // duplicate webhook: state was not persisted in between
     expect(texts(first)).toEqual([m.welcome()]);
     expect(texts(second)).toEqual([m.welcome()]);
-    expect(second.updates.state).toBe('AWAITING_GRADE');
+    expect(second.updates.state).toBe('AWAITING_CHOICE');
     // and when the first step WAS applied, the second "hi" re-prompts instead of crashing
     const third = run(apply(t, first), 'hi');
     expect(names(third)).toEqual([EVENT.message_received, EVENT.unrecognized_input]);
     expect(texts(third)[0]).toContain('just the number');
   });
 
-  it('restart mid-onboarding clears the profile and returns to AWAITING_GRADE', () => {
+  it('restart mid-onboarding clears the profile and returns to the choice menu', () => {
     const t = teacher({ state: 'AWAITING_BOARD', grade: 'Middle (Classes 6-8)', subject: 'Maths', retries: 2 });
     const s = run(t, 'restart');
-    expect(s.updates).toMatchObject({ grade: null, subject: null, board: null, currentSkillId: null, pendingTopic: null, state: 'AWAITING_GRADE', retries: 0 });
+    expect(s.updates).toMatchObject({ grade: null, subject: null, board: null, currentSkillId: null, pendingTopic: null, state: 'AWAITING_CHOICE', retries: 0 });
     expect(names(s)).toEqual([EVENT.message_received, EVENT.restarted, EVENT.welcome_sent]);
     const after = apply(t, s);
     expect([after.grade, after.subject, after.board]).toEqual([null, null, null]);
-    expect(after.state).toBe('AWAITING_GRADE');
+    expect(after.state).toBe('AWAITING_CHOICE');
   });
 
   it('help during GENERATING answers, keeps the state, and does not refresh lastInboundAt', () => {

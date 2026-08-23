@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AdminError, fetchMetrics, hasSession, login, logout, type AdminMetrics, type Tally } from '../lib/adminApi.ts';
+import { IndiaMap } from '../components/IndiaMap/IndiaMap.tsx';
 
 type View =
   | { kind: 'checking' }                       // deciding whether a session already exists
@@ -178,6 +179,7 @@ export function Admin() {
       </div>
 
       <h2 className="admin__section">Demographics</h2>
+      <IndiaMap recent={landing.recent} />
       <div className="panels">
         <Bars title="Profession" rows={landing.byProfession} empty="No sign-ups yet." />
         <Bars title="City" rows={landing.byCity} empty="No sign-ups yet." />

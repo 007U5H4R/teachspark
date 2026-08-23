@@ -116,6 +116,8 @@ button, input, select { font: inherit; }
 .form__panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-8); box-shadow: var(--shadow-md); }
 .field { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-5); }
 .field label { font-weight: 600; font-size: 0.95rem; }
+.field label .req { color: var(--danger); }
+.form__req-note { color: var(--muted-dim); font-size: var(--fs-xs); margin: 0 0 var(--sp-4); }
 .field input, .field select {
   width: 100%;
   min-height: 48px;

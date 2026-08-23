@@ -47,8 +47,19 @@ describe('Joined', () => {
     const btn = screen.getByRole('link', { name: /Open WhatsApp & Join/ });
     expect(btn).toHaveAttribute('href', handoff.join.url);
     expect(btn).toHaveAttribute('target', '_blank');
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    expect(screen.getAllByText(/join captain-cheese/)).toHaveLength(2); // step 1 + manual fallback
+    const steps = screen.getAllByRole('listitem');
+    expect(steps).toHaveLength(3);
+    // Every occurrence of the join code across the steps + fallback must use the live, dynamic
+    // code — never a hardcoded placeholder.
+    expect(screen.getAllByText(/join captain-cheese/).length).toBeGreaterThanOrEqual(3); // step 1 + step 2 + manual fallback
+    expect(screen.queryByText(/join x\b/)).not.toBeInTheDocument();
+    // Chronological order: tap/open, send/enter, then type Hi.
+    expect(steps[0]).toHaveTextContent(/Tap the green button/);
+    expect(steps[0]).toHaveTextContent(/join captain-cheese/);
+    expect(steps[1]).toHaveTextContent(/Send that message/);
+    expect(steps[1]).toHaveTextContent(/join captain-cheese/);
+    expect(steps[1]).toHaveTextContent(/connected/);
+    expect(steps[2]).toHaveTextContent(/Hi/);
     expect(screen.getByText(/\+14155238886/)).toBeInTheDocument();
     expect(screen.getByText(/tap the button again/i)).toBeInTheDocument();
     // Safari strips the implicit list role when list-style: none is set; jsdom applies no CSS, so it

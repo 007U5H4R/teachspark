@@ -195,14 +195,15 @@ describe('demo role', () => {
     expect(res.body.role).toBe('demo');
   });
 
-  it('sees the real aggregate numbers — that is the point of a demo', async () => {
+  it('is served a fixed synthetic dataset, not the real DB, so the pilot data is never exposed on a demo link', async () => {
     const app = createApp(await seeded());
     const res = await request(app).get('/api/admin/metrics').set('Authorization', `Bearer ${DEMO}`);
     expect(res.status).toBe(200);
     expect(res.body.role).toBe('demo');
-    expect(res.body.landing.signups).toBe(1);
-    // Demographics are aggregate and non-identifying, so they stay real.
-    expect(res.body.landing.byCity).toEqual([{ name: 'Pune', count: 1 }]);
+    // The real DB has exactly one seeded row (Pune); the demo role ignores it entirely and
+    // always shows the deterministic 40-teacher synthetic dataset instead.
+    expect(res.body.landing.signups).toBe(40);
+    expect(res.body.funnel.teachers).toBe(40);
   });
 
   it('never receives a real name, organisation or phone digit', async () => {
@@ -210,7 +211,9 @@ describe('demo role', () => {
     const res = await request(app).get('/api/admin/metrics').set('Authorization', `Bearer ${DEMO}`);
     const row = res.body.landing.recent[0];
     expect(row.name).toBe('Teacher 1');
-    expect(row.organization).toBe('School withheld');
+    // The synthetic seed varies organization (some rows have none), but whichever it is, the
+    // anonymiser must never let a real org name through — only null or the withheld label.
+    expect([null, 'School withheld']).toContain(row.organization);
     expect(row.phone).toBe('••••••••');
     // The strongest form of this check: nothing identifying anywhere in the payload.
     const body = JSON.stringify(res.body);

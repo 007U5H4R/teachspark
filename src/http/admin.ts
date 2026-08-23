@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Clock, EventLog, SignupRepo, TeacherRepo, WebEventLog } from '../ports.js';
 import { computeFunnel } from '../metrics/funnel.js';
 import { computeLanding, countWebEvents } from '../metrics/landing.js';
+import { demoFunnel, demoSignups, demoWebEvents } from '../metrics/demoSeed.js';
 import { authorisedRole, clearCookie, mintSession, roleForToken, sessionCookie, SESSION_MS, type Role } from './adminAuth.js';
 
 export interface AdminDeps {
@@ -79,7 +80,21 @@ export function createAdminRouter(deps: AdminDeps): express.Router {
     // Phones are masked by default so a normal page load never carries the contact list to the
     // browser. Asking for them in full is a deliberate act — and one the demo role never gets.
     const fullPhones = req.query.phones === 'full' && role === 'admin';
-    const anonymise = role === 'demo';
+
+    // The demo role never touches the database at all: it is served a deterministic synthetic
+    // dataset (src/metrics/demoSeed.ts) so the real pilot's data — and the graded funnel it
+    // feeds — stay completely untouched by anything demo-related.
+    if (role === 'demo') {
+      res.json({
+        role,
+        funnel: demoFunnel(),
+        landing: computeLanding(demoSignups(deps.clock.now()), { anonymise: true }),
+        webEvents: demoWebEvents(),
+        generatedAt: deps.clock.now().toISOString(),
+      });
+      return;
+    }
+
     const [events, teachers, signups, webEvents] = await Promise.all([
       deps.events.listAll(),
       deps.teachers.listAll(),
@@ -89,7 +104,7 @@ export function createAdminRouter(deps: AdminDeps): express.Router {
     res.json({
       role,
       funnel: computeFunnel(events, teachers),
-      landing: computeLanding(signups, { fullPhones, anonymise }),
+      landing: computeLanding(signups, { fullPhones, anonymise: false }),
       webEvents: countWebEvents(webEvents),
       generatedAt: deps.clock.now().toISOString(),
     });

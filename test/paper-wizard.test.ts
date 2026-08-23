@@ -48,7 +48,7 @@ describe('wizard entry', () => {
   });
   it('PAPER before onboarding sends the welcome instead', () => {
     const s = run(teacher({ grade: null, subject: null, board: null, state: 'NEW' }), msg('paper'));
-    expect(s.updates.state).toBe('AWAITING_GRADE');
+    expect(s.updates.state).toBe('AWAITING_CHOICE');
   });
 });
 
@@ -309,7 +309,7 @@ describe('global commands still work inside the wizard', () => {
     const h = run(t, msg('help'));
     expect(h.updates.state).toBeUndefined();
     const r = run(t, msg('restart'));
-    expect(r.updates).toMatchObject({ state: 'AWAITING_GRADE', paperRequest: null, paperJson: null, paperRedoCount: 0 });
+    expect(r.updates).toMatchObject({ state: 'AWAITING_CHOICE', paperRequest: null, paperJson: null, paperRedoCount: 0 });
   });
   it('help during PAPER_GENERATING keeps the generation clock anchored, so the paper stale escape stays reachable', () => {
     const t = teacher({ state: 'PAPER_GENERATING', lastInboundAt: NOW });

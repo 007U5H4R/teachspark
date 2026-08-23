@@ -1,0 +1,34 @@
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { IndiaMap } from '../src/components/IndiaMap/IndiaMap.tsx';
+
+describe('IndiaMap', () => {
+  it('renders a marker per known city, sized by count', () => {
+    const { container } = render(
+      <IndiaMap recent={[{ city: 'Mumbai' }, { city: 'Mumbai' }, { city: 'Delhi' }]} />,
+    );
+    const circles = container.querySelectorAll('circle');
+    expect(circles).toHaveLength(2); // Mumbai + Delhi, one marker each (not one per row)
+    expect(screen.getByText(/Mumbai — 2/)).toBeInTheDocument();
+    expect(screen.getByText(/Delhi — 1/)).toBeInTheDocument();
+  });
+
+  it('shows an empty state with zero locations', () => {
+    render(<IndiaMap recent={[]} />);
+    expect(screen.getByText(/No locations yet/)).toBeInTheDocument();
+    expect(document.querySelector('svg')).not.toBeInTheDocument();
+  });
+
+  it('ignores an unrecognised city without crashing', () => {
+    const { container } = render(<IndiaMap recent={[{ city: 'Atlantis' }, { city: 'Pune' }]} />);
+    const circles = container.querySelectorAll('circle');
+    expect(circles).toHaveLength(1); // only Pune is in the coordinate lookup
+    expect(screen.getByText(/Pune — 1/)).toBeInTheDocument();
+  });
+
+  it('gives the svg an accessible role and label', () => {
+    render(<IndiaMap recent={[{ city: 'Chennai' }]} />);
+    const svg = screen.getByRole('img');
+    expect(svg).toHaveAttribute('aria-label', expect.stringContaining('1 cities'));
+  });
+});

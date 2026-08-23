@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseCommand, parseOption, renderMenu, validateTopic, chunkText, containsPii,
   GRADE_OPTIONS, SUBJECT_OPTIONS, BOARD_OPTIONS, IMPACT_OPTIONS, REFERRAL_OPTIONS,
+  CHOICE_OPTIONS, CONFIRM_OPTIONS,
 } from '../src/bot/parse.js';
 
 describe('parseCommand', () => {
@@ -10,8 +11,25 @@ describe('parseCommand', () => {
     ['restart', 'restart'], ['Reset', 'restart'],
     ['new', 'new'], ['NEW!', 'new'], ['menu', 'new'], ['another', 'new'], ['next', 'new'],
     ['paper', 'paper'], ['QP', 'paper'], ['Question Paper', 'paper'],
+    ['clear', 'clear'], ['Clear chat', 'clear'], ['wipe', 'clear'],
     ['hello', null], ['fractions', null], ['', null],
   ])('%s -> %s', (body, cmd) => expect(parseCommand(body)).toBe(cmd));
+});
+
+describe('CHOICE_OPTIONS / CONFIRM_OPTIONS', () => {
+  it('resolve the make-choice by number, id and word alias', () => {
+    expect(parseOption('1', CHOICE_OPTIONS)?.id).toBe('worksheet');
+    expect(parseOption('sheet', CHOICE_OPTIONS)?.id).toBe('worksheet');
+    expect(parseOption('exit ticket', CHOICE_OPTIONS)?.id).toBe('quiz');
+    expect(parseOption('3', CHOICE_OPTIONS)?.id).toBe('paper');
+    expect(parseOption('question paper', CHOICE_OPTIONS)?.id).toBe('paper');
+  });
+  it('resolve yes/no confirmations', () => {
+    expect(parseOption('yes', CONFIRM_OPTIONS)?.id).toBe('yes');
+    expect(parseOption('y', CONFIRM_OPTIONS)?.id).toBe('yes');
+    expect(parseOption('2', CONFIRM_OPTIONS)?.id).toBe('no');
+    expect(parseOption('cancel', CONFIRM_OPTIONS)?.id).toBe('no');
+  });
 });
 
 describe('renderMenu', () => {

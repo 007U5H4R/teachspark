@@ -241,8 +241,8 @@ function harness(): Harness {
   };
 }
 
-/** Hi -> grade 3 (High) -> subject 5 (Other/Hindi) -> board 1 (CBSE); lands her AWAITING_TOPIC. */
-const ONBOARD = ['Hi', '3', '5', '1'];
+/** Hi -> choice 1 (worksheet) -> grade 3 (High) -> subject 5 (Other) -> board 1 (CBSE); lands her AWAITING_TOPIC. */
+const ONBOARD = ['Hi', '1', '3', '5', '1'];
 
 /**
  * The REAL wizard order, read off src/bot/paper/wizard.ts (NOT guessed):
@@ -296,7 +296,7 @@ describe('QA Case 2 — end-to-end paper flow over HTTP (app + handler + executo
 
   it('(a) every inbound POST — including the photo — is ACKed 200 with empty TwiML', async () => {
     const { acks } = await drive();
-    expect(acks).toHaveLength(16); // 4 onboarding + 12 paper-wizard turns
+    expect(acks).toHaveLength(17); // 5 onboarding (incl. the make-choice) + 12 paper-wizard turns
     for (const a of acks) {
       expect(a.status).toBe(200);
       expect(a.contentType).toContain('xml');
@@ -609,7 +609,7 @@ describe('QA Case 3 — failure injection: every paper edge degrades gracefully'
     expect(res.status).toBe(200);
 
     const t = await h.teacher();
-    expect(t.state).toBe('AWAITING_GRADE');
+    expect(t.state).toBe('AWAITING_CHOICE');
     expect(t.paperRequest).toBeNull();
     expect(t.paperJson).toBeNull();
     expect(t.paperRedoCount).toBe(0);
@@ -630,8 +630,10 @@ describe('QA Case 3 — failure injection: every paper edge degrades gracefully'
     await h.post(CHAPTER);
     expect((await h.teacher()).state).toBe('PAPER_MEDIA');
 
-    // "NEW" pulls her back into the core loop
+    // "NEW" pulls her back to the choice menu; picking worksheet re-enters the core loop
     await h.post('new');
+    expect((await h.teacher()).state).toBe('AWAITING_CHOICE');
+    await h.post('1'); // pick worksheet
     expect((await h.teacher()).state).toBe('AWAITING_TOPIC');
 
     await h.post('Comparing fractions with unlike denominators');

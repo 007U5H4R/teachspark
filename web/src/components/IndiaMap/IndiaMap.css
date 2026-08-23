@@ -1,0 +1,50 @@
+/* Styles scoped to IndiaMap only. Reuses the admin page's colour tokens by name (--lime, --green,
+   --ink, --muted, --border, --bg-card) rather than hardcoding hex, so it stays in step with the
+   dark theme defined in web/src/styles/tokens.css without importing or editing that file. */
+
+.india-map {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3, 12px);
+}
+
+.india-map__svg {
+  width: 100%;
+  height: auto;
+  max-width: 320px;
+  display: block;
+}
+
+.india-map__outline {
+  fill: var(--bg-elev, #141414);
+  stroke: var(--border-strong, #383838);
+  stroke-width: 1;
+}
+
+.india-map__dot {
+  fill: var(--lime, #b6ff3b);
+  fill-opacity: 0.55;
+  stroke: var(--green, #169a3c);
+  stroke-width: 1;
+}
+
+.india-map__label {
+  fill: var(--muted, #a3a3a3);
+  font-size: 7px;
+  pointer-events: none;
+}
+
+.india-map__caption {
+  color: var(--muted, #a3a3a3);
+  font-size: var(--fs-xs, 0.8125rem);
+  margin: 0;
+  text-align: center;
+}
+
+/* No horizontal overflow at phone widths; the SVG just shrinks with its container. */
+@media (max-width: 375px) {
+  .india-map__svg {
+    max-width: 100%;
+  }
+}

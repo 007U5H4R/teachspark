@@ -41,14 +41,20 @@ describe('every inbound', () => {
 });
 
 describe('onboarding', () => {
-  it('NEW -> welcome with grade menu -> AWAITING_GRADE', () => {
+  it('NEW -> welcome with the choice menu -> AWAITING_CHOICE', () => {
     const s = run(teacher(), 'hi');
-    expect(s.updates.state).toBe('AWAITING_GRADE');
+    expect(s.updates.state).toBe('AWAITING_CHOICE');
     expect(texts(s)).toEqual([m.welcome()]);
     expect(names(s)).toContain(EVENT.welcome_sent);
   });
   it('captures grade, subject, board then sends the worksheet micro-lesson', () => {
     let t = apply(teacher(), run(teacher(), 'hi'));
+    // pick "Worksheet" at the choice menu; not onboarded yet, so it asks the grade next
+    let sChoice = run(t, '1');
+    expect(sChoice.updates.state).toBe('AWAITING_GRADE');
+    expect(sChoice.updates.currentSkillId).toBe('worksheet');
+    expect(names(sChoice)).toContain(EVENT.output_type_selected);
+    t = apply(t, sChoice);
     let s = run(t, '2');
     expect(s.updates.grade).toBe('Middle (Classes 6-8)');
     expect(s.updates.state).toBe('AWAITING_SUBJECT');
@@ -110,23 +116,90 @@ describe('commands', () => {
     expect(s2.updates.state).toBe('AWAITING_TOPIC');
     expect(s2.events.find((e) => e.name === EVENT.generation_failed)?.properties).toMatchObject({ reason: 'stale' });
   });
-  it('restart clears the profile and restarts onboarding', () => {
+  it('restart clears the profile and returns to the choice menu', () => {
     const s = run(onboarded({ state: 'IDLE', skillsCompleted: ['worksheet'] }), 'restart');
-    expect(s.updates).toMatchObject({ grade: null, subject: null, board: null, state: 'AWAITING_GRADE', currentSkillId: null, pendingTopic: null, retries: 0 });
+    expect(s.updates).toMatchObject({ grade: null, subject: null, board: null, state: 'AWAITING_CHOICE', currentSkillId: null, pendingTopic: null, retries: 0 });
     expect(names(s)).toContain(EVENT.restarted);
     expect(texts(s)[0]).toContain('starting fresh');
   });
-  it('new starts the next skill when onboarded, welcome when not', () => {
+  it('new shows the choice menu instead of auto-starting a skill (onboarded or not)', () => {
     const s = run(onboarded({ state: 'IDLE', skillsCompleted: ['worksheet'] }), 'new');
-    expect(s.updates.state).toBe('AWAITING_TOPIC');
-    expect(s.updates.currentSkillId).toBe('quiz');
-    expect(texts(s)[0]).toContain('exit ticket');
+    expect(s.updates.state).toBe('AWAITING_CHOICE');
+    expect(texts(s)).toEqual([m.chooseWhatToMake()]);
+    expect(s.updates.currentSkillId).toBeUndefined(); // not started yet
     const s2 = run(teacher({ state: 'AWAITING_SUBJECT', grade: 'x' }), 'new');
-    expect(s2.updates.state).toBe('AWAITING_GRADE');
+    expect(s2.updates.state).toBe('AWAITING_CHOICE');
   });
   it('new is ignored while GENERATING', () => {
     const s = run(onboarded({ state: 'GENERATING', currentSkillId: 'worksheet' }), 'new');
     expect(texts(s)).toEqual([m.stillWorking()]);
+  });
+});
+
+describe('choice menu (AWAITING_CHOICE)', () => {
+  it('onboarded + worksheet -> starts the worksheet skill at AWAITING_TOPIC', () => {
+    const s = run(onboarded({ state: 'AWAITING_CHOICE' }), '1');
+    expect(s.updates.state).toBe('AWAITING_TOPIC');
+    expect(s.updates.currentSkillId).toBe('worksheet');
+    expect(texts(s)[0]).toContain('3-level worksheet');
+    expect(s.events.find((e) => e.name === EVENT.output_type_selected)?.properties).toMatchObject({ choice: 'worksheet', via: 'option' });
+  });
+  it('onboarded + quiz -> starts the quiz skill even though worksheet is not done', () => {
+    const s = run(onboarded({ state: 'AWAITING_CHOICE' }), '2');
+    expect(s.updates.state).toBe('AWAITING_TOPIC');
+    expect(s.updates.currentSkillId).toBe('quiz');
+    expect(texts(s)[0]).toContain('exit ticket');
+    expect(s.events.find((e) => e.name === EVENT.output_type_selected)?.properties).toMatchObject({ choice: 'quiz' });
+  });
+  it('onboarded + question paper -> enters the paper wizard', () => {
+    const s = run(onboarded({ state: 'AWAITING_CHOICE' }), '3');
+    expect(s.updates.state).toBe('PAPER_SUBJECT');
+    expect(names(s)).toEqual(expect.arrayContaining([EVENT.output_type_selected, EVENT.paper_started]));
+    expect(s.events.find((e) => e.name === EVENT.output_type_selected)?.properties).toMatchObject({ choice: 'paper' });
+  });
+  it('NOT onboarded + quiz -> remembers the choice and onboards, then starts the remembered quiz', () => {
+    let t = teacher({ state: 'AWAITING_CHOICE' });
+    let s = run(t, '2');
+    expect(s.updates.state).toBe('AWAITING_GRADE');
+    expect(s.updates.currentSkillId).toBe('quiz');
+    expect(texts(s)[0].toLowerCase()).toContain('grade');
+    t = apply(t, s);
+    t = apply(t, run(t, '2'));      // grade
+    t = apply(t, run(t, 'maths'));  // subject
+    s = run(t, '1');                // board -> should start the REMEMBERED quiz, not worksheet
+    expect(s.updates.state).toBe('AWAITING_TOPIC');
+    expect(s.updates.currentSkillId).toBe('quiz');
+    expect(texts(s)[0]).toContain('exit ticket');
+  });
+  it('NOT onboarded + question paper -> paper wizard with an Other/Other/Other profile', () => {
+    const s = run(teacher({ state: 'AWAITING_CHOICE' }), '3');
+    expect(s.updates.state).toBe('PAPER_SUBJECT');
+    expect(s.updates.paperRequest).toMatchObject({ grade: 'Other', board: 'Other' });
+  });
+});
+
+describe('clear command', () => {
+  it('clear from any state asks for YES/NO confirmation and logs clear_requested', () => {
+    const s = run(onboarded({ state: 'AWAITING_TOPIC', currentSkillId: 'quiz', pendingTopic: 'x' }), 'clear');
+    expect(s.updates.state).toBe('AWAITING_CLEAR_CONFIRM');
+    expect(names(s)).toContain(EVENT.clear_requested);
+    expect(texts(s)[0].toLowerCase()).toContain('sure');
+  });
+  it('confirm YES resets the session, keeps the profile, and lands at the choice menu', () => {
+    const t = onboarded({ state: 'AWAITING_CLEAR_CONFIRM', currentSkillId: 'quiz', pendingTopic: 'x', paperRedoCount: 2 });
+    const s = run(t, '1');
+    expect(s.updates).toMatchObject({ state: 'AWAITING_CHOICE', currentSkillId: null, pendingTopic: null, paperRequest: null, paperJson: null, paperRedoCount: 0 });
+    expect(s.updates.grade).toBeUndefined(); // profile untouched
+    expect(names(s)).toContain(EVENT.cleared);
+    expect(texts(s)[0]).toContain('1) Worksheet');
+  });
+  it('confirm NO cancels: nothing cleared, goes IDLE', () => {
+    const t = onboarded({ state: 'AWAITING_CLEAR_CONFIRM', currentSkillId: 'quiz' });
+    const s = run(t, '2');
+    expect(s.updates.state).toBe('IDLE');
+    expect(s.updates.currentSkillId).toBeUndefined();
+    expect(names(s)).toContain(EVENT.clear_cancelled);
+    expect(texts(s)[0].toLowerCase()).toContain('nothing was cleared');
   });
 });
 
@@ -264,10 +337,10 @@ describe('impact, referral, share, nudge scheduling', () => {
     expect(s.updates.nudgeDueAt).toBeUndefined();
     expect(names(s)).not.toContain(EVENT.nudge_scheduled);
   });
-  it('IDLE + any text starts the next skill', () => {
+  it('IDLE + any text shows the choice menu', () => {
     const s = run(onboarded({ state: 'IDLE', skillsCompleted: ['worksheet'] }), 'hello');
-    expect(s.updates.state).toBe('AWAITING_TOPIC');
-    expect(s.updates.currentSkillId).toBe('quiz');
+    expect(s.updates.state).toBe('AWAITING_CHOICE');
+    expect(texts(s)).toEqual([m.chooseWhatToMake()]);
   });
 });
 
@@ -286,7 +359,7 @@ describe('unrecognised teacher state (runtime safety)', () => {
   it('self-heals into onboarding instead of crashing when the DB state is not a known TeacherState', () => {
     const bogus = { ...teacher(), state: 'WAT' as unknown as Teacher['state'] };
     const s = run(bogus, 'hi');
-    expect(s.updates.state).toBe('AWAITING_GRADE');
+    expect(s.updates.state).toBe('AWAITING_CHOICE');
     expect(names(s)).toContain(EVENT.welcome_sent);
   });
 });
