@@ -40,7 +40,7 @@ export function PhoneDemo({ autoPlay = false }: { autoPlay?: boolean }) {
         <video
           ref={ref}
           className="phone__screen"
-          src="/demo-v2.mp4"
+          src="/demo-v3.mp4"
           poster="/demo-poster.jpg"
           controls
           loop
