@@ -179,7 +179,7 @@ export function Admin() {
       </div>
 
       <h2 className="admin__section">Demographics</h2>
-      <IndiaMap recent={landing.recent} />
+      <IndiaMap recent={landing.recent} totalSignups={landing.signups} />
       <div className="panels">
         {/* No Source tile: nothing links to the site with ?src=, so it only ever rendered a single
             "(unknown)" bar equal to the sign-up total. The API still returns bySource, so this can

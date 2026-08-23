@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, NavLink } from 'react-router';
 import { NeonButton } from './NeonButton.tsx';
 import { emitCtaHover } from '../lib/ctaHover.ts';
@@ -12,6 +12,25 @@ const ANCHORS = [
 export function Nav({ showSignup }: { showSignup: boolean }) {
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Tapping anywhere off the menu dismisses it, which is what a dropdown is expected to do —
+  // reaching back up to the × to get out of the way is friction on a phone.
+  //
+  // pointerdown, not click: it fires on touch-down so the menu is already gone by the time the tap
+  // completes, and a tap on a link outside the nav both closes this and still follows the link.
+  // Anything INSIDE the nav is left alone, so the toggle's own handler keeps owning the toggle
+  // (otherwise this would close the menu a moment before the button reopened it) and a menu link
+  // keeps closing via its own onClick.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const nav = navRef.current;
+      if (nav && e.target instanceof Node && !nav.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
 
   // A nav link click navigates away — leave focus alone so it doesn't fight the navigation.
   const close = () => setOpen(false);
@@ -28,7 +47,7 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
   };
 
   return (
-    <nav className={`nav${open ? ' nav--open' : ''}`} aria-label="Main" onKeyDown={onKeyDown}>
+    <nav ref={navRef} className={`nav${open ? ' nav--open' : ''}`} aria-label="Main" onKeyDown={onKeyDown}>
       <button
         type="button"
         ref={toggleRef}

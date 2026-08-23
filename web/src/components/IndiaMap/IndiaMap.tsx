@@ -8,6 +8,12 @@ export interface IndiaMapProps {
   /** Recent sign-up rows (only `.city` is read). Tallied here so every city shows, not just the
    * top-10 `landing.byCity` cap. */
   recent: IndiaMapSignup[];
+  /**
+   * True sign-up count, when it is larger than `recent`. `recent` is capped at 50 server-side
+   * (computeLanding's recentLimit), so past 50 sign-ups the map only ever sees a sample — the
+   * caption has to say so rather than implying it counted everyone.
+   */
+  totalSignups?: number;
 }
 
 const MIN_RADIUS = 3;
@@ -43,7 +49,7 @@ function resolve(recent: IndiaMapSignup[]): Resolved {
   return { plotted, total, unmapped };
 }
 
-export function IndiaMap({ recent }: IndiaMapProps) {
+export function IndiaMap({ recent, totalSignups }: IndiaMapProps) {
   const { plotted, total, unmapped } = useMemo(() => resolve(recent), [recent]);
   const outlineD = useMemo(() => indiaOutlinePath(), []);
   const islandPaths = useMemo(() => indiaIslandPaths(), []);
@@ -55,6 +61,9 @@ export function IndiaMap({ recent }: IndiaMapProps) {
   };
 
   const placed = total - unmapped;
+  // Only a sample reached us if the server truncated `recent`; say "most recent" then, so this
+  // number cannot be read as disagreeing with the sign-up tile above.
+  const sampled = totalSignups !== undefined && totalSignups > total;
 
   return (
     <section className="india-map panel">
@@ -97,7 +106,7 @@ export function IndiaMap({ recent }: IndiaMapProps) {
             })}
           </svg>
           <p className="india-map__caption">
-            {plotted.length} {plotted.length === 1 ? 'city' : 'cities'} · {placed} of {total} sign-ups placed · marker size = sign-ups
+            {plotted.length} {plotted.length === 1 ? 'city' : 'cities'} · {placed} of {total}{sampled ? ' most recent' : ''} sign-ups placed · marker size = sign-ups
             {unmapped > 0 && (
               <>
                 {' '}

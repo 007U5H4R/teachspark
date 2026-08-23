@@ -43,6 +43,27 @@ describe('Nav', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(document.activeElement).toBe(toggle);
   });
+  it('closes the menu when a tap lands outside the nav', async () => {
+    render(<MemoryRouter><Nav showSignup /><main data-testid="page">Page content</main></MemoryRouter>);
+    const toggle = screen.getByRole('button', { name: 'Open menu' });
+    await userEvent.click(toggle);
+    expect(screen.getByRole('navigation')).toHaveClass('nav--open');
+
+    // pointerdown, because that is what the handler listens for — a plain click would not
+    // exercise it, and the assertion would pass for the wrong reason.
+    fireEvent.pointerDown(screen.getByTestId('page'));
+    expect(screen.getByRole('navigation')).not.toHaveClass('nav--open');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+  it('keeps the menu open when the tap lands inside the nav', async () => {
+    // Guards the ordering trap: if the outside-handler also fired for the toggle it would close
+    // the menu a moment before the button's own handler reopened it.
+    render(<MemoryRouter><Nav showSignup /></MemoryRouter>);
+    const toggle = screen.getByRole('button', { name: 'Open menu' });
+    await userEvent.click(toggle);
+    fireEvent.pointerDown(screen.getByRole('link', { name: 'Home' }));
+    expect(screen.getByRole('navigation')).toHaveClass('nav--open');
+  });
   it('returns focus to the toggle when Escape closes the menu', async () => {
     render(<MemoryRouter><Nav showSignup /></MemoryRouter>);
     const toggle = screen.getByRole('button', { name: 'Open menu' });

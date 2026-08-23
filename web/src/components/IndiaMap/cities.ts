@@ -128,11 +128,16 @@ const CITY_DATA: Array<[string, number, number]> = [
   ['Silvassa', 20.27, 73.02], ['Port Blair', 11.62, 92.73], ['Kavaratti', 10.57, 72.64],
 ];
 
-/** Strip case, accents, punctuation and spacing so hand-typed names compare reliably. */
+/**
+ * Strip case, accents, punctuation and spacing so hand-typed names compare reliably.
+ *
+ * NFD is load-bearing, not decoration: it splits "Bengalūru" into u + combining macron so the
+ * a-z filter keeps the u. Without it the precomposed ū is dropped whole and the name normalises
+ * to "benglru".
+ */
 function norm(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z]/g, '');
 }
@@ -154,7 +159,7 @@ const ALIASES: Record<string, string> = {
   tirupur: 'Tiruppur', pondicherry: 'Puducherry', pondy: 'Puducherry',
   simla: 'Shimla', gauhati: 'Guwahati', dispur: 'Guwahati', panjim: 'Panaji',
   jubbulpore: 'Jabalpur', navimumbai: 'Navi Mumbai', bombaysuburban: 'Mumbai',
-  waltair: 'Visakhapatnam', ooty: 'Coimbatore',
+  waltair: 'Visakhapatnam',
 };
 
 /** Canonical display name -> coordinates. */
@@ -166,14 +171,19 @@ const BY_NORM: Record<string, string> = {};
 for (const [name] of CITY_DATA) BY_NORM[norm(name)] = name;
 for (const [from, to] of Object.entries(ALIASES)) BY_NORM[norm(from)] = to;
 
-// Longest first so "navimumbai" wins over "mumbai" on the substring pass.
-const NORM_KEYS = Object.keys(BY_NORM).sort((a, b) => b.length - a.length);
-
 /**
  * Resolve a hand-typed city to a canonical name, or null when nothing plausibly matches.
- * Tries the whole string, then the part before a comma ("Bangalore, Karnataka"), then a contained
- * known name ("South Bangalore"). The substring pass needs 5+ characters so short names cannot
- * match inside unrelated words.
+ *
+ * Tries the whole string, then the part before a comma ("Bangalore, Karnataka"), then whole WORD
+ * groups, longest group first ("Sector 15 Navi Mumbai" -> Navi Mumbai, "South Bangalore" ->
+ * Bengaluru).
+ *
+ * Matching on word groups rather than a bare substring is what keeps the map honest. A plain
+ * `includes` test dragged real places onto the wrong dot with total confidence — "Suratgarh"
+ * (Rajasthan) onto Surat, "Thanesar" (Haryana) onto Thane, "Patnagarh" (Odisha) onto Patna — and,
+ * worst of all, spelled a city out of the connecting word: "Daman and Diu" normalises to
+ * "...anand..." and landed on Anand, Gujarat. A wrong dot is worse than no dot, because the
+ * caption presents it as placed.
  */
 export function resolveCity(raw: string): string | null {
   const whole = norm(raw);
@@ -183,8 +193,12 @@ export function resolveCity(raw: string): string | null {
   const head = norm(raw.split(',')[0] ?? '');
   if (head && BY_NORM[head]) return BY_NORM[head];
 
-  for (const key of NORM_KEYS) {
-    if (key.length >= 5 && whole.includes(key)) return BY_NORM[key] ?? null;
+  const words = raw.split(/[^\p{L}\p{N}]+/u).map(norm).filter(Boolean);
+  for (let len = words.length; len >= 1; len--) {
+    for (let i = 0; i + len <= words.length; i++) {
+      const hit = BY_NORM[words.slice(i, i + len).join('')];
+      if (hit) return hit;
+    }
   }
   return null;
 }
