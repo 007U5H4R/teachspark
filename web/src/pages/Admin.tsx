@@ -181,10 +181,12 @@ export function Admin() {
       <h2 className="admin__section">Demographics</h2>
       <IndiaMap recent={landing.recent} />
       <div className="panels">
+        {/* No Source tile: nothing links to the site with ?src=, so it only ever rendered a single
+            "(unknown)" bar equal to the sign-up total. The API still returns bySource, so this can
+            come back the moment tagged links are actually used. */}
         <Bars title="Profession" rows={landing.byProfession} empty="No sign-ups yet." />
         <Bars title="City" rows={landing.byCity} empty="No sign-ups yet." />
         <Bars title="Country" rows={landing.byCountry} empty="No sign-ups yet." />
-        <Bars title="Source" rows={landing.bySource} empty="No attribution recorded yet." />
       </div>
 
       <h2 className="admin__section">Recent sign-ups</h2>
