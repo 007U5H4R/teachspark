@@ -29,6 +29,14 @@ describe('IndiaMap', () => {
   it('gives the svg an accessible role and label', () => {
     render(<IndiaMap recent={[{ city: 'Chennai' }]} />);
     const svg = screen.getByRole('img');
-    expect(svg).toHaveAttribute('aria-label', expect.stringContaining('1 cities'));
+    expect(svg).toHaveAttribute('aria-label', expect.stringContaining('1 city marked'));
+    expect(svg).toHaveAttribute('aria-label', expect.stringContaining('1 of 1 sign-ups'));
+  });
+
+  it('counts a city it cannot place instead of dropping it from the total', () => {
+    // The caption has to agree with the sign-up count shown elsewhere on the dashboard.
+    render(<IndiaMap recent={[{ city: 'Pune' }, { city: 'Atlantis' }]} />);
+    expect(screen.getByText(/1 of 2 sign-ups placed/)).toBeInTheDocument();
+    expect(screen.getByText(/1 not recognised/)).toBeInTheDocument();
   });
 });

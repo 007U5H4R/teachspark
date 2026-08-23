@@ -106,7 +106,9 @@ export function createApp(deps: AppDeps): express.Express {
   });
 
   app.post('/internal/cron/nudges', async (req: Request, res: Response) => {
-    if (req.get('x-cron-secret') !== config.CRON_SECRET) {
+    // safeEqual for the same reason as the admin token above: a plain !== short-circuits on the
+    // first differing byte, and this secret fires real WhatsApp sends to every due teacher.
+    if (!safeEqual(req.get('x-cron-secret') ?? '', config.CRON_SECRET)) {
       res.status(401).json({ error: 'unauthorized' });
       return;
     }

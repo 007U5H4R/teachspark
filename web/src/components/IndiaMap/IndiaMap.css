@@ -73,6 +73,11 @@
   .india-map__dot { animation: none; opacity: 0.9; filter: drop-shadow(0 0 4px rgba(57, 255, 20, 0.85)); }
 }
 
+/* Sign-ups whose typed city the lookup could not place — stated, never hidden. */
+.india-map__unmapped {
+  color: var(--muted-dim, #8a8a8a);
+}
+
 .india-map__caption {
   color: var(--muted, #a3a3a3);
   font-size: var(--fs-xs, 0.8125rem);

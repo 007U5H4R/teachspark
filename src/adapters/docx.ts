@@ -52,22 +52,46 @@ function logoKind(buf: Buffer): 'jpg' | 'png' | null {
   return null;
 }
 
+/**
+ * Aspect ratio of a byte-verified JPEG/PNG, or null when the payload does not parse.
+ *
+ * The magic-byte check only proves the first 3-8 bytes; the rest can still be corrupt, and
+ * imageSize THROWS on that. Unguarded, the throw aborted the whole render — and because the broken
+ * logo stays on the teacher's record, every retry re-fetched it and failed identically, locking her
+ * out of exporting any paper at all. A logo is decoration; the paper is the product, so a parse
+ * failure degrades to the same "render without a logo" path as a failed magic-byte check.
+ */
+function logoRatio(buf: Buffer): number | null {
+  try {
+    const dims = imageSize(buf);
+    return dims.width && dims.height ? dims.width / dims.height : null;
+  } catch {
+    return null;
+  }
+}
+
 function headerBlock(paper: PaperJson, branding: PaperBranding): (Paragraph | Table)[] {
   const cells: TableCell[] = [];
   const kind = branding.logo ? logoKind(branding.logo.data) : null;
-  if (branding.logo && kind) {
+  const ratio = branding.logo && kind ? logoRatio(branding.logo.data) : null;
+  if (branding.logo && kind && ratio !== null) {
     const logo = branding.logo;
-    const dims = imageSize(logo.data); // bytes are byte-verified JPEG/PNG at this point — safe; used only for the width/height ratio
     const h = 56;
-    const w = Math.round((dims.width && dims.height ? dims.width / dims.height : 1) * h);
+    const w = Math.round(ratio * h);
     cells.push(new TableCell({
       width: { size: 1600, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER,
       children: [new Paragraph({ children: [new ImageRun({ type: kind, data: logo.data, transformation: { width: Math.min(w, 140), height: h } })] })],
     }));
   } else if (branding.logo) {
-    console.warn('docx: school logo bytes are not JPEG/PNG (magic-byte check failed) — rendering without a logo');
+    console.warn(
+      kind === null
+        ? 'docx: school logo bytes are not JPEG/PNG (magic-byte check failed) — rendering without a logo'
+        : 'docx: school logo has a valid signature but unreadable image data — rendering without a logo',
+    );
   }
-  const hasLogo = Boolean(branding.logo && kind);
+  // Must track whether the logo cell was actually pushed, not merely whether a logo was supplied:
+  // reserving its 1600 twips for a cell that never got added would mis-size the header table.
+  const hasLogo = Boolean(branding.logo && kind && ratio !== null);
   cells.push(new TableCell({
     width: { size: hasLogo ? TWIPS_FULL - 1600 : TWIPS_FULL, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER,
     children: [
