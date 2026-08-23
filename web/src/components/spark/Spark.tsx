@@ -51,7 +51,14 @@ function Eye({ cx, cy, side }: { cx: number; cy: number; side: 'left' | 'right' 
         <rect x={cx - 23} y={cy - 38} width={46} height={76} rx={22} fill="#fff" />
         <circle cx={cx - 8} cy={cy - 20} r={6} fill="#b6ff3b" />
       </g>
-      <path className="spark__eye-shape spark__eye-shape--starry" d={starPath(cx, cy, 36, 9, 4)} fill="var(--gold)" />
+      {/* Two golden sparkles per eye — a big one, plus a small one to the upper-right (like the
+          classic "star-struck" look). Both in one path so the twinkle animation applies to them
+          together. */}
+      <path
+        className="spark__eye-shape spark__eye-shape--starry"
+        d={`${starPath(cx - 3, cy + 3, 33, 8.5, 4)} ${starPath(cx + 21, cy - 21, 12, 3.2, 4)}`}
+        fill="var(--gold)"
+      />
       <path className="spark__eye-shape spark__eye-shape--happy" d={`M ${cx - 22} ${cy + 8} Q ${cx} ${cy - 24} ${cx + 22} ${cy + 8}`} stroke="#fff" strokeWidth={9} strokeLinecap="round" fill="none" />
     </g>
   );
