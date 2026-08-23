@@ -268,9 +268,31 @@ button, input, select { font: inherit; }
 }
 @media (max-width: 768px) {
   .nav { grid-template-columns: auto 1fr auto; }
-  .nav__pills { display: none; position: absolute; top: 76px; left: 0; right: 0; flex-direction: column; z-index: 20; box-shadow: var(--shadow-lg); }
+  /* The desktop bar is a horizontal capsule, so .nav__pills carries --pill (999px). Stacked into a
+     column that radius curves the panel's ends so far inward that the first and last items sit
+     outside it — visible as "Home" bulging past the top edge and the last item clipped by the
+     bottom. A column is a card, not a capsule: override the radius and pad the items inside it. */
+  .nav__pills {
+    display: none;
+    position: absolute;
+    top: 76px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-2);
+    border-radius: var(--radius);
+    z-index: 20;
+    box-shadow: var(--shadow-lg);
+  }
   .nav--open .nav__pills { display: flex; }
-  .nav__pill { padding: 14px 20px; }
+  /* .nav__pill is an <a>, i.e. inline, and vertical padding on an inline box does not contribute
+     to layout. Stacked into a column that made every 46px-tall pill overflow its 29px <li> and
+     collide with the next one, so the items overlapped and the panel came out shorter than its own
+     contents. Blocking them makes the padding real; the <li> stretches so the tap target spans the
+     full row. */
+  .nav__pills li { display: block; }
+  .nav__pill { display: block; padding: 14px 20px; border-radius: var(--radius-sm); }
   .nav__toggle { display: inline-grid; place-items: center; }
   .nav__cta .neon-btn { padding: 10px 16px; font-size: 0.9rem; }
   .form__panel { padding: var(--sp-5); border-radius: var(--radius); }
