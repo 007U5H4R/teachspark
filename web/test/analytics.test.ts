@@ -16,6 +16,7 @@ describe('analytics', () => {
     mp.register.mockClear();
     mp.track.mockClear();
     localStorage.clear();
+    sessionStorage.clear();
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -47,6 +48,24 @@ describe('analytics', () => {
     initAnalytics();
     trackAnalytics('signup_completed', { signupId: 'sid_1', existing: false });
     expect(mp.track).toHaveBeenCalledWith('signup_completed', { signupId: 'sid_1', existing: false });
+  });
+
+  it('attaches the acquisition source (from saveSource) to every event', async () => {
+    vi.stubEnv('VITE_MIXPANEL_TOKEN', 'test-token');
+    const { initAnalytics, trackAnalytics } = await freshModule();
+    const { saveSource } = await import('../src/lib/session.ts');
+    saveSource('ig_campaign');
+    initAnalytics();
+    trackAnalytics('landing_view');
+    expect(mp.track).toHaveBeenCalledWith('landing_view', { source: 'ig_campaign' });
+  });
+
+  it('omits source when none was saved', async () => {
+    vi.stubEnv('VITE_MIXPANEL_TOKEN', 'test-token');
+    const { initAnalytics, trackAnalytics } = await freshModule();
+    initAnalytics();
+    trackAnalytics('page_view', { path: '/' });
+    expect(mp.track).toHaveBeenCalledWith('page_view', { path: '/' });
   });
 
   it('does not track before init (disabled by default)', async () => {

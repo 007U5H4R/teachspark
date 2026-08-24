@@ -1,5 +1,6 @@
 import mixpanel from 'mixpanel-browser';
 import { getVisitorId } from './visitor.ts';
+import { loadSource } from './session.ts';
 
 // Data residency MUST match the Mixpanel project's region or /track returns status:1 while the
 // events silently go nowhere. Project TeachSpark (id 4056855) is US residency → api.mixpanel.com.
@@ -37,7 +38,10 @@ export function initAnalytics(): void {
 export function trackAnalytics(name: string, props?: Record<string, unknown>): void {
   if (!enabled) return;
   try {
-    mixpanel.track(name, props);
+    // Attach acquisition source at track-time, not init-time: initAnalytics() runs at boot, before
+    // Landing.tsx reads ?source= and saveSource()s it, so registering it at init would miss it.
+    const source = loadSource();
+    mixpanel.track(name, source ? { ...props, source } : props);
   } catch {
     /* analytics must never break the page */
   }
