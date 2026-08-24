@@ -32,6 +32,18 @@ const INTENT_EXPR: Record<OrbIntent, Showcase> = {
   skeptical: { hold: 'skeptical' },  // nav tabs
   starry: { mood: 'starry' },        // TeachSpark logo
 };
+
+// Tapping/clicking the orb steps through this sequence, wrapping back to the start after the 8th.
+const TAP_SEQUENCE: Showcase[] = [
+  { mood: 'confused' },   // 1
+  { hold: 'surprised' },  // 2
+  { hold: 'wide' },       // 3
+  { hold: 'squint' },     // 4
+  { hold: 'mischief' },   // 5
+  { hold: 'angry' },      // 6
+  { mood: 'dizzy' },      // 7
+  { mood: 'dead' },       // 8
+];
 const DWELL_MS = 160;        // small debounce so a glancing pass over a control doesn't trigger a reaction
 const STILL_MS = 900;        // no pointer movement for this long => the orb settles and looks at you
 const SLEEP_MS = 150_000;    // 2.5 minutes of stillness => the orb dozes off
@@ -55,8 +67,17 @@ export function Landing() {
   const [step, setStep] = useState(0);
   const [intent, setIntent] = useState<OrbIntent | null>(null);
   const [motion, setMotion] = useState<'moving' | 'still' | 'asleep'>('still');
+  const [tap, setTap] = useState<Showcase | null>(null);
+  const tapIndexRef = useRef(0);
   const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = usePrefersReducedMotion();
+
+  // Tapping/clicking the orb steps through TAP_SEQUENCE (1→8, then wraps). The tapped face holds
+  // until the next tap or until the pointer moves (which resumes the normal idle behaviour).
+  const onOrbTap = () => {
+    tapIndexRef.current = tapIndexRef.current >= TAP_SEQUENCE.length ? 1 : tapIndexRef.current + 1;
+    setTap(TAP_SEQUENCE[tapIndexRef.current - 1]!);
+  };
 
   // Cursor-motion state drives the idle orb: while the pointer moves it performs the rotation; once
   // it goes still it looks straight at you (focused); after 2.5 minutes of stillness it dozes off.
@@ -65,6 +86,7 @@ export function Landing() {
     let sleepTimer: ReturnType<typeof setTimeout>;
     const onMove = () => {
       setMotion('moving');
+      setTap(null); // a real move ends the tap interaction and resumes the idle behaviour
       clearTimeout(stillTimer);
       clearTimeout(sleepTimer);
       stillTimer = setTimeout(() => setMotion('still'), STILL_MS);
@@ -98,16 +120,18 @@ export function Landing() {
   // intent through the channel. The hero's own "Get started" reports directly (below).
   useEffect(() => onOrbHover(setHover), [setHover]);
 
-  // Priority: a hovered control > asleep > still (looks at you) > the moving rotation.
+  // Priority: hovered control > tapped face > asleep > still (looks at you) > the moving rotation.
   const shown: Showcase = intent
     ? INTENT_EXPR[intent]
+    : tap
+    ? tap
     : motion === 'asleep' ? { hold: 'sleeping' }
     : motion === 'still' || reduced ? { hold: 'focused' } // reduced-motion holds focused, never cycling
     : SHOWCASE[step]!;
   const heroHold = 'hold' in shown ? shown.hold : undefined;
   const heroMood: Mood = 'mood' in shown ? shown.mood : 'default';
-  // Track the cursor while reacting or performing; look straight ahead (at the user) when settled/asleep.
-  const heroGaze: 'center' | 'cursor' = intent || motion === 'moving' ? 'cursor' : 'center';
+  // Track the cursor while reacting or performing; look straight ahead (at the user) when tapped, settled or asleep.
+  const heroGaze: 'center' | 'cursor' = !tap && (intent || motion === 'moving') ? 'cursor' : 'center';
 
   useEffect(() => {
     const src = params.get('src');
@@ -131,7 +155,7 @@ export function Landing() {
         <div className="hero__actions" onPointerEnter={() => setHover('love')} onPointerLeave={() => setHover(null)}>
           <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get started →</NeonButton>
         </div>
-        <div className="hero__orb"><Spark hold={heroHold} mood={heroMood} holdGaze={heroGaze} /></div>
+        <div className="hero__orb" onClick={onOrbTap}><Spark hold={heroHold} mood={heroMood} holdGaze={heroGaze} /></div>
       </section>
 
       <section className="section" aria-labelledby="how">
