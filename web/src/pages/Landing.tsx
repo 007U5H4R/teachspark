@@ -25,7 +25,7 @@ const SHOWCASE: Showcase[] = [
   { hold: 'skeptical' },
   { hold: 'smug' },
 ];
-const CYCLE_MS = 2200;
+const CYCLE_MS = 2500;
 
 // Guarded so it is safe in jsdom (no matchMedia) and honours a later system-preference change.
 function usePrefersReducedMotion(): boolean {
