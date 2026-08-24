@@ -2,6 +2,7 @@
 /// <reference types="vite-plugin-pwa/client" />
 interface ImportMetaEnv {
   readonly PUBLIC_BASE_URL: string;
+  readonly VITE_MIXPANEL_TOKEN?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

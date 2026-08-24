@@ -1,4 +1,5 @@
 import { getVisitorId } from './visitor.ts';
+import { trackAnalytics } from './analytics.ts';
 
 export interface JoinInfo { url: string; code: string; whatsappNumber: string }
 export interface CountryOption { code: string; name: string; callingCode: string }
@@ -46,4 +47,6 @@ export function trackEvent(name: 'landing_view' | 'join_tapped', signupId?: stri
     const body = JSON.stringify({ visitorId: getVisitorId(), name, signupId });
     void fetch('/api/events', { method: 'POST', headers: JSON_HEADERS, body, keepalive: true }).catch(() => {});
   } catch { /* analytics must never break the page */ }
+  // Mirror the same funnel point to Mixpanel; additive, and a no-op when no token is configured.
+  trackAnalytics(name, signupId ? { signupId } : undefined);
 }

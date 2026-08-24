@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useNavigate } from 'react-router';
 import { Spark, type SparkHandle } from '../components/spark/Spark.tsx';
 import { ApiError, fetchCountries, submitSignup, type CountryOption } from '../lib/api.ts';
+import { trackAnalytics } from '../lib/analytics.ts';
 import { getVisitorId } from '../lib/visitor.ts';
 import { loadSource, saveHandOff, type HandOff } from '../lib/session.ts';
 import { validateSignupForm, type FieldErrors, type SignupFormValues } from '../lib/validate.ts';
@@ -58,6 +59,7 @@ export function Join() {
     sparkRef.current?.signal('thinking'); // sustained: released on whichever branch resolves below
     try {
       const res = await submitSignup({ ...values, visitorId: getVisitorId(), source: loadSource(), website: honeypot });
+      trackAnalytics('signup_completed', { signupId: res.signupId, existing: res.existing });
       const h: HandOff = { signupId: res.signupId, name: values.name.trim(), join: res.join };
       saveHandOff(h);
       setDone(true); // Spark beams for a beat before the hand-off screen
