@@ -47,6 +47,7 @@ const TAP_SEQUENCE: Showcase[] = [
 const DWELL_MS = 160;        // small debounce so a glancing pass over a control doesn't trigger a reaction
 const STILL_MS = 900;        // no pointer movement for this long => the orb settles and looks at you
 const SLEEP_MS = 150_000;    // 2.5 minutes of stillness => the orb dozes off
+const TAP_HOLD_MS = 3000;    // a tapped face holds this long; a fresh tap restarts it, else auto-rotation resumes
 
 // Guarded so it is safe in jsdom (no matchMedia) and honours a later system-preference change.
 function usePrefersReducedMotion(): boolean {
@@ -69,35 +70,48 @@ export function Landing() {
   const [motion, setMotion] = useState<'moving' | 'still' | 'asleep'>('still');
   const [tap, setTap] = useState<Showcase | null>(null);
   const tapIndexRef = useRef(0);
+  const stillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = usePrefersReducedMotion();
 
-  // Tapping/clicking the orb steps through TAP_SEQUENCE (1→8, then wraps). The tapped face holds
-  // until the next tap or until the pointer moves (which resumes the normal idle behaviour).
+  // (Re)arm the idle countdowns. `still` (settle + look at the user) is optional so a tap can resume
+  // the rotation without immediately settling; `sleep` always runs so the orb still dozes off.
+  const armIdle = useCallback((withStill: boolean) => {
+    if (stillTimerRef.current) clearTimeout(stillTimerRef.current);
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    stillTimerRef.current = withStill ? setTimeout(() => setMotion('still'), STILL_MS) : null;
+    sleepTimerRef.current = setTimeout(() => setMotion('asleep'), SLEEP_MS);
+  }, []);
+
+  // Tapping/clicking the orb steps through TAP_SEQUENCE (1→8, then wraps). Each tap holds the face
+  // for 3s and restarts that timer; tap again to advance, or wait it out and the rotation resumes.
   const onOrbTap = () => {
     tapIndexRef.current = tapIndexRef.current >= TAP_SEQUENCE.length ? 1 : tapIndexRef.current + 1;
     setTap(TAP_SEQUENCE[tapIndexRef.current - 1]!);
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    tapTimerRef.current = setTimeout(() => { setTap(null); setMotion('moving'); armIdle(false); }, TAP_HOLD_MS);
   };
 
   // Cursor-motion state drives the idle orb: while the pointer moves it performs the rotation; once
   // it goes still it looks straight at you (focused); after 2.5 minutes of stillness it dozes off.
   useEffect(() => {
-    let stillTimer: ReturnType<typeof setTimeout>;
-    let sleepTimer: ReturnType<typeof setTimeout>;
     const onMove = () => {
       setMotion('moving');
       setTap(null); // a real move ends the tap interaction and resumes the idle behaviour
-      clearTimeout(stillTimer);
-      clearTimeout(sleepTimer);
-      stillTimer = setTimeout(() => setMotion('still'), STILL_MS);
-      sleepTimer = setTimeout(() => setMotion('asleep'), SLEEP_MS);
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      armIdle(true);
     };
     window.addEventListener('pointermove', onMove, { passive: true });
-    // No movement yet on load: begin the still countdown so it settles/sleeps even if untouched.
-    stillTimer = setTimeout(() => setMotion('still'), STILL_MS);
-    sleepTimer = setTimeout(() => setMotion('asleep'), SLEEP_MS);
-    return () => { window.removeEventListener('pointermove', onMove); clearTimeout(stillTimer); clearTimeout(sleepTimer); };
-  }, []);
+    armIdle(true); // no movement yet on load: start the still/sleep countdowns
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      if (stillTimerRef.current) clearTimeout(stillTimerRef.current);
+      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    };
+  }, [armIdle]);
 
   // When the pointer isn't over a reactive control the orb rotates through the idle expressions,
   // advancing on a gentle timer. Under reduced-motion it holds the first (happy) expression.
