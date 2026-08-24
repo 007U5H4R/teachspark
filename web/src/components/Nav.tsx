@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, NavLink } from 'react-router';
 import { NeonButton } from './NeonButton.tsx';
 import { Wordmark } from './Wordmark.tsx';
-import { emitCtaHover } from '../lib/ctaHover.ts';
+import { emitOrbHover } from '../lib/ctaHover.ts';
 import { trackEvent } from '../lib/api.ts';
 
 // Only Home is a NavLink: NavLink's active check ignores the hash, so '/#how' would also light up on '/'.
@@ -60,17 +60,17 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
       >
         <span aria-hidden="true">{open ? '×' : '☰'}</span>
       </button>
-      <Link to="/" className="nav__brand"><Wordmark /></Link>
-      <ul className="nav__pills" role="list">
+      {/* The nav lives outside Landing, so each element announces which expression the orb should
+          make on hover (see lib/ctaHover.ts): logo → starry, tabs → skeptical, Sign up → love. */}
+      <Link to="/" className="nav__brand" onPointerEnter={() => emitOrbHover('starry')} onPointerLeave={() => emitOrbHover(null)}><Wordmark /></Link>
+      <ul className="nav__pills" role="list" onPointerEnter={() => emitOrbHover('skeptical')} onPointerLeave={() => emitOrbHover(null)}>
         <li><NavLink to="/" end className="nav__pill" onClick={close}>Home</NavLink></li>
         {ANCHORS.map((l) => (
           <li key={l.to}><Link to={l.to} className="nav__pill" onClick={close}>{l.label}</Link></li>
         ))}
         <li><NavLink to="/demo" className="nav__pill" onClick={close}>Demo</NavLink></li>
       </ul>
-      {/* Hovering Sign up should make Spark react exactly as the hero CTA does. The orb lives
-          inside Landing, which cannot be reached from here, so announce the hover instead. */}
-      <div className="nav__cta" onPointerEnter={() => emitCtaHover(true)} onPointerLeave={() => emitCtaHover(false)}>
+      <div className="nav__cta" onPointerEnter={() => emitOrbHover('love')} onPointerLeave={() => emitOrbHover(null)}>
         {showSignup && <NeonButton to="/join" onClick={() => trackEvent('cta_tapped', { where: 'nav' })}>Sign up</NeonButton>}
       </div>
     </nav>
