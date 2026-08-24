@@ -56,8 +56,8 @@ export function Landing() {
     return () => clearInterval(id);
   }, [reduced]);
 
-  // "What's that?" — a genuine dwell on a CTA makes the orb look curious and pauses the rotation
-  // until the pointer leaves. The dwell timer is cleared on leave and on unmount.
+  // A genuine dwell on a CTA makes the orb go heart-eyed and pauses the rotation until the pointer
+  // leaves. The dwell timer is cleared on leave and on unmount.
   const onCtaEnter = () => { dwellRef.current = setTimeout(() => setHovering(true), 420); };
   const onCtaLeave = () => {
     if (dwellRef.current !== null) clearTimeout(dwellRef.current);
@@ -69,8 +69,8 @@ export function Landing() {
   // rather than calling in. Both CTAs land on the same handlers — one behaviour, one code path.
   useEffect(() => onCtaHover((h) => (h ? onCtaEnter() : onCtaLeave())), []);
 
-  // Curious while a CTA is hovered; otherwise whatever the rotation is currently on.
-  const shown: Showcase = hovering ? { hold: 'curious' } : SHOWCASE[step]!;
+  // Heart eyes while a CTA is hovered; otherwise whatever the rotation is currently on.
+  const shown: Showcase = hovering ? { mood: 'love' } : SHOWCASE[step]!;
   const heroHold = 'hold' in shown ? shown.hold : undefined;
   const heroMood: Mood = 'mood' in shown ? shown.mood : 'default';
 
