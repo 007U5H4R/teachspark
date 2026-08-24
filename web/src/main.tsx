@@ -4,9 +4,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './App.tsx';
-import { initAnalytics } from './lib/analytics.ts';
+import { initAnalytics, initClarity } from './lib/analytics.ts';
 
 initAnalytics(); // no-op unless VITE_MIXPANEL_TOKEN is set; must run before the first tracked event
+initClarity();   // no-op unless VITE_CLARITY_ID is set; Clarity heatmaps + input-masked session replay
 
 registerSW({
   immediate: true,
