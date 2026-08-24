@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { Spark, type SparkHandle } from '../components/spark/Spark.tsx';
+import { Spark } from '../components/spark/Spark.tsx';
+import type { Behavior } from '../components/spark/eyeShape.ts';
+import type { Mood } from '../components/spark/eyes.ts';
 import { NeonButton } from '../components/NeonButton.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { saveSource } from '../lib/session.ts';
@@ -8,24 +10,69 @@ import { onCtaHover } from '../lib/ctaHover.ts';
 
 const VIEWED = 'ts_lv';
 
+// The hero orb performs this curated rotation — warm emotion shapes and symbol overlays. It leaves
+// out the negative/reaction faces (error, sad, dead, sleeping): off-brand flashing on a hero for teachers.
+type Showcase = { hold: Behavior } | { mood: Mood };
+const SHOWCASE: Showcase[] = [
+  { hold: 'happy' },
+  { hold: 'wink' },
+  { mood: 'love' },
+  { hold: 'curious' },
+  { mood: 'starry' },
+  { hold: 'surprised' },
+  { hold: 'mischief' },
+  { mood: 'dizzy' },
+  { hold: 'skeptical' },
+  { hold: 'smug' },
+];
+const CYCLE_MS = 2200;
+
+// Guarded so it is safe in jsdom (no matchMedia) and honours a later system-preference change.
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return;
+    const m = matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(m.matches);
+    const onChange = () => setReduced(m.matches);
+    m.addEventListener?.('change', onChange);
+    return () => m.removeEventListener?.('change', onChange);
+  }, []);
+  return reduced;
+}
+
 export function Landing() {
   const [params] = useSearchParams();
-  const sparkRef = useRef<SparkHandle>(null);
-  const curiousTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [step, setStep] = useState(0);
+  const [hovering, setHovering] = useState(false);
+  const dwellRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduced = usePrefersReducedMotion();
 
-  // "What's that?" — the orb gets curious after a genuine dwell on a CTA (not on every pass of the
-  // cursor). The timer is cleared on leave and on unmount so a glancing hover never fires it late.
-  const onCtaEnter = () => {
-    curiousTimerRef.current = setTimeout(() => sparkRef.current?.signal('curious'), 420);
-  };
+  // The orb performs one expression at a time, advancing on a gentle timer. Under reduced-motion it
+  // holds the first (happy) expression instead of cycling.
+  useEffect(() => {
+    if (reduced) return;
+    const id = setInterval(() => setStep((s) => (s + 1) % SHOWCASE.length), CYCLE_MS);
+    return () => clearInterval(id);
+  }, [reduced]);
+
+  // "What's that?" — a genuine dwell on a CTA makes the orb look curious and pauses the rotation
+  // until the pointer leaves. The dwell timer is cleared on leave and on unmount.
+  const onCtaEnter = () => { dwellRef.current = setTimeout(() => setHovering(true), 420); };
   const onCtaLeave = () => {
-    if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current);
+    if (dwellRef.current !== null) clearTimeout(dwellRef.current);
+    setHovering(false);
   };
-  useEffect(() => () => { if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current); }, []);
+  useEffect(() => () => { if (dwellRef.current !== null) clearTimeout(dwellRef.current); }, []);
 
   // The nav's Sign up button is rendered by App, outside this tree, so it announces its hover
   // rather than calling in. Both CTAs land on the same handlers — one behaviour, one code path.
-  useEffect(() => onCtaHover((hovering) => (hovering ? onCtaEnter() : onCtaLeave())), []);
+  useEffect(() => onCtaHover((h) => (h ? onCtaEnter() : onCtaLeave())), []);
+
+  // Curious while a CTA is hovered; otherwise whatever the rotation is currently on.
+  const shown: Showcase = hovering ? { hold: 'curious' } : SHOWCASE[step]!;
+  const heroHold = 'hold' in shown ? shown.hold : undefined;
+  const heroMood: Mood = 'mood' in shown ? shown.mood : 'default';
 
   useEffect(() => {
     const src = params.get('src');
@@ -49,7 +96,7 @@ export function Landing() {
         <div className="hero__actions" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
           <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get started →</NeonButton>
         </div>
-        <div className="hero__orb"><Spark ref={sparkRef} /></div>
+        <div className="hero__orb"><Spark hold={heroHold} mood={heroMood} /></div>
       </section>
 
       <section className="section" aria-labelledby="how">
