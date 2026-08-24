@@ -96,7 +96,7 @@ export function Landing() {
         <div className="hero__actions" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
           <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get started →</NeonButton>
         </div>
-        <div className="hero__orb"><Spark hold={heroHold} mood={heroMood} /></div>
+        <div className="hero__orb"><Spark hold={heroHold} mood={heroMood} holdGaze="cursor" /></div>
       </section>
 
       <section className="section" aria-labelledby="how">

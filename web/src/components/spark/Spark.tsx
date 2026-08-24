@@ -30,8 +30,10 @@ export interface SparkProps {
    * exists for. Calm keeps gaze + blink and drops the rest.
    */
   expressive?: boolean;
-  /** Pin the eyes to one expression and centre the gaze — for the expression preview/gallery. */
+  /** Pin the eyes to one expression. Gaze is centred by default (preview grid); pass holdGaze
+   *  'cursor' to keep following the pointer while holding the shape (the landing hero). */
   hold?: Behavior;
+  holdGaze?: 'center' | 'cursor';
   ref?: Ref<SparkHandle>;
 }
 
@@ -77,7 +79,7 @@ function Eye({ cx, cy, side }: { cx: number; cy: number; side: 'left' | 'right' 
   );
 }
 
-export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, expressive = true, hold, ref }: SparkProps) {
+export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, expressive = true, hold, holdGaze = 'center', ref }: SparkProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const eyesRef = useRef<SVGGElement>(null);
   const [hovered, setHovered] = useState(false);
@@ -92,6 +94,8 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
   expressiveRef.current = expressive;
   const holdRef = useRef(hold);
   holdRef.current = hold;
+  const holdGazeRef = useRef(holdGaze);
+  holdGazeRef.current = holdGaze;
 
   useImperativeHandle(ref, () => ({
     signal(b) { machineRef.current = request(machineRef.current, b, performance.now()); },
@@ -250,8 +254,12 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
       if (pointerSvg && prevPointer) speed = smoothSpeed(speed, pointerSvg.x - prevPointer.x, pointerSvg.y - prevPointer.y, dts);
       prevPointer = pointerSvg;
 
-      // Held preview eyes rest centred; otherwise follow the behaviour's gaze.
-      let target = holdRef.current ? { x: 0, y: 0 } : gazeTarget(b, now, MAX_EYE_OFFSET * amp);
+      // A held orb rests centred (preview grid) unless holdGaze is 'cursor' (the hero), where it
+      // keeps following the pointer while holding the expression shape. Unheld orbs use the
+      // behaviour's own gaze.
+      let target = holdRef.current
+        ? (holdGazeRef.current === 'cursor' ? gazeTarget('tracking', now, MAX_EYE_OFFSET * amp) : { x: 0, y: 0 })
+        : gazeTarget(b, now, MAX_EYE_OFFSET * amp);
 
       // The idle glance overrides the resting gaze, then hands control straight back.
       if (lookStart !== 0) {
