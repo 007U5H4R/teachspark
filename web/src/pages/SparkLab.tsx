@@ -36,13 +36,13 @@ const OVERLAYS: Array<{ mood: Mood; label: string; note: string }> = [
   { mood: 'dead', label: 'Dead', note: '“✕ ✕” knocked out' },
 ];
 
-// The behaviours that already existed before this set — shown so the whole vocabulary is in one place.
+// Pre-existing behaviours whose eye SHAPE is meaningfully different from neutral, so they read as
+// distinct even held still. Success + Attention are deliberately omitted: their shapes are ~neutral
+// (they differ in-app only by gaze, brightness and motion, which a held preview cannot show).
 const MORE: Array<{ hold: Behavior; label: string }> = [
   { hold: 'surprised', label: 'Surprised' },
   { hold: 'thinking', label: 'Thinking' },
-  { hold: 'success', label: 'Success' },
   { hold: 'error', label: 'Error' },
-  { hold: 'attention', label: 'Attention' },
   { hold: 'sleeping', label: 'Sleeping' },
 ];
 
@@ -91,6 +91,7 @@ export function SparkLab() {
         {OVERLAYS.map((e) => <MoodCell key={e.mood} {...e} />)}
       </section>
       <h2 className="lab__subhead">Existing behaviours</h2>
+      <p className="lab__lead">These react through gaze, brightness and motion, not just eye shape — so Success and Attention (whose shapes are near-neutral) are left out here; held still, they’re indistinguishable from Neutral.</p>
       <section className="lab__grid" aria-label="Existing behaviours">
         {MORE.map((e) => <Cell key={e.hold} {...e} />)}
       </section>
