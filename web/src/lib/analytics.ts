@@ -1,9 +1,10 @@
 import mixpanel from 'mixpanel-browser';
 import { getVisitorId } from './visitor.ts';
 
-// Data residency: this project lives in Mixpanel's India region, so events MUST go to the India
-// ingestion host — the default (US) host silently drops them. See brainstorming decision 2026-08-24.
-const API_HOST = 'https://api-in.mixpanel.com';
+// Data residency MUST match the Mixpanel project's region or /track returns status:1 while the
+// events silently go nowhere. Project TeachSpark (id 4056855) is US residency → api.mixpanel.com.
+// Verified 2026-08-24 via Project Settings → Data Residency: US.
+const API_HOST = 'https://api.mixpanel.com';
 
 // Off until initAnalytics() succeeds. Keeps every track call a no-op in dev, tests, and any deploy
 // that ships without a token, so analytics can never throw into the page.

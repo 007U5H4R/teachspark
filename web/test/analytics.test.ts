@@ -28,13 +28,13 @@ describe('analytics', () => {
     expect(mp.track).not.toHaveBeenCalled();
   });
 
-  it('initialises the SDK against the India host and registers the visitor id', async () => {
+  it('initialises the SDK against the US host (matches project data residency) and registers the visitor id', async () => {
     vi.stubEnv('VITE_MIXPANEL_TOKEN', 'test-token');
     const { initAnalytics } = await freshModule();
     initAnalytics();
     expect(mp.init).toHaveBeenCalledWith(
       'test-token',
-      expect.objectContaining({ api_host: 'https://api-in.mixpanel.com', track_pageview: false }),
+      expect.objectContaining({ api_host: 'https://api.mixpanel.com', track_pageview: false }),
     );
     expect(mp.register).toHaveBeenCalledWith(
       expect.objectContaining({ visitor_id: expect.stringMatching(/^[0-9a-f-]{36}$/) }),
