@@ -16,6 +16,8 @@
   --lime: #b6ff3b;
   --lime-ink: #0a0a0a;
   --green: #169a3c;
+  /* Wordmark "Spark" green — tuned to the two-tone logo, brighter than --green, softer than --lime. */
+  --brand-green: #5cc46a;
   --danger: #ff6b6b;
   --gold: #ffcf3f;
 

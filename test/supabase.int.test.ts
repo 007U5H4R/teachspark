@@ -55,9 +55,9 @@ describe.skipIf(!url || !key)('Supabase adapters (integration)', () => {
     const webEvents = new SupabaseWebEventLog(sb);
     const now = new Date();
     const phone = `+91${String(Date.now()).slice(-10)}`;
-    const s = await signups.create({ name: 'Int Test', profession: 'tutor', organization: null, phoneE164: phone, phoneRaw: phone, city: 'Pune', country: 'IN', source: 'int', now });
+    const s = await signups.create({ name: 'Int Test', profession: 'tutor', organization: null, phoneE164: phone, phoneRaw: phone, city: 'Pune', country: 'IN', email: null, emailVerified: null, method: 'manual', source: 'int', now });
     expect(s.joinTappedAt).toBeNull();
-    await expect(signups.create({ name: 'Dup', profession: 'tutor', organization: null, phoneE164: phone, phoneRaw: phone, city: 'Pune', country: 'IN', source: null, now })).rejects.toBeInstanceOf(DuplicateSignupError);
+    await expect(signups.create({ name: 'Dup', profession: 'tutor', organization: null, phoneE164: phone, phoneRaw: phone, city: 'Pune', country: 'IN', email: null, emailVerified: null, method: 'manual', source: null, now })).rejects.toBeInstanceOf(DuplicateSignupError);
     await signups.markJoinTapped(s.id, now);
     await signups.markJoinTapped(s.id, new Date(now.getTime() + 5000)); // idempotent
     const again = await signups.findById(s.id);

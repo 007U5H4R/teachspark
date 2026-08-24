@@ -29,7 +29,7 @@ export function Joined() {
       <div style={{ width: 180, margin: '0 auto' }}><Spark mood="starry" size={180} /></div>
       <h1>You're in, {firstName}! 🎉</h1>
       <p className="joined__lead">One last step: connect on WhatsApp. The button opens WhatsApp with the join message already typed for you.</p>
-      <NeonButton href={url} size="lg" onClick={() => trackEvent('join_tapped', handoff.signupId)}>
+      <NeonButton href={url} size="lg" onClick={() => trackEvent('join_tapped', { signupId: handoff.signupId })}>
         <WhatsAppMark />Open WhatsApp &amp; Join
       </NeonButton>
       <section className="joined__demo" aria-label="Onboarding walkthrough">

@@ -2,7 +2,7 @@ import express, { type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import type { Clock, SignupRepo, WebEventLog } from '../ports.js';
-import { DuplicateSignupError, PROFESSIONS, WEB_EVENT, type Signup } from '../domain/web.js';
+import { CLIENT_WEB_EVENTS, DuplicateSignupError, PROFESSIONS, SIGNUP_METHODS, WEB_EVENT, type Signup } from '../domain/web.js';
 import { normalizePhone } from '../domain/phone.js';
 import { COUNTRY_OPTIONS } from '../domain/countries.js';
 
@@ -23,9 +23,13 @@ const SignupBody = z.object({
   name: z.string().trim().min(2, 'Please enter your name').max(80),
   profession: z.enum(PROFESSIONS, { error: 'Please pick one' }),
   organization: z.string().trim().max(120).optional(),
-  phone: z.string().trim().min(4, 'Please enter your WhatsApp number').max(32),
-  city: z.string().trim().min(2, 'Please enter your city').max(80),
-  country: z.string().trim().length(2, 'Please pick a country'),
+  city: z.string().trim().max(80).optional(),           // now optional
+  // Phone/country are no longer collected on the form; kept optional for back-compat and dedupe.
+  phone: z.string().trim().min(4).max(32).optional(),
+  country: z.string().trim().length(2).optional(),
+  email: z.string().trim().toLowerCase().email().max(160).optional(),
+  emailVerified: z.boolean().optional(),
+  method: z.enum(SIGNUP_METHODS).default('manual'),
   source: z.string().trim().max(64).optional(),
   visitorId: z.string().trim().max(64).optional(),
   website: z.string().optional(), // honeypot: real browsers never fill this (hidden field)
@@ -33,8 +37,12 @@ const SignupBody = z.object({
 
 const EventBody = z.object({
   visitorId: z.string().trim().min(1).max(64),
-  name: z.enum([WEB_EVENT.landing_view, WEB_EVENT.join_tapped]), // signup_submitted is logged server-side only
+  name: z.enum(CLIENT_WEB_EVENTS), // signup_submitted is logged server-side only (see CLIENT_WEB_EVENTS)
   signupId: z.uuid().optional(),
+  // Small, explicitly-allowed context so the funnel can attribute a tap/failure. Kept to a closed
+  // set rather than an open record so the client can't write arbitrary keys into web_events.
+  where: z.enum(['hero', 'why', 'nav']).optional(), // which CTA fired cta_tapped
+  reason: z.string().trim().max(40).optional(),      // why a signup_failed
 });
 
 function signupResponse(s: Signup, join: JoinInfo, existing: boolean) {
@@ -60,13 +68,22 @@ export function createApiRouter(deps: ApiDeps): express.Router {
       res.status(400).json({ error: 'bad_request' }); // honeypot tripped; say nothing useful to the bot
       return;
     }
-    const phone = normalizePhone(b.phone, b.country);
-    if ('error' in phone) {
-      res.status(422).json({ error: 'invalid_phone' });
-      return;
+    // Phone is optional now. Normalize + validate only when one was actually sent; a bad number
+    // still 422s, but its absence is fine (the bot captures the real number from WhatsApp).
+    let phoneE164: string | null = null;
+    if (b.phone) {
+      const phone = normalizePhone(b.phone, b.country ?? '');
+      if ('error' in phone) {
+        res.status(422).json({ error: 'invalid_phone' });
+        return;
+      }
+      phoneE164 = phone.e164;
     }
+    const email = b.email ?? null; // Zod already lowercased + validated the format
     const now = deps.clock.now();
-    const existing = await deps.signups.findByPhoneE164(phone.e164);
+    // Welcome-back on whichever dedupe key we have: phone if typed, else email.
+    const existing = (phoneE164 && await deps.signups.findByPhoneE164(phoneE164))
+      || (email && await deps.signups.findByEmail(email));
     if (existing) {
       res.status(200).json(signupResponse(existing, deps.join, true));
       return;
@@ -77,10 +94,13 @@ export function createApiRouter(deps: ApiDeps): express.Router {
         name: b.name,
         profession: b.profession,
         organization: b.organization ? b.organization : null,
-        phoneE164: phone.e164,
-        phoneRaw: b.phone,
-        city: b.city,
-        country: b.country.toUpperCase(),
+        phoneE164,
+        phoneRaw: b.phone ?? null,
+        city: b.city ?? null,
+        country: b.country ? b.country.toUpperCase() : null,
+        email,
+        emailVerified: b.emailVerified ?? null,
+        method: b.method,
         source: b.source ?? null,
         now,
       });
@@ -91,7 +111,7 @@ export function createApiRouter(deps: ApiDeps): express.Router {
       }
       throw err;
     }
-    await deps.webEvents.log({ visitorId: b.visitorId ?? null, name: WEB_EVENT.signup_submitted, signupId: signup.id, properties: { profession: b.profession, country: signup.country } }, now);
+    await deps.webEvents.log({ visitorId: b.visitorId ?? null, name: WEB_EVENT.signup_submitted, signupId: signup.id, properties: { profession: b.profession, method: signup.method } }, now);
     res.status(201).json(signupResponse(signup, deps.join, false));
   });
 
@@ -101,7 +121,7 @@ export function createApiRouter(deps: ApiDeps): express.Router {
       res.status(400).json({ error: 'bad_request' });
       return;
     }
-    const { visitorId, name, signupId } = parsed.data;
+    const { visitorId, name, signupId, where, reason } = parsed.data;
     const now = deps.clock.now();
     if (name === WEB_EVENT.join_tapped) {
       if (!signupId) {
@@ -114,7 +134,10 @@ export function createApiRouter(deps: ApiDeps): express.Router {
       }
       await deps.signups.markJoinTapped(signupId, now);
     }
-    await deps.webEvents.log({ visitorId, name, signupId: signupId ?? null }, now);
+    const properties: Record<string, string> = {};
+    if (where) properties.where = where;
+    if (reason) properties.reason = reason;
+    await deps.webEvents.log({ visitorId, name, signupId: signupId ?? null, properties }, now);
     res.status(204).end();
   });
 

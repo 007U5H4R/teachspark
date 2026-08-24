@@ -50,7 +50,7 @@ export function Landing() {
         <h1 className="hero__title"><strong>Ready-to-use</strong><span>Worksheets on WhatsApp</span></h1>
         <p className="hero__eyebrow">A WhatsApp bot that writes a ready-to-use worksheet for your own class in about 2 minutes. Free pilot for teachers.</p>
         <div className="hero__actions" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
-          <NeonButton to="/join" size="lg">Get started →</NeonButton>
+          <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get started →</NeonButton>
         </div>
         <div className="hero__orb"><Spark ref={sparkRef} mood={ctaHover ? 'starry' : 'default'} /></div>
       </section>
@@ -74,7 +74,7 @@ export function Landing() {
           <article className="card"><h3>Private by design</h3><p>It never asks for student data — please don't send any — and you can leave anytime. No student data, ever.</p></article>
         </div>
         <div className="section__cta" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
-          <NeonButton to="/join" size="lg">Join the pilot</NeonButton>
+          <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'why' })}>Join the pilot</NeonButton>
         </div>
       </section>
     </main>

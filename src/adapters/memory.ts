@@ -295,8 +295,15 @@ export class InMemorySignupRepo implements SignupRepo {
   private byId = new Map<string, Signup>();
 
   async create(input: SignupCreateInput): Promise<Signup> {
-    const existing = await this.findByPhoneE164(input.phoneE164);
-    if (existing) throw new DuplicateSignupError(existing);
+    // Dedupe only on keys that are actually present: phone when typed, else email.
+    if (input.phoneE164) {
+      const byPhone = await this.findByPhoneE164(input.phoneE164);
+      if (byPhone) throw new DuplicateSignupError(byPhone);
+    }
+    if (input.email) {
+      const byEmail = await this.findByEmail(input.email);
+      if (byEmail) throw new DuplicateSignupError(byEmail);
+    }
     const s: Signup = {
       id: randomUUID(),
       name: input.name,
@@ -306,6 +313,9 @@ export class InMemorySignupRepo implements SignupRepo {
       phoneRaw: input.phoneRaw,
       city: input.city,
       country: input.country,
+      email: input.email,
+      emailVerified: input.emailVerified,
+      method: input.method,
       source: input.source,
       joinTappedAt: null,
       teacherId: null,
@@ -323,6 +333,12 @@ export class InMemorySignupRepo implements SignupRepo {
 
   async findByPhoneE164(e164: string): Promise<Signup | null> {
     for (const s of this.byId.values()) if (s.phoneE164 === e164) return { ...s };
+    return null;
+  }
+
+  async findByEmail(email: string): Promise<Signup | null> {
+    const key = email.toLowerCase();
+    for (const s of this.byId.values()) if (s.email !== null && s.email.toLowerCase() === key) return { ...s };
     return null;
   }
 

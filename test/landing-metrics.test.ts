@@ -12,6 +12,9 @@ function signup(over: Partial<Signup> = {}): Signup {
     phoneRaw: '9876543210',
     city: 'Pune',
     country: 'IN',
+    email: null,
+    emailVerified: null,
+    method: 'manual',
     source: null,
     joinTappedAt: null,
     teacherId: null,
@@ -38,18 +41,19 @@ describe('maskPhone', () => {
 });
 
 describe('computeLanding', () => {
-  it('counts sign-ups, join taps and reconciled rows separately', () => {
+  it('counts sign-ups and join taps', () => {
     const rows = [
       signup({ id: 'a', joinTappedAt: new Date() }),
       signup({ id: 'b' }),
-      signup({ id: 'c', joinTappedAt: new Date(), teacherId: 't-1' }),
+      signup({ id: 'c', joinTappedAt: new Date() }),
     ];
     const m = computeLanding(rows);
     expect(m.signups).toBe(3);
     expect(m.joinTapped).toBe(2);
-    // `matched` is the overlap with the WhatsApp side, not a separate cohort — the dashboard uses
-    // it to explain double counting rather than adding the two paths together.
-    expect(m.matched).toBe(1);
+  });
+  it('splits sign-ups by method (manual vs google)', () => {
+    const m = computeLanding([signup({ id: 'a', method: 'google' }), signup({ id: 'b' }), signup({ id: 'c', method: 'google' })]);
+    expect(m.byMethod).toEqual([{ name: 'google', count: 2 }, { name: 'manual', count: 1 }]);
   });
 
   it('masks phones by default and only reveals them when explicitly asked', () => {
@@ -94,7 +98,7 @@ describe('computeLanding', () => {
 
   it('is empty-safe', () => {
     const m = computeLanding([]);
-    expect(m).toMatchObject({ signups: 0, joinTapped: 0, matched: 0, byProfession: [], recent: [] });
+    expect(m).toMatchObject({ signups: 0, joinTapped: 0, byProfession: [], byMethod: [], recent: [] });
   });
 });
 

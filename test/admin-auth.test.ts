@@ -184,7 +184,7 @@ describe('demo role', () => {
     await d.signups.create({
       name: 'Meera Sharma', profession: 'school_teacher', organization: 'Kendriya Vidyalaya',
       phoneE164: '+919876543210', phoneRaw: '9876543210', city: 'Pune', country: 'IN',
-      source: 'linkedin', now: new Date(NOW),
+      email: null, emailVerified: null, method: 'manual', source: 'linkedin', now: new Date(NOW),
     });
     return d;
   }
@@ -206,7 +206,7 @@ describe('demo role', () => {
     expect(res.body.funnel.teachers).toBe(40);
   });
 
-  it('shows the synthetic fake names, keeps phones masked, and never leaks the real DB row', async () => {
+  it('shows the synthetic fake names, carries no phone number, and never leaks the real DB row', async () => {
     const app = createApp(await seeded());
     const res = await request(app).get('/api/admin/metrics').set('Authorization', `Bearer ${DEMO}`);
     const row = res.body.landing.recent[0];
@@ -215,8 +215,8 @@ describe('demo role', () => {
     expect(typeof row.name).toBe('string');
     expect(row.name.length).toBeGreaterThan(0);
     expect(row.name).not.toMatch(/^Teacher \d+$/);
-    // Phones stay masked purely so the table isn't a wall of numbers.
-    expect(row.phone).toMatch(/^•+( \d{4})?$/);
+    // The form no longer collects a phone (the bot gets the number from WhatsApp), so demo rows have none.
+    expect(row.phone).toBeNull();
     // The real DB row (the seeded Pune/Meera Sharma sign-up) must never surface — demo ignores the
     // DB entirely. Match the FULL identifying strings, not substrings: the synthetic seed contains
     // unrelated fakes (e.g. a "Meera Joshi") that share a first name but are not the real person.
@@ -226,10 +226,10 @@ describe('demo role', () => {
     expect(body).not.toContain('9876543210');
   });
 
-  it('keeps phones masked even with ?phones=full, and never leaks the real DB number', async () => {
+  it('exposes no phone even with ?phones=full, and never leaks the real DB number', async () => {
     const app = createApp(await seeded());
     const res = await request(app).get('/api/admin/metrics?phones=full').set('Authorization', `Bearer ${DEMO}`);
-    expect(res.body.landing.recent[0].phone).toMatch(/^•/);
+    expect(res.body.landing.recent[0].phone).toBeNull();
     expect(JSON.stringify(res.body)).not.toContain('9876543210');
   });
 

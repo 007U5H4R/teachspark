@@ -4,7 +4,7 @@ import { InMemorySignupRepo, InMemoryWebEventLog } from '../src/adapters/memory.
 import { DuplicateSignupError, WEB_EVENT, PROFESSIONS } from '../src/domain/web.js';
 
 const now = new Date('2026-08-23T10:00:00Z');
-const input = { name: 'Meera', profession: 'school_teacher' as const, organization: 'DPS', phoneE164: '+919876543210', phoneRaw: '98765 43210', city: 'Pune', country: 'IN', source: null, now };
+const input = { name: 'Meera', profession: 'school_teacher' as const, organization: 'DPS', phoneE164: '+919876543210', phoneRaw: '98765 43210', city: 'Pune', country: 'IN', email: null, emailVerified: null, method: 'manual' as const, source: null, now };
 
 describe('InMemorySignupRepo', () => {
   it('creates, finds by id and by phone, and lists', async () => {

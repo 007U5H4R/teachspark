@@ -9,11 +9,14 @@ import { imageSize } from 'image-size';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const OUT_DIR = resolve(ROOT, 'web/public');
-const FONT_FILES = ['Inter-Bold.ttf', 'Inter-Regular.ttf'].map((f) => resolve(ROOT, 'assets/fonts', f));
+// Baloo2-ExtraBold.ttf is a STATIC wght=800 instance (resvg ignores variable axes), so the OG
+// wordmark matches the rounded Baloo 2 face the page loads from Google Fonts.
+const FONT_FILES = ['Inter-Bold.ttf', 'Inter-Regular.ttf', 'Baloo2-ExtraBold.ttf'].map((f) => resolve(ROOT, 'assets/fonts', f));
 for (const f of FONT_FILES) if (!existsSync(f)) throw new Error(`missing font file: ${f} (see docs/superpowers/plans Task 13 step 1)`);
 
 const BG = '#0a0a0a';
 const LIME = '#b6ff3b';
+const BRAND_GREEN = '#5cc46a'; // matches --brand-green in web/src/styles/tokens.css
 
 /** The eyes, drawn identically in both variants. Offset right so the static orb looks alive. */
 function eyes(cx: number, cy: number, r: number): string {
@@ -103,7 +106,7 @@ mkdirSync(OUT_DIR, { recursive: true });
 const og = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="${BG}"/>
   ${glassOrb(250, 300, 150, 'og')}
-  <text x="470" y="300" font-family="Inter" font-weight="700" font-size="104" fill="#fff" letter-spacing="-3">TeachSpark</text>
+  <text x="470" y="300" font-family="Baloo 2 ExtraBold" font-weight="800" font-size="98" letter-spacing="-1"><tspan fill="#fff">Teach</tspan><tspan fill="${BRAND_GREEN}">Spark</tspan></text>
   <text x="474" y="362" font-family="Inter" font-weight="400" font-size="36" fill="${LIME}">Ready-to-use worksheets, on WhatsApp</text>
   <text x="474" y="412" font-family="Inter" font-weight="400" font-size="26" fill="#a3a3a3">3 levels + answer key + PDF, in about 2 minutes.</text>
   <text x="474" y="450" font-family="Inter" font-weight="400" font-size="26" fill="#a3a3a3">Free pilot for teachers.</text>

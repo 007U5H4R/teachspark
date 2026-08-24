@@ -10,9 +10,11 @@ export interface RecentSignup {
   name: string;
   profession: string;
   organization: string | null;
-  city: string;
-  country: string;
-  phone: string;              // masked unless the caller explicitly asked for full numbers
+  city: string | null;
+  country: string | null;
+  phone: string | null;       // masked unless the caller explicitly asked for full numbers; null when none was collected
+  email: string | null;       // masked like the phone; null for manual signups without one
+  method: string;             // 'manual' | 'google'
   joinTappedAt: string | null;
   createdAt: string;
 }
@@ -20,8 +22,8 @@ export interface RecentSignup {
 export interface LandingMetrics {
   signups: number;
   joinTapped: number;
-  matched: number;            // reconciled to a teacher (Phase 2); explains the overlap
   byProfession: Tally[];
+  byMethod: Tally[];          // manual vs google — how the form was completed
   byCity: Tally[];
   byCountry: Tally[];
   bySource: Tally[];
@@ -40,6 +42,13 @@ export function maskPhone(e164: string): string {
   const digits = e164.replace(/\D/g, '');
   if (digits.length <= 4) return '•'.repeat(4);
   return `••••• ${digits.slice(-4)}`;
+}
+
+/** "meera.iyer@school.edu" -> "m••••@school.edu". Keeps the first char and the domain. */
+export function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at <= 0) return '•••';
+  return `${email[0]}••••${email.slice(at)}`;
 }
 
 function tally(values: Array<string | null>, limit?: number): Tally[] {
@@ -67,6 +76,7 @@ function anonymise(row: RecentSignup, index: number): RecentSignup {
     name: `Teacher ${index + 1}`,
     organization: row.organization === null ? null : 'School withheld',
     phone: '••••••••',
+    email: row.email === null ? null : '••••••••',
   };
 }
 
@@ -76,11 +86,12 @@ export function computeLanding(
 ): LandingMetrics {
   const recentLimit = opts.recentLimit ?? 50;
   const newestFirst = [...signups].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const full = opts.fullPhones && !opts.anonymise; // admin, non-demo: may see unmasked contact details
   return {
     signups: signups.length,
     joinTapped: signups.filter((s) => s.joinTappedAt !== null).length,
-    matched: signups.filter((s) => s.teacherId !== null).length,
     byProfession: tally(signups.map((s) => s.profession)),
+    byMethod: tally(signups.map((s) => s.method)),
     byCity: tally(signups.map((s) => s.city), 10),
     byCountry: tally(signups.map((s) => s.country)),
     bySource: tally(signups.map((s) => s.source)),
@@ -93,7 +104,10 @@ export function computeLanding(
         city: s.city,
         country: s.country,
         // fullPhones is ignored under anonymise — the caller cannot combine them to unmask.
-        phone: opts.fullPhones && !opts.anonymise ? s.phoneE164 : maskPhone(s.phoneE164),
+        // No phone is collected for form signups now, so this is usually null.
+        phone: s.phoneE164 === null ? null : (full ? s.phoneE164 : maskPhone(s.phoneE164)),
+        email: s.email === null ? null : (full ? s.email : maskEmail(s.email)),
+        method: s.method,
         joinTappedAt: s.joinTappedAt ? s.joinTappedAt.toISOString() : null,
         createdAt: s.createdAt.toISOString(),
       };

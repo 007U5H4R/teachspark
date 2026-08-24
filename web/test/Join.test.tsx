@@ -22,9 +22,8 @@ function renderJoin() {
 async function fillValid(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/Your name/), 'Meera Iyer');
   await user.selectOptions(screen.getByLabelText(/Profession/), 'school_teacher');
-  await user.type(screen.getByLabelText(/School/), 'DPS Pune');
-  await user.type(screen.getByLabelText(/WhatsApp number/), '98765 43210');
-  await user.type(screen.getByLabelText(/City/), 'Pune');
+  await user.type(screen.getByLabelText(/School/), 'DPS Pune'); // optional
+  await user.type(screen.getByLabelText(/City/), 'Pune');       // optional
 }
 
 describe('Join', () => {
@@ -36,26 +35,25 @@ describe('Join', () => {
   });
   afterEach(() => { vi.unstubAllGlobals(); fetchMock.mockReset(); });
 
-  it('renders all fields, the consent line, the honeypot, and loads the country list (India preselected)', async () => {
+  it('renders the trimmed field set (name + profession required; org + city optional) and no phone/country', async () => {
     renderJoin();
     expect(screen.getByLabelText(/Your name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Profession/)).toBeInTheDocument();
     expect(screen.getByLabelText(/School/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/WhatsApp number/)).toBeInTheDocument();
     expect(screen.getByLabelText(/City/)).toBeInTheDocument();
     expect(screen.getByText(/No student data, ever/)).toBeInTheDocument();
-    // Required fields are starred; organization is the one unmarked (optional) field.
-    for (const label of [/Your name/, /Profession/, /Country/, /WhatsApp number/, /City/]) {
+    // The phone and country fields were removed — the bot gets the number from WhatsApp.
+    expect(screen.queryByLabelText(/WhatsApp number/)).toBeNull();
+    expect(screen.queryByLabelText(/Country/)).toBeNull();
+    // Only name + profession are starred required; org and city are optional (unmarked).
+    for (const label of [/Your name/, /Profession/]) {
       expect(screen.getByLabelText(label).closest('.field')?.querySelector('label .req')).toBeInTheDocument();
     }
-    const orgLabel = screen.getByText(/School \/ organisation/);
-    expect(orgLabel.textContent).not.toMatch(/optional/i);
-    expect(orgLabel.querySelector('.req')).toBeNull();
+    for (const label of [/School \/ organisation/, /City/]) {
+      expect(screen.getByText(label).querySelector('.req')).toBeNull();
+    }
     expect(screen.getByText('* required')).toBeInTheDocument();
     expect(document.querySelector('input[name="website"]')).toHaveAttribute('tabindex', '-1');
-    await waitFor(() => expect(screen.getByRole('option', { name: /United States/ })).toBeInTheDocument());
-    expect(screen.getByLabelText(/Country/)).toHaveValue('IN');
-    expect(screen.getByText('+91')).toBeInTheDocument();
   });
   it('shows inline errors and does not call the API when the form is invalid', async () => {
     const user = userEvent.setup();
@@ -63,6 +61,14 @@ describe('Join', () => {
     await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
     expect(await screen.findByText('Please enter your name')).toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/signup')).toHaveLength(0);
+  });
+  it('fires signup_view on mount and signup_failed(validation) on an invalid submit (funnel instrumentation)', async () => {
+    const user = userEvent.setup();
+    renderJoin();
+    const events = () => fetchMock.mock.calls.filter((c) => c[0] === '/api/events').map((c) => JSON.parse(c[1].body));
+    await waitFor(() => expect(events().some((e) => e.name === 'signup_view')).toBe(true));
+    await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
+    await waitFor(() => expect(events().find((e) => e.name === 'signup_failed')).toMatchObject({ name: 'signup_failed', reason: 'validation' }));
   });
   it('submits, saves the hand-off, shows a happy Spark, then navigates to /joined', async () => {
     const user = userEvent.setup();
@@ -73,19 +79,18 @@ describe('Join', () => {
     await waitFor(() => expect(container.querySelector('.spark')).toHaveAttribute('data-state', 'happy'));
     const call = fetchMock.mock.calls.find((c) => c[0] === '/api/signup')!;
     const body = JSON.parse(call[1].body);
-    expect(body).toMatchObject({ name: 'Meera Iyer', profession: 'school_teacher', organization: 'DPS Pune', phone: '98765 43210', city: 'Pune', country: 'IN', source: 'grp-a', website: '' });
+    expect(body).toMatchObject({ name: 'Meera Iyer', profession: 'school_teacher', organization: 'DPS Pune', city: 'Pune', method: 'manual', source: 'grp-a', website: '' });
+    expect(body.phone).toBeUndefined();
+    expect(body.country).toBeUndefined();
     expect(body.visitorId).toBe(localStorage.getItem('ts_visitor'));
     expect(JSON.parse(sessionStorage.getItem('ts_handoff')!)).toEqual({ signupId: 's1', name: 'Meera Iyer', join: success.join });
     // real timers: the page navigates 700 ms after success
     expect(await screen.findByText('JOINED PAGE', {}, { timeout: 3000 })).toBeInTheDocument();
   });
-  it('maps a 422 to a phone field error and a 429 to a banner', async () => {
+  it('maps a 429 to the rate-limit banner', async () => {
     const user = userEvent.setup();
     renderJoin();
     await fillValid(user);
-    fetchMock.mockImplementationOnce(() => Promise.resolve(json(422, { error: 'invalid_phone' })));
-    await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
-    expect(await screen.findByText(/doesn't look like a valid WhatsApp number/)).toBeInTheDocument();
     fetchMock.mockImplementationOnce(() => Promise.resolve(json(429, { error: 'rate_limited' })));
     await user.click(screen.getByRole('button', { name: /Get my WhatsApp link/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Too many attempts/);

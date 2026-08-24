@@ -61,8 +61,6 @@ export function demoSignups(now: Date): Signup[] {
     const name = NAMES[i % NAMES.length]!;
     const profession = PROFESSION_CYCLE[i % PROFESSION_CYCLE.length]!;
     const source = SOURCE_CYCLE[i % SOURCE_CYCLE.length]!;
-    const phoneNational = phoneFor(i);
-    const phoneE164 = `+91${phoneNational}`;
 
     // Spread over the last ~14 days: newest index (39) is most recent, oldest (0) is 14 days back.
     // Deterministic function of `now` and `i` — never Date.now() or Math.random().
@@ -80,15 +78,24 @@ export function demoSignups(now: Date): Signup[] {
     const teacherId = matched ? `demo-teacher-${pad2(i + 1)}` : null;
     const matchedAt = matched ? new Date(createdAt.getTime() + 60 * 60_000) : null;
 
+    // ~35% came through the optional Google fast-path (carry an email); the rest typed the form.
+    // Phone is no longer collected on the form, so signups have no number here.
+    const method = i % 3 === 0 ? 'google' : 'manual';
+    // Index-prefixed so google emails are unique even when the demo names cycle.
+    const email = method === 'google' ? `t${pad2(i + 1)}.${name.toLowerCase().replace(/[^a-z]+/g, '.')}@example.com` : null;
+
     return {
       id: `demo-signup-${pad2(i + 1)}`,
       name,
       profession,
       organization: ORG_BY_PROFESSION[profession] ?? null,
-      phoneE164,
-      phoneRaw: phoneNational,
+      phoneE164: null,
+      phoneRaw: null,
       city,
       country: 'IN',
+      email,
+      emailVerified: method === 'google' ? true : null,
+      method,
       source,
       joinTappedAt,
       teacherId,
@@ -125,10 +132,13 @@ export function demoFunnel(): Funnel {
 }
 
 export function demoWebEvents(): Record<string, number> {
-  // Consistent with 40 sign-ups: more views than submits, and fewer taps than submits (matches
-  // the ~55% tap rate used in demoSignups).
+  // A monotonically narrowing funnel consistent with 40 sign-ups: views > CTA taps > form views >
+  // submits > tapped-through-to-WhatsApp (matches the ~55% tap rate used in demoSignups).
   return {
     landing_view: 210,
+    cta_tapped: 96,
+    signup_view: 71,
+    signup_failed: 12,
     signup_submitted: 40,
     join_tapped: 22,
   };

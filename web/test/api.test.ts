@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ApiError, fetchCountries, submitSignup, trackEvent } from '../src/lib/api.ts';
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-const req = { name: 'M', profession: 'tutor', organization: '', phone: '9876543210', city: 'Pune', country: 'IN', visitorId: 'v', website: '' };
+const req = { name: 'M', profession: 'tutor', organization: '', city: 'Pune', method: 'manual' as const, visitorId: 'v', website: '' };
 
 describe('api client', () => {
   const fetchMock = vi.fn();
@@ -54,7 +54,7 @@ describe('api client', () => {
     };
     fetchMock.mockImplementationOnce(() => rejection);
 
-    expect(() => trackEvent('join_tapped', 's1')).not.toThrow();
+    expect(() => trackEvent('join_tapped', { signupId: 's1' })).not.toThrow();
     expect(caught).toBe(true);
     await rejection.catch(() => {}); // drain it through the real handler so nothing leaks as unhandled
 

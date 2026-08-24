@@ -30,7 +30,12 @@ button, input, select { font: inherit; }
 
 /* ---------------------------------------------------------------- Nav */
 .nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-4); padding: var(--sp-5) 0; position: relative; }
-.nav__brand { font-weight: 700; font-size: var(--fs-xl); text-decoration: none; letter-spacing: var(--ls-snug); }
+.nav__brand { font-size: var(--fs-xl); text-decoration: none; }
+
+/* Two-tone rounded logo (Nav + Footer). Baloo 2 is loaded in index.html; the system rounded/sans
+   fallbacks keep it on-brand before the webfont lands. */
+.wordmark { font-family: 'Baloo 2', 'Baloo 2 ExtraBold', var(--font); font-weight: 800; letter-spacing: -0.005em; color: var(--text); }
+.wordmark__spark { color: var(--brand-green); }
 .nav__pills { display: flex; gap: var(--sp-1); padding: var(--sp-1); border-radius: var(--pill); background: var(--bg-elev); border: 1px solid var(--border); list-style: none; margin: 0; }
 .nav__pill { padding: 10px 22px; border-radius: var(--pill); text-decoration: none; color: var(--text); font-weight: 500; font-size: 0.95rem; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .nav__pill:hover { background: var(--bg-card-hover); }
@@ -147,6 +152,14 @@ button, input, select { font: inherit; }
 .phone__cc { display: grid; place-items: center; min-width: 64px; padding: 0 var(--sp-3); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-elev); color: var(--muted); }
 .consent { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-base); margin: var(--sp-5) 0 var(--sp-5); padding-top: var(--sp-5); border-top: 1px solid var(--border); }
 .banner { border-radius: var(--radius-md); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-5); background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); }
+
+/* Optional "Continue with Google" fast-path (GoogleContinue.tsx). Present only when configured. */
+.gsi { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-2); }
+.gsi__btn { min-height: 40px; }
+.gsi__or { width: 100%; display: flex; align-items: center; gap: var(--sp-3); color: var(--muted); font-size: var(--fs-sm); }
+.gsi__or::before, .gsi__or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.google-chip { margin: 0 0 var(--sp-5); color: var(--muted); font-size: var(--fs-sm); }
+.google-chip strong { color: var(--text); font-weight: 500; }
 .hp { display: none; }
 .btn-submit {
   width: 100%;
@@ -220,6 +233,15 @@ button, input, select { font: inherit; }
 .bar__track { background: var(--bg-elev); border-radius: var(--pill); height: 8px; overflow: hidden; }
 .bar__fill { display: block; height: 100%; background: var(--lime); border-radius: var(--pill); }
 .bar__count { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* Landing funnel: ordered steps, each a labelled bar with step-over-step conversion beneath. */
+.funnel { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-4); }
+.funnel__row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); }
+.funnel__label { color: var(--text); font-weight: 500; }
+.funnel__value { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.2rem; }
+.funnel__track { display: block; background: var(--bg-elev); border-radius: var(--pill); height: 12px; overflow: hidden; margin: var(--sp-1) 0; }
+.funnel__fill { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--brand-green)); border-radius: var(--pill); min-width: 2px; }
+.funnel__conv { color: var(--muted); font-size: var(--fs-sm); }
 
 /* Wide content scrolls inside its own box so the page itself never scrolls sideways. */
 .table-scroll { overflow-x: auto; margin-top: var(--sp-4); border: 1px solid var(--border); border-radius: var(--radius-md); }

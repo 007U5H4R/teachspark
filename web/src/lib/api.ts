@@ -4,7 +4,9 @@ import { trackAnalytics } from './analytics.ts';
 export interface JoinInfo { url: string; code: string; whatsappNumber: string }
 export interface CountryOption { code: string; name: string; callingCode: string }
 export interface SignupRequest {
-  name: string; profession: string; organization: string; phone: string; city: string; country: string;
+  name: string; profession: string;
+  organization?: string; city?: string;
+  email?: string; emailVerified?: boolean; method: 'manual' | 'google';
   visitorId: string; source?: string;
   website: string; // honeypot — always '' from a real browser
 }
@@ -41,12 +43,19 @@ export async function fetchCountries(): Promise<CountryOption[]> {
   return (await parse<{ countries: CountryOption[] }>(await fetch('/api/countries'))).countries;
 }
 
+// Events the client is allowed to POST — mirrors CLIENT_WEB_EVENTS on the server (src/domain/web.ts).
+export type ClientEventName = 'landing_view' | 'cta_tapped' | 'signup_view' | 'signup_failed' | 'join_tapped';
+export interface EventContext { signupId?: string; where?: 'hero' | 'why' | 'nav'; reason?: string }
+
 /** Fire-and-forget funnel event. keepalive lets it survive the navigation that usually follows a tap. */
-export function trackEvent(name: 'landing_view' | 'join_tapped', signupId?: string): void {
+export function trackEvent(name: ClientEventName, ctx: EventContext = {}): void {
+  const { signupId, where, reason } = ctx;
   try {
-    const body = JSON.stringify({ visitorId: getVisitorId(), name, signupId });
+    const body = JSON.stringify({ visitorId: getVisitorId(), name, signupId, where, reason });
     void fetch('/api/events', { method: 'POST', headers: JSON_HEADERS, body, keepalive: true }).catch(() => {});
   } catch { /* analytics must never break the page */ }
   // Mirror the same funnel point to Mixpanel; additive, and a no-op when no token is configured.
-  trackAnalytics(name, signupId ? { signupId } : undefined);
+  const props = { signupId, where, reason };
+  const hasProps = Object.values(props).some((v) => v !== undefined);
+  trackAnalytics(name, hasProps ? props : undefined);
 }

@@ -204,10 +204,13 @@ export interface SignupRow {
   name: string;
   profession: string;
   organization: string | null;
-  phone_e164: string;
-  phone_raw: string;
-  city: string;
-  country: string;
+  phone_e164: string | null;
+  phone_raw: string | null;
+  city: string | null;
+  country: string | null;
+  email: string | null;
+  email_verified: boolean | null;
+  signup_method: string;
   source: string | null;
   join_tapped_at: string | null;
   teacher_id: string | null;
@@ -215,7 +218,7 @@ export interface SignupRow {
   created_at: string;
 }
 
-const SIGNUP_COLUMNS = 'id, name, profession, organization, phone_e164, phone_raw, city, country, source, join_tapped_at, teacher_id, matched_at, created_at';
+const SIGNUP_COLUMNS = 'id, name, profession, organization, phone_e164, phone_raw, city, country, email, email_verified, signup_method, source, join_tapped_at, teacher_id, matched_at, created_at';
 
 export function rowToSignup(r: SignupRow): Signup {
   return {
@@ -227,6 +230,9 @@ export function rowToSignup(r: SignupRow): Signup {
     phoneRaw: r.phone_raw,
     city: r.city,
     country: r.country,
+    email: r.email,
+    emailVerified: r.email_verified,
+    method: (r.signup_method === 'google' ? 'google' : 'manual'),
     source: r.source,
     joinTappedAt: toDate(r.join_tapped_at),
     teacherId: r.teacher_id,
@@ -244,6 +250,9 @@ export function signupInputToRow(i: SignupCreateInput): Record<string, unknown> 
     phone_raw: i.phoneRaw,
     city: i.city,
     country: i.country,
+    email: i.email,
+    email_verified: i.emailVerified,
+    signup_method: i.method,
     source: i.source,
     created_at: i.now.toISOString(),
   };
@@ -255,8 +264,9 @@ export class SupabaseSignupRepo implements SignupRepo {
   async create(input: SignupCreateInput): Promise<Signup> {
     const res = await this.sb.from('signups').insert(signupInputToRow(input)).select(SIGNUP_COLUMNS).single();
     if (res.error?.code === '23505') {
-      // unique violation on phone_e164: surface the existing row so the API can say "welcome back"
-      const existing = await this.findByPhoneE164(input.phoneE164);
+      // unique violation on the phone or email partial index: surface the existing row so the API can say "welcome back"
+      const existing = (input.phoneE164 && await this.findByPhoneE164(input.phoneE164))
+        || (input.email && await this.findByEmail(input.email));
       if (existing) throw new DuplicateSignupError(existing);
     }
     return rowToSignup(unwrap(res, 'signups.insert') as SignupRow);
@@ -265,6 +275,12 @@ export class SupabaseSignupRepo implements SignupRepo {
   async findById(id: string): Promise<Signup | null> {
     const res = await this.sb.from('signups').select(SIGNUP_COLUMNS).eq('id', id).maybeSingle();
     if (res.error) throw new Error(`signups.findById failed: ${res.error.message}`);
+    return res.data ? rowToSignup(res.data as SignupRow) : null;
+  }
+
+  async findByEmail(email: string): Promise<Signup | null> {
+    const res = await this.sb.from('signups').select(SIGNUP_COLUMNS).eq('email', email.toLowerCase()).maybeSingle();
+    if (res.error) throw new Error(`signups.findByEmail failed: ${res.error.message}`);
     return res.data ? rowToSignup(res.data as SignupRow) : null;
   }
 

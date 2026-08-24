@@ -42,6 +42,30 @@ function Bars({ title, rows, empty }: { title: string; rows: Tally[]; empty: str
   );
 }
 
+/** Ordered conversion funnel with step-over-step and share-of-top percentages. */
+function Funnel({ steps }: { steps: Array<{ label: string; value: number }> }) {
+  const top = steps[0]?.value ?? 0;
+  return (
+    <ol className="funnel" role="list">
+      {steps.map((s, i) => {
+        const prev = i > 0 ? steps[i - 1]!.value : null;
+        const pctOfTop = top ? Math.round((s.value / top) * 100) : 0;
+        const stepConv = prev && prev > 0 ? Math.round((s.value / prev) * 100) : null;
+        return (
+          <li key={s.label} className="funnel__step">
+            <div className="funnel__row">
+              <span className="funnel__label">{s.label}</span>
+              <span className="funnel__value">{s.value}</span>
+            </div>
+            <span className="funnel__track" aria-hidden="true"><span className="funnel__fill" style={{ width: `${pctOfTop}%` }} /></span>
+            <span className="funnel__conv">{stepConv === null ? `${pctOfTop}% of visitors` : `${stepConv}% from previous · ${pctOfTop}% of visitors`}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function Admin() {
   const [view, setView] = useState<View>({ kind: 'checking' });
   const [token, setToken] = useState('');
@@ -135,7 +159,7 @@ export function Admin() {
       {isDemo && (
         <p className="admin__caveat admin__demo" role="note">
           Demo access. This dashboard is populated with a synthetic sample dataset — the teachers,
-          names and schools are illustrative, not real people. Phone numbers are masked.
+          names and schools are illustrative, not real people. Emails are masked.
         </p>
       )}
 
@@ -145,30 +169,38 @@ export function Admin() {
         </p>
       )}
 
-      <h2 className="admin__section">Acquisition</h2>
+      <h2 className="admin__section">Joined WhatsApp</h2>
       <p className="admin__muted admin__note">
-        Two ways in. A landing sign-up can later become a teacher, so these do not simply add up —
-        someone who signs up here and then messages the bot appears on both sides.
+        The real outcome, counted on the WhatsApp side and independent of the landing form: a teacher
+        row is created the moment someone messages the bot (their number comes from Twilio, not the form).
       </p>
       <div className="stats stats--split">
-        <Stat label="Teachers (WhatsApp direct)" value={funnel.teachers} hint="Distinct numbers that messaged the bot" />
+        <Stat label="Joined WhatsApp" value={funnel.teachers} hint="Distinct numbers that messaged the bot" />
         <Stat label="Activated" value={funnel.activated} hint="Reached an activated state" />
-        <Stat label="Sign-ups (landing funnel)" value={landing.signups} hint="One row per phone number" />
-        <Stat label="Tapped through to WhatsApp" value={landing.joinTapped} hint="Indicative, not exact — see note below" />
+        <Stat label="Onboarded" value={funnel.onboarded} hint="Completed the onboarding menu" />
+        <Stat label="Sign-ups (landing)" value={landing.signups} hint="Filled the web form" />
+      </div>
+
+      <h2 className="admin__section">Landing funnel</h2>
+      <p className="admin__muted admin__note">
+        Where visitors drop between arriving and tapping through to WhatsApp. Each step is once-per-session.
+      </p>
+      <Funnel steps={[
+        { label: 'Landing views', value: webEvents['landing_view'] ?? 0 },
+        { label: 'Tapped a CTA', value: webEvents['cta_tapped'] ?? 0 },
+        { label: 'Reached the form', value: webEvents['signup_view'] ?? 0 },
+        { label: 'Signed up', value: webEvents['signup_submitted'] ?? 0 },
+        { label: 'Tapped through to WhatsApp', value: webEvents['join_tapped'] ?? 0 },
+      ]} />
+      <div className="stats">
+        <Stat label="Failed submits" value={webEvents['signup_failed'] ?? 0} hint="Validation / rate-limit / error" />
+        <Stat label="Via Google" value={landing.byMethod.find((m) => m.name === 'google')?.count ?? 0} hint="Used Continue with Google" />
+        <Stat label="Typed the form" value={landing.byMethod.find((m) => m.name === 'manual')?.count ?? 0} hint="Manual signup" />
       </div>
       <p className="admin__caveat">
-        “Tapped through” is indicative. The sign-up endpoint returns a usable id for an
-        already-registered number, so the flag can be set by someone other than its owner. Accepted
-        for the pilot — treat it as a trend, not a count.
+        “Tapped through” is indicative: the sign-up endpoint returns a usable id for an already-registered
+        person, so the flag can be set by someone other than its owner. Treat it as a trend, not a count.
       </p>
-
-      <h2 className="admin__section">Leading indicators</h2>
-      <div className="stats">
-        <Stat label="Landing views" value={webEvents['landing_view'] ?? 0} />
-        <Stat label="Sign-ups submitted" value={webEvents['signup_submitted'] ?? 0} />
-        <Stat label="Join taps" value={webEvents['join_tapped'] ?? 0} />
-        <Stat label="Onboarded" value={funnel.onboarded} />
-      </div>
 
       <h2 className="admin__section">Lagging indicators</h2>
       <div className="stats">
@@ -185,6 +217,7 @@ export function Admin() {
             "(unknown)" bar equal to the sign-up total. The API still returns bySource, so this can
             come back the moment tagged links are actually used. */}
         <Bars title="Profession" rows={landing.byProfession} empty="No sign-ups yet." />
+        <Bars title="Signup method" rows={landing.byMethod} empty="No sign-ups yet." />
         <Bars title="City" rows={landing.byCity} empty="No sign-ups yet." />
         <Bars title="Country" rows={landing.byCountry} empty="No sign-ups yet." />
       </div>
@@ -192,8 +225,8 @@ export function Admin() {
       <h2 className="admin__section">Recent sign-ups</h2>
       <p className="admin__muted admin__note">
         {isDemo
-          ? 'Sample data — names and schools are illustrative; phone numbers are masked.'
-          : <>Phone numbers are masked. Full numbers are available from <code>/api/admin/metrics?phones=full</code>.</>}
+          ? 'Sample data — names and schools are illustrative; emails are masked.'
+          : <>Emails are masked. Full details are available from <code>/api/admin/metrics?phones=full</code>.</>}
       </p>
       {landing.recent.length === 0 ? (
         <p className="panel__empty">Nobody has signed up through the landing page yet.</p>
@@ -201,16 +234,16 @@ export function Admin() {
         <div className="table-scroll">
           <table className="table">
             <thead>
-              <tr><th scope="col">Name</th><th scope="col">Profession</th><th scope="col">City</th><th scope="col">Country</th><th scope="col">Phone</th><th scope="col">Joined</th></tr>
+              <tr><th scope="col">Name</th><th scope="col">Profession</th><th scope="col">Method</th><th scope="col">Email</th><th scope="col">City</th><th scope="col">Joined</th></tr>
             </thead>
             <tbody>
               {landing.recent.map((s) => (
                 <tr key={s.id}>
                   <td>{s.name}{s.organization ? <span className="table__sub">{s.organization}</span> : null}</td>
                   <td>{s.profession.replace(/_/g, ' ')}</td>
-                  <td>{s.city}</td>
-                  <td>{s.country}</td>
-                  <td className="table__mono">{s.phone}</td>
+                  <td>{s.method === 'google' ? <span className="pill pill--yes">Google</span> : <span className="pill">Manual</span>}</td>
+                  <td className="table__mono">{s.email ?? '—'}</td>
+                  <td>{s.city ?? '—'}</td>
                   <td>{s.joinTappedAt ? <span className="pill pill--yes">Yes</span> : <span className="pill">Not yet</span>}</td>
                 </tr>
               ))}

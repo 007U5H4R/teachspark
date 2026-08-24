@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { CITY_COORDS, LAKSHADWEEP, indiaIslandPaths, indiaOutlinePath, project, resolveCity, VIEW_H, VIEW_W } from './cities.ts';
 import './IndiaMap.css';
 
-export interface IndiaMapSignup { city: string }
+export interface IndiaMapSignup { city: string | null }
 
 export interface IndiaMapProps {
   /** Recent sign-up rows (only `.city` is read). Tallied here so every city shows, not just the

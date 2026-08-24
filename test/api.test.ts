@@ -30,7 +30,7 @@ describe('POST /api/signup', () => {
     expect(res.body.join).toEqual(JOIN);
     const stored = await signups.findById(res.body.signupId);
     expect(stored).toMatchObject({ name: 'Meera Iyer', phoneE164: '+919876543210', phoneRaw: '98765 43210', country: 'IN', source: 'grp-a', organization: 'DPS Pune' });
-    expect(webEvents.rows).toEqual([{ visitorId: 'v-1', name: 'signup_submitted', signupId: res.body.signupId, properties: { profession: 'school_teacher', country: 'IN' }, createdAt: now }]);
+    expect(webEvents.rows).toEqual([{ visitorId: 'v-1', name: 'signup_submitted', signupId: res.body.signupId, properties: { profession: 'school_teacher', method: 'manual' }, createdAt: now }]);
   });
   it('200 welcome-back for a phone that already signed up (no duplicate row, no second event)', async () => {
     const { app, signups, webEvents } = make();
@@ -92,7 +92,7 @@ describe('POST /api/events', () => {
   });
   it('join_tapped stamps the signup once and logs every tap', async () => {
     const { app, signups, webEvents } = make();
-    const s = await signups.create({ name: 'M', profession: 'tutor', organization: null, phoneE164: '+919876543210', phoneRaw: 'x', city: 'Pune', country: 'IN', source: null, now });
+    const s = await signups.create({ name: 'M', profession: 'tutor', organization: null, phoneE164: '+919876543210', phoneRaw: 'x', city: 'Pune', country: 'IN', email: null, emailVerified: null, method: 'manual', source: null, now });
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'join_tapped', signupId: s.id })).status).toBe(204);
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'join_tapped', signupId: s.id })).status).toBe(204);
     expect((await signups.findById(s.id))?.joinTappedAt).toEqual(now);
@@ -103,6 +103,25 @@ describe('POST /api/events', () => {
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'join_tapped' })).status).toBe(400);
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'join_tapped', signupId: '11111111-1111-4111-8111-111111111111' })).status).toBe(404);
     expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'signup_submitted' })).status).toBe(400); // server-only event
+  });
+  it('204 logs cta_tapped with the where property (funnel: which CTA was tapped)', async () => {
+    const { app, webEvents } = make();
+    const res = await request(app).post('/api/events').send({ visitorId: 'v-c', name: 'cta_tapped', where: 'hero' });
+    expect(res.status).toBe(204);
+    expect(webEvents.rows).toEqual([{ visitorId: 'v-c', name: 'cta_tapped', signupId: null, properties: { where: 'hero' }, createdAt: now }]);
+  });
+  it('204 logs signup_view (reached the form) and signup_failed with a reason', async () => {
+    const { app, webEvents } = make();
+    expect((await request(app).post('/api/events').send({ visitorId: 'v-s', name: 'signup_view' })).status).toBe(204);
+    expect((await request(app).post('/api/events').send({ visitorId: 'v-s', name: 'signup_failed', reason: 'validation' })).status).toBe(204);
+    expect(webEvents.rows).toEqual([
+      { visitorId: 'v-s', name: 'signup_view', signupId: null, properties: {}, createdAt: now },
+      { visitorId: 'v-s', name: 'signup_failed', signupId: null, properties: { reason: 'validation' }, createdAt: now },
+    ]);
+  });
+  it('400 for an out-of-set where value (client cannot write arbitrary properties)', async () => {
+    const { app } = make();
+    expect((await request(app).post('/api/events').send({ visitorId: 'v', name: 'cta_tapped', where: 'somewhere-else' })).status).toBe(400);
   });
 });
 

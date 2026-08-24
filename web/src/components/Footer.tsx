@@ -1,10 +1,13 @@
 import { Link } from 'react-router';
+import { Wordmark } from './Wordmark.tsx';
 
 // Same '/#hash' form the nav uses (Nav.tsx:6-9): a routed link back to the landing page's section,
 // so these still work from /join and /joined where those anchors do not exist.
+// '/demo' is a real route (App.tsx) and mirrors the nav's Demo pill — keep the two lists in step.
 const LINKS = [
   { to: '/#how', label: 'How it works' },
   { to: '/#why', label: 'Why teachers use it' },
+  { to: '/demo', label: 'Demo' },
   { to: '/join', label: 'Join the pilot' },
 ];
 
@@ -12,7 +15,7 @@ export function Footer() {
   return (
     <footer className="footer">
       <div>
-        <p className="footer__brand">TeachSpark</p>
+        <p className="footer__brand"><Wordmark /></p>
         <p className="footer__blurb">
           A free pilot for teachers: a WhatsApp bot that writes a ready-to-use worksheet for your own class in about two minutes.
         </p>

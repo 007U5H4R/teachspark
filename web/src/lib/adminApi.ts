@@ -8,9 +8,11 @@ export interface RecentSignup {
   name: string;
   profession: string;
   organization: string | null;
-  city: string;
-  country: string;
-  phone: string;
+  city: string | null;
+  country: string | null;
+  phone: string | null;
+  email: string | null;
+  method: string;
   joinTappedAt: string | null;
   createdAt: string;
 }
@@ -27,8 +29,8 @@ export interface AdminMetrics {
     eventCounts: Record<string, number>;
   };
   landing: {
-    signups: number; joinTapped: number; matched: number;
-    byProfession: Tally[]; byCity: Tally[]; byCountry: Tally[]; bySource: Tally[];
+    signups: number; joinTapped: number;
+    byProfession: Tally[]; byMethod: Tally[]; byCity: Tally[]; byCountry: Tally[]; bySource: Tally[];
     recent: RecentSignup[];
   };
   webEvents: Record<string, number>;

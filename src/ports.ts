@@ -122,10 +122,12 @@ export interface PapersRepo {
 }
 
 export interface SignupRepo {
-  /** throws DuplicateSignupError when phone_e164 already exists */
+  /** throws DuplicateSignupError when the phone or email dedupe key already exists */
   create(input: SignupCreateInput): Promise<Signup>;
   findById(id: string): Promise<Signup | null>;
   findByPhoneE164(e164: string): Promise<Signup | null>;
+  /** lookup by lowercased email (the dedupe key for signups without a phone) */
+  findByEmail(email: string): Promise<Signup | null>;
   /** sets join_tapped_at only if it is still null; throws if id is unknown */
   markJoinTapped(id: string, at: Date): Promise<void>;
   listAll(): Promise<Signup[]>;

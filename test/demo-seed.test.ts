@@ -35,10 +35,15 @@ describe('demoSignups', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it('gives every row a unique id and phone number', () => {
+  it('gives every row a unique id, no phone (form no longer collects it), and a method split with unique google emails', () => {
     const rows = demoSignups(NOW);
     expect(new Set(rows.map((r) => r.id)).size).toBe(40);
-    expect(new Set(rows.map((r) => r.phoneE164)).size).toBe(40);
+    expect(rows.every((r) => r.phoneE164 === null)).toBe(true);
+    // Both signup methods are represented so /admin has a split to render.
+    expect(new Set(rows.map((r) => r.method))).toEqual(new Set(['manual', 'google']));
+    const googleEmails = rows.filter((r) => r.method === 'google').map((r) => r.email);
+    expect(googleEmails.every((e) => e !== null)).toBe(true);
+    expect(new Set(googleEmails).size).toBe(googleEmails.length); // unique
   });
 
   it('spreads createdAt over roughly the last 14 days, never in the future', () => {
