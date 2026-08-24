@@ -15,7 +15,7 @@ function teacher(over: Partial<Teacher> = {}): Teacher {
     id: 't1', waFrom: 'whatsapp:+911', waId: '911', profileName: 'Meera',
     grade: 'High (Classes 9-12)', subject: 'Hindi', board: 'CBSE', state: 'IDLE', currentSkillId: null, pendingTopic: null,
     skillsCompleted: [], retries: 0, activatedAt: null, lastInboundAt: null, nudgeDueAt: null, nudgeSentAt: null,
-    nudgeCount: 0, createdAt: NOW, schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0, ...over,
+    nudgeCount: 0, createdAt: NOW, schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0, isTest: false, ...over,
   };
 }
 const msg = (body: string, media: InboundMessage['media'] = []): InboundMessage =>

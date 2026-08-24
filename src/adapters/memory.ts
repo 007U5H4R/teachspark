@@ -88,6 +88,7 @@ export class InMemoryTeacherRepo implements TeacherRepo {
       paperRequest: null,
       paperJson: null,
       paperRedoCount: 0,
+      isTest: false,
     };
     this.byId.set(t.id, t);
     return { ...t };

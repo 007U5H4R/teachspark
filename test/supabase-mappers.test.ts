@@ -26,6 +26,7 @@ const row: TeacherRow = {
   paper_request: null,
   paper_json: null,
   paper_redo_count: 1,
+  is_test: false,
 };
 
 describe('rowToTeacher', () => {
@@ -37,6 +38,10 @@ describe('rowToTeacher', () => {
     expect(t.nudgeDueAt).toBeNull();
     expect(t.state).toBe('AWAITING_TOPIC');
     expect(t.currentSkillId).toBe('worksheet');
+    expect(t.isTest).toBe(false);
+  });
+  it('maps is_test = true through', () => {
+    expect(rowToTeacher({ ...row, is_test: true }).isTest).toBe(true);
   });
   it('maps paper fields', () => {
     const t = rowToTeacher(row);

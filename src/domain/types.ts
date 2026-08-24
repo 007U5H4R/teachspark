@@ -56,9 +56,13 @@ export interface Teacher {
   paperRequest: PaperRequest | null;  // in-progress wizard state (survives restarts)
   paperJson: PaperJson | null;        // last generated paper awaiting preview/render
   paperRedoCount: number;
+  isTest: boolean; // our own/internal numbers; excluded from every funnel count (see metrics/funnel.ts)
 }
 
-export type TeacherUpdate = Partial<Omit<Teacher, 'id' | 'waFrom' | 'createdAt'>>;
+// isTest is deliberately NOT updatable through the normal message-handling path: it is set once,
+// out-of-band (migration/backfill script), so a stray update can never silently flip a real
+// teacher into (or out of) the test bucket.
+export type TeacherUpdate = Partial<Omit<Teacher, 'id' | 'waFrom' | 'createdAt' | 'isTest'>>;
 
 export interface EventRecord {
   name: string; // one of EVENT.* in domain/events.ts

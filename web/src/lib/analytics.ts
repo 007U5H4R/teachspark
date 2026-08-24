@@ -1,4 +1,5 @@
 import mixpanel from 'mixpanel-browser';
+import clarity from '@microsoft/clarity';
 import { getVisitorId } from './visitor.ts';
 import { loadSource } from './session.ts';
 
@@ -31,6 +32,26 @@ export function initAnalytics(): void {
     enabled = true;
   } catch {
     enabled = false; // a bad token or blocked SDK must not break the app
+  }
+}
+
+/**
+ * Boot Microsoft Clarity once, at app start — click/scroll heatmaps and (input-masked) session
+ * replay, running alongside Mixpanel, not replacing it. A deliberate no-op when VITE_CLARITY_ID is
+ * absent (dev, tests, token-less deploys). The project id is publishable, safe in the browser
+ * bundle. Text/input masking is governed by the project's dashboard setting (Balanced by default),
+ * which keeps the /join form's name/email/phone out of recordings.
+ */
+export function initClarity(): void {
+  const projectId = import.meta.env.VITE_CLARITY_ID;
+  if (!projectId) return;
+  try {
+    clarity.init(projectId);
+    // Same cross-reference key as Mixpanel, so a Clarity session can be tied back to the first-party
+    // /api/events funnel and /admin metrics by the one anonymous visitor id.
+    clarity.setTag('visitor_id', getVisitorId());
+  } catch {
+    /* a blocked or failed SDK must never break the page */
   }
 }
 

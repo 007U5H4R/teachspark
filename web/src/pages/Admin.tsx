@@ -9,12 +9,13 @@ type View =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; data: AdminMetrics };
 
-function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
+function Stat({ label, value, hint, note }: { label: string; value: string | number; hint?: string; note?: string }) {
   return (
     <div className="stat">
       <p className="stat__value">{value}</p>
       <p className="stat__label">{label}</p>
       {hint && <p className="stat__hint">{hint}</p>}
+      {note && <p className="stat__note">{note}</p>}
     </div>
   );
 }
@@ -39,30 +40,6 @@ function Bars({ title, rows, empty }: { title: string; rows: Tally[]; empty: str
         </ul>
       )}
     </section>
-  );
-}
-
-/** Ordered conversion funnel with step-over-step and share-of-top percentages. */
-function Funnel({ steps }: { steps: Array<{ label: string; value: number }> }) {
-  const top = steps[0]?.value ?? 0;
-  return (
-    <ol className="funnel" role="list">
-      {steps.map((s, i) => {
-        const prev = i > 0 ? steps[i - 1]!.value : null;
-        const pctOfTop = top ? Math.round((s.value / top) * 100) : 0;
-        const stepConv = prev && prev > 0 ? Math.round((s.value / prev) * 100) : null;
-        return (
-          <li key={s.label} className="funnel__step">
-            <div className="funnel__row">
-              <span className="funnel__label">{s.label}</span>
-              <span className="funnel__value">{s.value}</span>
-            </div>
-            <span className="funnel__track" aria-hidden="true"><span className="funnel__fill" style={{ width: `${pctOfTop}%` }} /></span>
-            <span className="funnel__conv">{stepConv === null ? `${pctOfTop}% of visitors` : `${stepConv}% from previous · ${pctOfTop}% of visitors`}</span>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
@@ -184,14 +161,16 @@ export function Admin() {
       <h2 className="admin__section">Landing funnel</h2>
       <p className="admin__muted admin__note">
         Where visitors drop between arriving and tapping through to WhatsApp. Each step is once-per-session.
+        “Tapped a CTA” and “Reached the form” were instrumented on 24 Aug — compare those two to each
+        other, not to the full-history steps beside them.
       </p>
-      <Funnel steps={[
-        { label: 'Landing views', value: webEvents['landing_view'] ?? 0 },
-        { label: 'Tapped a CTA', value: webEvents['cta_tapped'] ?? 0 },
-        { label: 'Reached the form', value: webEvents['signup_view'] ?? 0 },
-        { label: 'Signed up', value: webEvents['signup_submitted'] ?? 0 },
-        { label: 'Tapped through to WhatsApp', value: webEvents['join_tapped'] ?? 0 },
-      ]} />
+      <div className="stats">
+        <Stat label="Landing views" value={webEvents['landing_view'] ?? 0} hint="Sessions that opened the site" />
+        <Stat label="Tapped a CTA" value={webEvents['cta_tapped'] ?? 0} note="Tracked since 24 Aug" />
+        <Stat label="Reached the form" value={webEvents['signup_view'] ?? 0} note="Tracked since 24 Aug" />
+        <Stat label="Signed up" value={webEvents['signup_submitted'] ?? 0} hint="Server-counted on every signup" />
+        <Stat label="Tapped through to WhatsApp" value={webEvents['join_tapped'] ?? 0} hint="Opened the WhatsApp join link" />
+      </div>
       <div className="stats">
         <Stat label="Failed submits" value={webEvents['signup_failed'] ?? 0} hint="Validation / rate-limit / error" />
         <Stat label="Via Google" value={landing.byMethod.find((m) => m.name === 'google')?.count ?? 0} hint="Used Continue with Google" />

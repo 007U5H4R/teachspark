@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly PUBLIC_BASE_URL: string;
   readonly VITE_MIXPANEL_TOKEN?: string;
+  readonly VITE_CLARITY_ID?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
 }
 interface ImportMeta {

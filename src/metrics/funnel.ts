@@ -21,7 +21,15 @@ function distinct(events: EventRow[], name: string, filter: (e: EventRow) => boo
   return new Set(events.filter((e) => e.name === name && filter(e)).map((e) => e.teacherId)).size;
 }
 
-export function computeFunnel(events: EventRow[], teachers: Teacher[]): Funnel {
+export function computeFunnel(allEvents: EventRow[], allTeachers: Teacher[]): Funnel {
+  // Internal/test numbers (our own handsets, flagged is_test in the DB) are dropped BEFORE any
+  // count is taken -- both the teacher rows and every event they generated -- so "Joined WhatsApp"
+  // and every downstream stage reflect real pilot teachers only. Everything below operates on the
+  // filtered sets, so no individual metric can forget to exclude them.
+  const testIds = new Set(allTeachers.filter((t) => t.isTest).map((t) => t.id));
+  const teachers = allTeachers.filter((t) => !t.isTest);
+  const events = allEvents.filter((e) => !testIds.has(e.teacherId));
+
   const eventCounts: Record<string, number> = {};
   for (const e of events) eventCounts[e.name] = (eventCounts[e.name] ?? 0) + 1;
 
