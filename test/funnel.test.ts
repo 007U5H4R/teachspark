@@ -10,6 +10,7 @@ const teacher = (id: string, over: Partial<Teacher> = {}): Teacher => ({
   state: 'NEW', currentSkillId: null, pendingTopic: null, skillsCompleted: [], retries: 0,
   activatedAt: null, lastInboundAt: null, nudgeDueAt: null, nudgeSentAt: null, nudgeCount: 0, createdAt: at,
   schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0,
+  isTest: false,
   ...over,
 });
 
@@ -46,6 +47,27 @@ describe('computeFunnel', () => {
     const f = computeFunnel(events, teachers);
     expect(f.papersExported).toBe(1);
     expect(f.medianPaperMinutesSaved).toBe(60);
+  });
+  it('excludes is_test teachers and their events from every stage', () => {
+    const withTest = [
+      ...teachers,
+      teacher('t', { isTest: true, activatedAt: at, skillsCompleted: ['worksheet', 'quiz'] }),
+    ];
+    const withTestEvents: EventRow[] = [
+      ...events,
+      ev('t', 'onboarding_completed'),
+      ev('t', 'impact_reported', { minutes: 5 }),
+      ev('t', 'paper_exported'),
+    ];
+    const f = computeFunnel(withTestEvents, withTest);
+    // Identical to the baseline funnel above: the test teacher and its events vanish entirely.
+    expect(f.teachers).toBe(3);
+    expect(f.onboarded).toBe(2);
+    expect(f.activated).toBe(2);
+    expect(f.completedBoth).toBe(1);
+    expect(f.papersExported).toBe(1);
+    expect(f.medianMinutesSaved).toBe(30); // the test teacher's 5-minute report is not in the median
+    expect(f.eventCounts.impact_reported).toBe(4);
   });
   it('handles empty inputs', () => {
     const f = computeFunnel([], []);

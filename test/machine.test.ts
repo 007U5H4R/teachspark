@@ -14,7 +14,7 @@ function teacher(over: Partial<Teacher> = {}): Teacher {
     grade: null, subject: null, board: null, state: 'NEW', currentSkillId: null, pendingTopic: null,
     skillsCompleted: [], retries: 0, activatedAt: null, lastInboundAt: null, nudgeDueAt: null, nudgeSentAt: null,
     nudgeCount: 0, createdAt: NOW,
-    schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0,
+    schoolName: null, schoolLogoUrl: null, paperRequest: null, paperJson: null, paperRedoCount: 0, isTest: false,
     ...over,
   };
 }

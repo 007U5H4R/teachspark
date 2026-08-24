@@ -28,10 +28,11 @@ export interface TeacherRow {
   paper_request: unknown;
   paper_json: unknown;
   paper_redo_count: number;
+  is_test: boolean;
 }
 
 const TEACHER_COLUMNS =
-  'id, wa_from, wa_id, profile_name, grade, subject, board, state, current_skill_id, pending_topic, skills_completed, retries, activated_at, last_inbound_at, nudge_due_at, nudge_sent_at, nudge_count, created_at, updated_at, school_name, school_logo_url, paper_request, paper_json, paper_redo_count';
+  'id, wa_from, wa_id, profile_name, grade, subject, board, state, current_skill_id, pending_topic, skills_completed, retries, activated_at, last_inbound_at, nudge_due_at, nudge_sent_at, nudge_count, created_at, updated_at, school_name, school_logo_url, paper_request, paper_json, paper_redo_count, is_test';
 
 const toDate = (s: string | null): Date | null => (s === null ? null : new Date(s));
 const toIso = (d: Date | null | undefined): string | null | undefined => (d === undefined ? undefined : d === null ? null : d.toISOString());
@@ -61,6 +62,7 @@ export function rowToTeacher(r: TeacherRow): Teacher {
     paperRequest: (r.paper_request as Teacher['paperRequest']) ?? null,
     paperJson: (r.paper_json as Teacher['paperJson']) ?? null,
     paperRedoCount: r.paper_redo_count ?? 0,
+    isTest: r.is_test ?? false,
   };
 }
 
