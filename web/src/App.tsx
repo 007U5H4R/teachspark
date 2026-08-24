@@ -10,6 +10,7 @@ import { Demo } from './pages/Demo.tsx';
 import { Join } from './pages/Join.tsx';
 import { Joined } from './pages/Joined.tsx';
 import { Landing } from './pages/Landing.tsx';
+import { SparkLab } from './pages/SparkLab.tsx';
 
 export function App() {
   const { pathname } = useLocation();
@@ -25,6 +26,7 @@ export function App() {
         <Route path="/join" element={<Join />} />
         <Route path="/joined" element={<Joined />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/spark" element={<SparkLab />} />
         <Route path="*" element={<Landing />} />
       </Routes>
       <Footer />

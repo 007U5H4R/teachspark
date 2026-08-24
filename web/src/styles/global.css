@@ -160,6 +160,19 @@ button, input, select { font: inherit; }
 .gsi__or::before, .gsi__or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .google-chip { margin: 0 0 var(--sp-5); color: var(--muted); font-size: var(--fs-sm); }
 .google-chip strong { color: var(--text); font-weight: 500; }
+
+/* Sparky expression preview (/spark, SparkLab.tsx). Dev/showcase page — a grid of held orbs. */
+.lab { padding: var(--sp-6) 0 var(--sp-10); }
+.lab__head { text-align: center; margin-bottom: var(--sp-8); }
+.lab__lead { color: var(--muted); max-width: 46ch; margin: var(--sp-2) auto 0; }
+.lab__subhead { font-size: var(--fs-lg); margin: var(--sp-10) 0 var(--sp-4); padding-top: var(--sp-6); border-top: 1px solid var(--border); text-align: center; }
+.lab__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+.lab__cell { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-5) var(--sp-3); background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.lab__orb { width: 150px; }
+.lab__cap { text-align: center; display: flex; flex-direction: column; gap: 2px; }
+.lab__label { font-weight: 700; }
+.lab__note { color: var(--muted); font-size: var(--fs-sm); }
+@media (max-width: 640px) { .lab__grid { grid-template-columns: repeat(2, 1fr); } }
 .hp { display: none; }
 .btn-submit {
   width: 100%;

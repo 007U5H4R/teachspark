@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { activeBehavior, BEHAVIORS, initialMachine, progress, release, request, setBase, tick } from '../src/components/spark/sparkState.ts';
-import { applyBlink, eyeRect, lerpShape, NEUTRAL, shapeFor } from '../src/components/spark/eyeShape.ts';
+import { applyBlink, eyePath, eyeRect, lerpShape, NEUTRAL, shapeFor } from '../src/components/spark/eyeShape.ts';
 import { blinkAmount, pickKind, planBlink } from '../src/components/spark/blink.ts';
 import { breathe, lookAround, saccade, smoothSpeed, stepSpring, tuningForSpeed } from '../src/components/spark/gaze.ts';
 
@@ -109,6 +109,58 @@ describe('eyeShape', () => {
     expect(shapeFor('surprised').lift).toBeLessThan(0);   // negative is up
     expect(shapeFor('sleeping').h).toBeLessThan(NEUTRAL.h / 2);
     expect(shapeFor('error').lift).toBeGreaterThan(0);    // looking down
+  });
+
+  // y of the FIRST quadratic control point in the path — i.e. how far the top edge is bowed.
+  const topCtrlY = (d: string): number => parseFloat(d.match(/Q\s+[-\d.]+\s+([-\d.]+)/)![1]!);
+
+  it('eyePath has straight edges at curve 0 (matches the rect) and bows up when curve>0', () => {
+    const y0 = 182 - NEUTRAL.h; // cy + lift - h, with spread/tilt 0
+    const flat = eyePath(NEUTRAL, 200, 182, 'left');
+    expect(flat.transform).toBeUndefined();               // no tilt
+    expect(topCtrlY(flat.d)).toBeCloseTo(y0, 2);           // control sits on the edge => a straight line
+    const curved = eyePath({ ...NEUTRAL, curve: 1 }, 200, 182, 'left');
+    expect(topCtrlY(curved.d)).toBeLessThan(y0 - 20);      // control lifted well above => an upward crescent
+  });
+
+  it('adds happy / sad / angry / skeptical expression geometry', () => {
+    expect(shapeFor('happy').curve).toBeGreaterThan(0);       // upward crescents
+    expect(shapeFor('happy').h).toBeLessThan(NEUTRAL.h / 2);  // thin
+    expect(shapeFor('sad').curve).toBeLessThan(0);            // downward droop
+    expect(shapeFor('angry').tilt).toBeLessThan(0);          // inward-down slant
+    expect(shapeFor('skeptical').h).toBeLessThan(NEUTRAL.h);  // narrowed squint
+    for (const b of ['happy', 'sad', 'angry', 'skeptical'] as const) expect(BEHAVIORS[b]).toBeTruthy();
+  });
+
+  it('adds the geometric shape batch (wide / squint / bored / focused)', () => {
+    expect(shapeFor('wide').w).toBeCloseTo(shapeFor('wide').h, 1); // small round eyes
+    expect(shapeFor('squint').tilt).toBeLessThan(0);               // inward slant
+    expect(shapeFor('squint').h).toBeLessThan(NEUTRAL.h / 2);      // narrowed
+    expect(shapeFor('bored').h).toBeLessThan(6);                   // flat dashes
+    expect(shapeFor('focused').h).toBeLessThan(NEUTRAL.h);         // narrowed, upright-ish
+    for (const b of ['wide', 'squint', 'bored', 'focused'] as const) expect(BEHAVIORS[b]).toBeTruthy();
+  });
+
+  it('adds a sharp "mischief" glare (hard inward slant, pointy corners)', () => {
+    expect(shapeFor('mischief').tilt).toBeLessThan(shapeFor('angry').tilt); // sharper slant than plain angry
+    expect(shapeFor('mischief').r).toBeLessThan(6);                          // low radius => pointy corners
+    expect(BEHAVIORS.mischief).toBeTruthy();
+    // "smug" is wide, low and heavy-lidded — sitting below centre with a short height.
+    expect(shapeFor('smug').h).toBeLessThan(NEUTRAL.h / 2);
+    expect(shapeFor('smug').lift).toBeGreaterThan(0);
+    expect(BEHAVIORS.smug).toBeTruthy();
+  });
+
+  it('wink shuts exactly one eye via the behaviour flag', () => {
+    expect(BEHAVIORS.wink.wink).toBe('left'); // one side collapses to a lid; the other stays open
+    expect(shapeFor('wink').curve).toBeGreaterThan(0); // the open eye is a happy crescent
+  });
+
+  it('lerpShape interpolates curve and applyBlink fades it as the eye closes', () => {
+    const happy = shapeFor('happy');
+    expect(lerpShape(shapeFor('tracking'), happy, 0.5).curve).toBeCloseTo(happy.curve / 2, 5);
+    expect(applyBlink(happy, 1).curve).toBeCloseTo(0, 5);    // a closing eye flattens
+    expect(applyBlink(happy, 0).curve).toBeCloseTo(happy.curve, 5);
   });
 });
 

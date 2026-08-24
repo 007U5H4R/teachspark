@@ -1,6 +1,6 @@
 // Pure geometry for Spark's eyes. No DOM here so it is trivially testable.
 export interface Point { x: number; y: number }
-export type EyeState = 'default' | 'puppy' | 'starry' | 'blink' | 'happy';
+export type EyeState = 'default' | 'puppy' | 'starry' | 'blink' | 'happy' | 'love' | 'dizzy' | 'money' | 'confused' | 'dead';
 export type Mood = Exclude<EyeState, 'blink'>;
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
@@ -36,6 +36,43 @@ export function starPath(cx: number, cy: number, outerR: number, innerR: number,
     d += (i === 0 ? 'M' : 'L') + `${x} ${y}`;
   }
   return d + 'Z';
+}
+
+/**
+ * A downward-pointing heart centred at (cx, cy), sized so it spans roughly ±r. Built from the
+ * classic two-lobe cubic-Bézier heart, scaled from its reference ±9 box.
+ */
+export function heartPath(cx: number, cy: number, r: number): string {
+  const s = r / 9;
+  const p = (x: number, y: number): string => `${(cx + x * s).toFixed(2)} ${(cy + y * s).toFixed(2)}`;
+  return [
+    `M ${p(0, 9)}`,
+    `C ${p(0, 9)} ${p(-9, 1.5)} ${p(-9, -3.5)}`,   // down the left side to the left lobe
+    `C ${p(-9, -6.5)} ${p(-6.5, -9)} ${p(-3.5, -9)}`,
+    `C ${p(-1.5, -9)} ${p(0, -7.5)} ${p(0, -7.5)}`, // up to the top-centre dip
+    `C ${p(0, -7.5)} ${p(1.5, -9)} ${p(3.5, -9)}`,
+    `C ${p(6.5, -9)} ${p(9, -6.5)} ${p(9, -3.5)}`,  // over the right lobe
+    `C ${p(9, 1.5)} ${p(0, 9)} ${p(0, 9)}`,         // back down to the point
+    'Z',
+  ].join(' ');
+}
+
+/**
+ * An Archimedean spiral (a stroked path, not a fill) centred at (cx, cy), winding out to `maxR`
+ * over `turns` revolutions — the "dizzy" eye. Meant to be spun by CSS.
+ */
+export function spiralPath(cx: number, cy: number, maxR: number, turns = 2.5, steps = 64): string {
+  const total = turns * 2 * Math.PI;
+  let d = '';
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const a = t * total;
+    const rr = t * maxR;
+    const x = (cx + Math.cos(a) * rr).toFixed(2);
+    const y = (cy + Math.sin(a) * rr).toFixed(2);
+    d += (i === 0 ? 'M' : 'L') + `${x} ${y}`;
+  }
+  return d;
 }
 
 /** Blink overrides everything; hover = puppy eyes, but only when nothing more specific is going on. */

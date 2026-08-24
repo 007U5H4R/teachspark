@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { Spark, type SparkHandle } from '../components/spark/Spark.tsx';
 import { NeonButton } from '../components/NeonButton.tsx';
@@ -10,18 +10,15 @@ const VIEWED = 'ts_lv';
 
 export function Landing() {
   const [params] = useSearchParams();
-  const [ctaHover, setCtaHover] = useState(false);
   const sparkRef = useRef<SparkHandle>(null);
   const curiousTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // "What's that?" — fires only on a genuine dwell, not on every pass of the cursor, and the
-  // timer is cleared on leave and on unmount so a glancing hover never fires it late.
+  // "What's that?" — the orb gets curious after a genuine dwell on a CTA (not on every pass of the
+  // cursor). The timer is cleared on leave and on unmount so a glancing hover never fires it late.
   const onCtaEnter = () => {
-    setCtaHover(true);
     curiousTimerRef.current = setTimeout(() => sparkRef.current?.signal('curious'), 420);
   };
   const onCtaLeave = () => {
-    setCtaHover(false);
     if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current);
   };
   useEffect(() => () => { if (curiousTimerRef.current !== null) clearTimeout(curiousTimerRef.current); }, []);
@@ -52,7 +49,7 @@ export function Landing() {
         <div className="hero__actions" onPointerEnter={onCtaEnter} onPointerLeave={onCtaLeave}>
           <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get started →</NeonButton>
         </div>
-        <div className="hero__orb"><Spark ref={sparkRef} mood={ctaHover ? 'starry' : 'default'} /></div>
+        <div className="hero__orb"><Spark ref={sparkRef} /></div>
       </section>
 
       <section className="section" aria-labelledby="how">

@@ -39,11 +39,14 @@ describe('Landing', () => {
     render(<MemoryRouter><Landing /></MemoryRouter>);
     expect(fetchMock).toHaveBeenCalledTimes(1); // deduped within the tab session
   });
-  it('Spark goes starry while the CTA is hovered', async () => {
+  it('no longer forces a static starry overlay on CTA hover (reaction is now the parametric "curious" behaviour)', async () => {
+    // The curious reaction is driven by the rAF animation loop, which does not run under jsdom, so
+    // it is covered by the eye-engine unit tests + the /spark preview. Here we only pin the
+    // regression that hovering no longer swaps in the old static "starry" mood overlay.
     const user = userEvent.setup();
     const { container } = render(<MemoryRouter><Landing /></MemoryRouter>);
     await user.hover(screen.getByRole('link', { name: /Get started/ }));
-    expect(container.querySelector('.spark')).toHaveAttribute('data-state', 'starry');
+    expect(container.querySelector('.spark')).not.toHaveAttribute('data-state', 'starry');
     await user.unhover(screen.getByRole('link', { name: /Get started/ }));
     expect(container.querySelector('.spark')).toHaveAttribute('data-state', 'default');
   });

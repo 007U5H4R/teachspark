@@ -19,6 +19,8 @@ export interface BehaviorDef {
   /** Multiplier on the base max eye offset. */
   reach: number;
   blinkOnEnter: boolean;
+  /** Collapse just this one eye to a closed lid — a wink. Symmetric expressions leave it unset. */
+  wink?: 'left' | 'right';
 }
 
 export const BEHAVIORS: Record<Behavior, BehaviorDef> = {
@@ -31,6 +33,19 @@ export const BEHAVIORS: Record<Behavior, BehaviorDef> = {
   attention: { priority: 3, durationMs: 700,  gaze: 'cursor', reach: 1.1,  blinkOnEnter: false },
   error:     { priority: 4, durationMs: 1100, gaze: 'down',   reach: 0.6,  blinkOnEnter: true },
   surprised: { priority: 4, durationMs: 650,  gaze: 'cursor', reach: 1.2,  blinkOnEnter: false },
+  // Expressive emotion set (previewable; can be app-wired later). A blink on enter sells the shape
+  // change as deliberate rather than a jump.
+  happy:     { priority: 3, durationMs: 1200, gaze: 'up',     reach: 0.5,  blinkOnEnter: true },
+  sad:       { priority: 3, durationMs: 1400, gaze: 'down',   reach: 0.5,  blinkOnEnter: true },
+  angry:     { priority: 4, durationMs: 1100, gaze: 'cursor', reach: 0.7,  blinkOnEnter: true },
+  skeptical: { priority: 3, durationMs: 1200, gaze: 'away',   reach: 0.6,  blinkOnEnter: false },
+  wide:      { priority: 4, durationMs: 700,  gaze: 'cursor', reach: 1.15, blinkOnEnter: false },
+  squint:    { priority: 3, durationMs: 1000, gaze: 'cursor', reach: 0.7,  blinkOnEnter: true },
+  bored:     { priority: 2, durationMs: 1400, gaze: 'away',   reach: 0.4,  blinkOnEnter: false },
+  focused:   { priority: 3, durationMs: 1200, gaze: 'cursor', reach: 0.85, blinkOnEnter: false },
+  mischief:  { priority: 4, durationMs: 1200, gaze: 'cursor', reach: 0.8,  blinkOnEnter: true },
+  smug:      { priority: 3, durationMs: 1300, gaze: 'away',   reach: 0.5,  blinkOnEnter: false },
+  wink:      { priority: 3, durationMs: 1000, gaze: 'cursor', reach: 0.7,  blinkOnEnter: false, wink: 'left' },
 };
 
 export interface Machine {

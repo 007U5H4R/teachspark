@@ -71,7 +71,7 @@ export function Join() {
     setBanner(null);
     const fieldErrors = validateSignupForm(values);
     setErrors(fieldErrors);
-    if (Object.keys(fieldErrors).length) { sparkRef.current?.signal('error'); trackEvent('signup_failed', { reason: 'validation' }); return; }
+    if (Object.keys(fieldErrors).length) { sparkRef.current?.signal('sad'); trackEvent('signup_failed', { reason: 'validation' }); return; }
     setBusy(true);
     sparkRef.current?.signal('thinking'); // sustained: released on whichever branch resolves below
     const method = google ? 'google' : 'manual';
@@ -94,12 +94,12 @@ export function Join() {
       saveHandOff(h);
       setDone(true); // Spark beams for a beat before the hand-off screen
       sparkRef.current?.clear('thinking');
-      sparkRef.current?.signal('success');
+      sparkRef.current?.signal('happy');
       navTimerRef.current = setTimeout(() => navigate('/joined', { state: h }), 700);
     } catch (err) {
       setBusy(false);
       sparkRef.current?.clear('thinking');
-      sparkRef.current?.signal('error');
+      sparkRef.current?.signal('sad');
       if (err instanceof ApiError && err.status === 429) {
         trackEvent('signup_failed', { reason: 'rate_limited' });
         setBanner('Too many attempts from this network — please try again in a few minutes.');
@@ -135,7 +135,7 @@ export function Join() {
         {/* Calm mode: this orb sits beside a form the teacher is filling in, so it tracks and
             blinks but never wanders, sleeps or gets curious. It still reacts to real events —
             thinking / success / error are signalled explicitly from onSubmit. */}
-        <div style={{ width: 120, margin: '0 auto 8px' }}><Spark ref={sparkRef} expressive={false} mood={done ? 'happy' : 'default'} size={120} /></div>
+        <div style={{ width: 120, margin: '0 auto 8px' }}><Spark ref={sparkRef} expressive={false} size={120} /></div>
         <h1>Join the TeachSpark pilot</h1>
         <p className="form__lead">Two quick details and we'll hand you the WhatsApp link. Takes 15 seconds — no number to type.</p>
       </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clamp, eyeOffset, idlePointer, lerp, orbTilt, resolveEyeState, starPath } from '../src/components/spark/eyes.ts';
+import { clamp, eyeOffset, heartPath, idlePointer, lerp, orbTilt, resolveEyeState, spiralPath, starPath } from '../src/components/spark/eyes.ts';
 
 describe('eyeOffset', () => {
   const eye = { x: 100, y: 100 };
@@ -57,6 +57,21 @@ describe('helpers', () => {
     expect(radii).toHaveLength(10);
     expect(radii.filter((r) => Math.abs(r - 10) < 0.01)).toHaveLength(5); // 5 outer points
     expect(radii.filter((r) => Math.abs(r - 4) < 0.01)).toHaveLength(5);  // 5 inner notches
+  });
+  it('heartPath is a closed shape whose bottom point sits below its centre', () => {
+    const d = heartPath(100, 100, 18);
+    expect(d.startsWith('M')).toBe(true);
+    expect(d.endsWith('Z')).toBe(true);
+    // The reference heart's point is at +9 in its ±9 box => at cy + r for scale r/9.
+    expect(d).toContain('M 100.00 118.00'); // bottom point, r below centre
+    const ys = (d.match(/-?\d+\.\d{2}(?= |$)/g) ?? []).map(Number).filter((_, i) => i % 2 === 1);
+    expect(Math.max(...ys)).toBeCloseTo(118, 0); // nothing dips below the point
+  });
+  it('spiralPath starts at the centre and winds out to maxR', () => {
+    const d = spiralPath(100, 100, 20);
+    expect(d.startsWith('M100.00 100.00')).toBe(true); // begins at the centre
+    const last = d.trim().split('L').pop()!.split(' ').map(Number) as [number, number];
+    expect(Math.hypot(last[0] - 100, last[1] - 100)).toBeCloseTo(20, 0); // ends at the outer radius
   });
   it('idlePointer wanders a bounded envelope around the centre and keeps moving', () => {
     const c = { x: 200, y: 190 };

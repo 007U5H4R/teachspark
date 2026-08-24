@@ -13,6 +13,11 @@
 .spark[data-state='default'] .spark__eye-shape--default,
 .spark[data-state='puppy']   .spark__eye-shape--puppy,
 .spark[data-state='starry']  .spark__eye-shape--starry,
+.spark[data-state='love']    .spark__eye-shape--love,
+.spark[data-state='dizzy']   .spark__eye-shape--dizzy,
+.spark[data-state='money']   .spark__eye-shape--money,
+.spark[data-state='confused'] .spark__eye-shape--confused,
+.spark[data-state='dead']    .spark__eye-shape--dead,
 .spark[data-state='happy']   .spark__eye-shape--happy { opacity: 1; }
 
 /* Blink shows the neutral rect, which the animation loop has already collapsed to a lid. Keeping
@@ -30,6 +35,27 @@
   50% { transform: scale(1.16) rotate(10deg); }
 }
 
+/* Heart eyes: a warm red glow and a two-beat heartbeat, each heart scaling about its own centre. */
+.spark__eye-shape--love {
+  transform-box: fill-box; transform-origin: center;
+  animation: spark-heartbeat 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 77, 109, 0.75));
+}
+@keyframes spark-heartbeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.22); }
+  30% { transform: scale(1.05); }
+  45% { transform: scale(1.15); }
+}
+
+/* Dizzy eyes: blue spirals that slowly spin. */
+.spark__eye-shape--dizzy {
+  transform-box: fill-box; transform-origin: center;
+  animation: spark-spin 2.4s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(74, 163, 255, 0.7));
+}
+@keyframes spark-spin { to { transform: rotate(360deg); } }
+
 /* Orb brightness is part of the expression, not decoration: it rises on notice and acknowledgment
    and falls away as the orb rests. Kept small — a big swing reads as a light bulb, not a mood. */
 .spark[data-behavior='surprised'] .spark__svg,
@@ -40,6 +66,8 @@
 .spark[data-behavior='thinking'] .spark__svg { filter: brightness(0.95); }
 
 @media (prefers-reduced-motion: reduce) {
-  .spark__eye-shape--starry { animation: none; }
+  .spark__eye-shape--starry,
+  .spark__eye-shape--love,
+  .spark__eye-shape--dizzy { animation: none; }
   .spark__svg { transition: none; }
 }

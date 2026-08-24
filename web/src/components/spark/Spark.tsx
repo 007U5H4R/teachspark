@@ -1,6 +1,6 @@
 import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { eyeOffset, idlePointer, orbTilt, resolveEyeState, starPath, type Mood, type Point } from './eyes.ts';
-import { applyBlink, eyeRect, lerpShape, NEUTRAL, shapeFor, type Behavior, type EyeShape } from './eyeShape.ts';
+import { eyeOffset, heartPath, idlePointer, orbTilt, resolveEyeState, spiralPath, starPath, type Mood, type Point } from './eyes.ts';
+import { applyBlink, eyePath, lerpShape, NEUTRAL, shapeFor, type Behavior, type EyeShape } from './eyeShape.ts';
 import { breathe, lookAround, saccade, smoothSpeed, stepSpring, tuningForSpeed, type Spring } from './gaze.ts';
 import { activeBehavior, BEHAVIORS, initialMachine, release, request, setBase, tick, type Machine } from './sparkState.ts';
 import { blinkAmount, planBlink, type BlinkPlan } from './blink.ts';
@@ -30,6 +30,8 @@ export interface SparkProps {
    * exists for. Calm keeps gaze + blink and drops the rest.
    */
   expressive?: boolean;
+  /** Pin the eyes to one expression and centre the gaze — for the expression preview/gallery. */
+  hold?: Behavior;
   ref?: Ref<SparkHandle>;
 }
 
@@ -41,12 +43,13 @@ export interface SparkHandle {
 
 function Eye({ cx, cy, side }: { cx: number; cy: number; side: 'left' | 'right' }) {
   const tilt = side === 'left' ? -6 : 6;
-  const r = eyeRect(NEUTRAL, cx, cy, side);
+  const p = eyePath(NEUTRAL, cx, cy, side);
   return (
     <g data-eye={side}>
-      {/* The neutral eye is now a parametric rect the animation loop rewrites each frame; the
-          three drawn expressions below stay as-is and cross-fade over it by data-state. */}
-      <rect className="spark__eye-shape spark__eye-shape--default" x={r.x} y={r.y} width={r.width} height={r.height} rx={r.rx} fill="#fff" />
+      {/* The neutral eye is now a parametric path the animation loop rewrites each frame (a path so
+          it can bow into happy/sad crescents); the drawn expressions below cross-fade over it by
+          data-state. */}
+      <path className="spark__eye-shape spark__eye-shape--default" d={p.d} fill="#fff" />
       <g className="spark__eye-shape spark__eye-shape--puppy" transform={`rotate(${tilt} ${cx} ${cy})`}>
         <rect x={cx - 23} y={cy - 38} width={46} height={76} rx={22} fill="#fff" />
         <circle cx={cx - 8} cy={cy - 20} r={6} fill="#b6ff3b" />
@@ -60,11 +63,21 @@ function Eye({ cx, cy, side }: { cx: number; cy: number; side: 'left' | 'right' 
         fill="var(--gold)"
       />
       <path className="spark__eye-shape spark__eye-shape--happy" d={`M ${cx - 22} ${cy + 8} Q ${cx} ${cy - 24} ${cx + 22} ${cy + 8}`} stroke="#fff" strokeWidth={9} strokeLinecap="round" fill="none" />
+      {/* Heart eyes — a red, gently-beating heart per eye. */}
+      <path className="spark__eye-shape spark__eye-shape--love" d={heartPath(cx, cy - 2, 22)} fill="#ff4d6d" />
+      {/* Dizzy eyes — a blue spiral per eye, spun by CSS. */}
+      <path className="spark__eye-shape spark__eye-shape--dizzy" d={spiralPath(cx, cy, 20)} stroke="#4aa3ff" strokeWidth={5} strokeLinecap="round" fill="none" />
+      {/* Money eyes — a gold currency glyph. */}
+      <text className="spark__eye-shape spark__eye-shape--money" x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={58} fontWeight={800} fontFamily="Inter, system-ui, sans-serif" fill="var(--gold)">$</text>
+      {/* Confused — a light-blue question mark. */}
+      <text className="spark__eye-shape spark__eye-shape--confused" x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={58} fontWeight={800} fontFamily="Inter, system-ui, sans-serif" fill="#8fd0ff">?</text>
+      {/* Dead — crossed-out "X" eyes. */}
+      <path className="spark__eye-shape spark__eye-shape--dead" d={`M ${cx - 15} ${cy - 15} L ${cx + 15} ${cy + 15} M ${cx + 15} ${cy - 15} L ${cx - 15} ${cy + 15}`} stroke="#e5e5e5" strokeWidth={7} strokeLinecap="round" fill="none" />
     </g>
   );
 }
 
-export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, expressive = true, ref }: SparkProps) {
+export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, expressive = true, hold, ref }: SparkProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const eyesRef = useRef<SVGGElement>(null);
   const [hovered, setHovered] = useState(false);
@@ -77,6 +90,8 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
   const blinkRef = useRef<{ start: number; plan: BlinkPlan } | null>(null);
   const expressiveRef = useRef(expressive);
   expressiveRef.current = expressive;
+  const holdRef = useRef(hold);
+  holdRef.current = hold;
 
   useImperativeHandle(ref, () => ({
     signal(b) { machineRef.current = request(machineRef.current, b, performance.now()); },
@@ -131,8 +146,8 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
     if (!svg || !eyes || typeof window.matchMedia !== 'function') return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const canHover = window.matchMedia('(hover: hover)').matches;
-    const rects = Array.from(svg.querySelectorAll<SVGRectElement>('.spark__eye-shape--default'));
-    if (rects.length !== 2) return;
+    const eyePaths = Array.from(svg.querySelectorAll<SVGPathElement>('.spark__eye-shape--default'));
+    if (eyePaths.length !== 2) return;
 
     // Reduced motion keeps a gentle gaze instead of freezing: losing the tracking entirely also
     // loses the feedback that the orb is a live element. Amplitude drops, extras go.
@@ -226,7 +241,8 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
       }
       machineRef.current = m;
 
-      const b = activeBehavior(m);
+      // `hold` (preview mode) pins one expression and ignores the machine entirely.
+      const b = holdRef.current ?? activeBehavior(m);
       if (b !== lastState) { lastState = b; setBehavior(b); }
 
       // Pointer speed drives how eagerly the spring reacts.
@@ -234,7 +250,8 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
       if (pointerSvg && prevPointer) speed = smoothSpeed(speed, pointerSvg.x - prevPointer.x, pointerSvg.y - prevPointer.y, dts);
       prevPointer = pointerSvg;
 
-      let target = gazeTarget(b, now, MAX_EYE_OFFSET * amp);
+      // Held preview eyes rest centred; otherwise follow the behaviour's gaze.
+      let target = holdRef.current ? { x: 0, y: 0 } : gazeTarget(b, now, MAX_EYE_OFFSET * amp);
 
       // The idle glance overrides the resting gaze, then hands control straight back.
       if (lookStart !== 0) {
@@ -257,15 +274,13 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
       shape = lerpShape(shape, want, 1 - Math.pow(1 - 0.12, dt / FRAME_60_MS));
       const bl = blinkRef.current ? blinkAmount(blinkRef.current.plan, now - blinkRef.current.start) : 0;
       const drawn = applyBlink(shape, bl);
+      const winkSide = BEHAVIORS[b].wink; // shut just one eye for a wink
       for (let i = 0; i < 2; i++) {
-        const el = rects[i]!;
+        const el = eyePaths[i]!;
         const side = i === 0 ? 'left' : 'right';
-        const e = eyeRect(drawn, EYES[i]!.x, EYES[i]!.y, side);
-        el.setAttribute('x', String(e.x));
-        el.setAttribute('y', String(e.y));
-        el.setAttribute('width', String(e.width));
-        el.setAttribute('height', String(e.height));
-        el.setAttribute('rx', String(e.rx));
+        const sideShape = winkSide === side ? applyBlink(drawn, 1) : drawn; // collapse the winking eye to a lid
+        const e = eyePath(sideShape, EYES[i]!.x, EYES[i]!.y, side);
+        el.setAttribute('d', e.d);
         if (e.transform) el.setAttribute('transform', e.transform);
         else el.removeAttribute('transform');
       }
@@ -323,7 +338,8 @@ export function Spark({ mood = 'default', size = 460, blinkEveryMs, className, e
     };
   }, []);
 
-  const state = resolveEyeState({ mood, hovered, blinking });
+  // A held (preview) orb always shows the parametric expression — never the hover/puppy overlay.
+  const state = hold ? (blinking ? 'blink' : 'default') : resolveEyeState({ mood, hovered, blinking });
   return (
     <div className={['spark', className].filter(Boolean).join(' ')} style={{ maxWidth: size }} data-state={state} data-behavior={behavior}
       onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
