@@ -37,7 +37,13 @@ export function useScrollOnNavigation(): void {
         if (!el) return;
         // Prefer the enclosing section so the heading is not jammed against the viewport edge —
         // the section's top padding scrolls in with it.
-        (el.closest('section') ?? el).scrollIntoView({ block: 'start' });
+        //
+        // behavior: 'instant' is load-bearing, not a preference. `html { scroll-behavior: smooth }`
+        // is set globally, and a *smooth* scrollIntoView is silently dropped here (the scroll never
+        // starts), so an in-page nav click — Demo, How it works, Why teachers use it — left the page
+        // sitting at the top. An explicit instant jump overrides the inherited smoothness and always
+        // lands. Matches the route-change branch below, which is instant for its own reasons.
+        (el.closest('section') ?? el).scrollIntoView({ block: 'start', behavior: 'instant' });
         return;
       }
       // Instant, not smooth: the page underneath has already been replaced, so animating a scroll

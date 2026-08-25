@@ -14,7 +14,8 @@ describe('Footer', () => {
     expect(within(footer).getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#how');
     expect(within(footer).getByRole('link', { name: 'Why teachers use it' })).toHaveAttribute('href', '/#why');
     // Regression: the footer used to omit the Demo link the nav offers (it must mirror the nav).
-    expect(within(footer).getByRole('link', { name: 'Demo' })).toHaveAttribute('href', '/demo');
+    // Demo is now a landing-page section (#demo), not a standalone route.
+    expect(within(footer).getByRole('link', { name: 'Demo' })).toHaveAttribute('href', '/#demo');
     expect(within(footer).getByRole('link', { name: 'Join the pilot' })).toHaveAttribute('href', '/join');
   });
 

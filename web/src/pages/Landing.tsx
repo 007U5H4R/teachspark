@@ -4,6 +4,7 @@ import { Spark } from '../components/spark/Spark.tsx';
 import type { Behavior } from '../components/spark/eyeShape.ts';
 import type { Mood } from '../components/spark/eyes.ts';
 import { NeonButton } from '../components/NeonButton.tsx';
+import { PhoneDemo } from '../components/PhoneDemo.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { saveSource } from '../lib/session.ts';
 import { onOrbHover, type OrbIntent } from '../lib/ctaHover.ts';
@@ -180,6 +181,14 @@ export function Landing() {
           <article className="card"><span className="card__num">2</span><h3>Get a 3-level worksheet</h3><p>Support / On-level / Challenge, with an answer key — as a WhatsApp message and a PDF, in about two minutes.</p></article>
           <article className="card"><span className="card__num">3</span><h3>Keep the prompt</h3><p>It sends you the exact prompt, so you can do the same thing yourself in ChatGPT or Gemini next time.</p></article>
         </div>
+      </section>
+
+      {/* Demo segment. The nav's "Demo" pill points here (/#demo); the standalone /demo page was
+          folded into this section so the walkthrough follows the three steps above. */}
+      <section className="section" aria-labelledby="demo">
+        <h2 id="demo">See it in action</h2>
+        <p className="section__lead">A quick walkthrough of the whole thing — sign up, connect on WhatsApp, and make your first worksheet. This is exactly what you'll do once you join.</p>
+        <div className="section__demo"><PhoneDemo autoPlay /></div>
       </section>
 
       <section className="section" aria-labelledby="why">

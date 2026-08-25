@@ -208,11 +208,8 @@ button, input, select { font: inherit; }
 .joined__demo { margin: var(--sp-8) auto var(--sp-10); }
 .joined__demo-label { color: var(--muted); font-size: var(--fs-sm); margin: 0 0 var(--sp-4); }
 
-/* ---------------------------------------------------------------- Demo page */
-.demo { max-width: 680px; margin: 0 auto; padding: var(--sp-10) var(--sp-5) var(--sp-16); text-align: center; }
-.demo__title { font-size: var(--fs-3xl); margin: 0 0 var(--sp-4); }
-.demo__lead { color: var(--muted); max-width: 46ch; margin: 0 auto var(--sp-10); line-height: var(--lh-base); text-wrap: balance; }
-.demo__cta { margin-top: var(--sp-10); }
+/* ---------------------------------------------------------------- Demo segment (landing #demo) */
+.section__demo { margin-top: var(--sp-4); }
 
 /* ---------------------------------------------------------------- Admin */
 .admin { padding: var(--sp-6) 0 var(--sp-16); }

@@ -8,6 +8,7 @@ import { trackEvent } from '../lib/api.ts';
 // Only Home is a NavLink: NavLink's active check ignores the hash, so '/#how' would also light up on '/'.
 const ANCHORS = [
   { to: '/#how', label: 'How it works' },
+  { to: '/#demo', label: 'Demo' },
   { to: '/#why', label: 'Why teachers use it' },
 ];
 
@@ -68,7 +69,6 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
         {ANCHORS.map((l) => (
           <li key={l.to}><Link to={l.to} className="nav__pill" onClick={close}>{l.label}</Link></li>
         ))}
-        <li><NavLink to="/demo" className="nav__pill" onClick={close}>Demo</NavLink></li>
       </ul>
       <div className="nav__cta" onPointerEnter={() => emitOrbHover('love')} onPointerLeave={() => emitOrbHover(null)}>
         {showSignup && <NeonButton to="/join" onClick={() => trackEvent('cta_tapped', { where: 'nav' })}>Sign up</NeonButton>}

@@ -3,11 +3,11 @@ import { Wordmark } from './Wordmark.tsx';
 
 // Same '/#hash' form the nav uses (Nav.tsx:6-9): a routed link back to the landing page's section,
 // so these still work from /join and /joined where those anchors do not exist.
-// '/demo' is a real route (App.tsx) and mirrors the nav's Demo pill — keep the two lists in step.
+// Keep this list in step with the nav's pills.
 const LINKS = [
   { to: '/#how', label: 'How it works' },
+  { to: '/#demo', label: 'Demo' },
   { to: '/#why', label: 'Why teachers use it' },
-  { to: '/demo', label: 'Demo' },
   { to: '/join', label: 'Join the pilot' },
 ];
 

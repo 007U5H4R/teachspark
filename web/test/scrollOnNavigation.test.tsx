@@ -62,6 +62,9 @@ describe('useScrollOnNavigation', () => {
       expect(intoView).toHaveBeenCalledTimes(1);
       // Prefers the enclosing <section> so the heading is not flush against the viewport edge.
       expect(intoView.mock.instances[0]).toBe(document.querySelector('section[aria-labelledby="why"]'));
+      // Regression: html { scroll-behavior: smooth } silently drops a smooth scrollIntoView in the
+      // browser, so the click left the page at the top. The jump must be an explicit instant one.
+      expect(intoView.mock.calls[0]![0]).toHaveProperty('behavior', 'instant');
     });
 
     it('resolves a hash on a cold load, which the browser cannot do for an SPA route', () => {
