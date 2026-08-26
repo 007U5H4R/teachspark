@@ -63,11 +63,10 @@
 .landing-v2 .v2-hero__proof{margin-top:18px;font-size:14px;color:var(--v2-muted-dim);display:flex;align-items:center;gap:8px}
 .landing-v2 .v2-hero__proof b{color:var(--v2-accent-strong);font-weight:600}
 .landing-v2 .v2-hero__orb{position:relative;display:grid;place-items:center;cursor:pointer}
-/* Dark disc behind the orb — recreates the original dark-site surround so the orb reads deep and
-   rich instead of washed-out mint on plain white. A backdrop (not a filter) keeps the eyes white. */
-.landing-v2 .v2-hero__orb{isolation:isolate}
-.landing-v2 .v2-hero__orb::before{content:"";position:absolute;width:min(76%,330px);aspect-ratio:1;left:50%;top:47%;transform:translate(-50%,-50%);background:radial-gradient(circle,#071c12 0%,#071c12 55%,rgba(7,28,18,.5) 73%,rgba(7,28,18,0) 90%);border-radius:50%;z-index:0}
-.landing-v2 .v2-hero__orb .spark{position:relative;z-index:1;width:min(76%,330px);margin:0 auto;filter:saturate(1.25) drop-shadow(0 18px 28px rgba(6,24,15,.42))}
+/* Deepen the orb's greens on the light bg with a filter only — no dark disc/ring behind it. */
+/* Deepen the orb to the original dark-green — a filter darkens only the orb itself, so the dark
+   stops at the circle's edge (no dark ring/disc spilling onto the light page). */
+.landing-v2 .v2-hero__orb .spark{width:min(76%,330px);margin:0 auto;filter:saturate(1.55) contrast(1.14) brightness(.7) drop-shadow(0 16px 26px rgba(6,24,15,.26))}
 
 /* trust band */
 .landing-v2 .v2-trust{border-top:1px solid var(--v2-border);border-bottom:1px solid var(--v2-border);background:var(--v2-surface)}
@@ -150,7 +149,6 @@
   .landing-v2 .v2-hero h1,.landing-v2 .v2-hero__sub{max-width:none}
   .landing-v2 .v2-hero__cta,.landing-v2 .v2-hero__proof{justify-content:center}
   .landing-v2 .v2-hero__orb{order:-1}.landing-v2 .v2-hero__orb .spark{width:190px}
-  .landing-v2 .v2-hero__orb::before{width:190px}
   .landing-v2 .v2-trust__in{grid-template-columns:1fr 1fr}
   .landing-v2 .v2-trust__item:nth-child(3){border-left:0}
   .landing-v2 .v2-trust__item:nth-child(n+3){border-top:1px solid var(--v2-border)}
