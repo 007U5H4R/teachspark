@@ -21,7 +21,7 @@ describe('LandingV2 (Trusted Teal alternate)', () => {
     expect(screen.getByRole('heading', { name: /Three steps, all inside WhatsApp/ })).toBeInTheDocument();
     expect(screen.getAllByText(/No student data, ever/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Built for my mother, a Sanskrit teacher/)).toBeInTheDocument();
-    expect(screen.getByText(/18 teachers on the pilot/)).toBeInTheDocument();
+    expect(screen.getByText(/19 teachers on the pilot/)).toBeInTheDocument();
   });
 
   it('tracks landing_view once per session and stores ?src=', () => {

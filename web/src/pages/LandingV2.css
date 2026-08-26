@@ -68,7 +68,7 @@
    reads deep with its eyes still WHITE (no brightness filter that would grey them). The heavy blur
    feathers the halo into the light page instead of a hard ring/border. */
 .landing-v2 .v2-hero__orb{isolation:isolate}
-.landing-v2 .v2-hero__orb::before{content:"";position:absolute;width:min(84%,360px);aspect-ratio:1;left:50%;top:47%;transform:translate(-50%,-50%);background:radial-gradient(circle,#0a2418 0%,#0a2418 44%,rgba(10,36,26,.4) 62%,rgba(10,36,26,0) 80%);border-radius:50%;filter:blur(11px);z-index:0}
+.landing-v2 .v2-hero__orb::before{content:"";position:absolute;width:min(66%,282px);aspect-ratio:1;left:50%;top:47%;transform:translate(-50%,-50%);background:radial-gradient(circle,#0a2418 0%,#0a2418 72%,rgba(10,36,26,.35) 88%,rgba(10,36,26,0) 100%);border-radius:50%;filter:blur(8px);z-index:0}
 .landing-v2 .v2-hero__orb .spark{position:relative;z-index:1;width:min(76%,330px);margin:0 auto;filter:saturate(1.3) drop-shadow(0 16px 26px rgba(6,24,15,.28))}
 
 /* trust band */
@@ -152,7 +152,7 @@
   .landing-v2 .v2-hero h1,.landing-v2 .v2-hero__sub{max-width:none}
   .landing-v2 .v2-hero__cta,.landing-v2 .v2-hero__proof{justify-content:center}
   .landing-v2 .v2-hero__orb{order:-1}.landing-v2 .v2-hero__orb .spark{width:190px}
-  .landing-v2 .v2-hero__orb::before{width:220px;filter:blur(9px)}
+  .landing-v2 .v2-hero__orb::before{width:162px;filter:blur(6px)}
   .landing-v2 .v2-trust__in{grid-template-columns:1fr 1fr}
   .landing-v2 .v2-trust__item:nth-child(3){border-left:0}
   .landing-v2 .v2-trust__item:nth-child(n+3){border-top:1px solid var(--v2-border)}

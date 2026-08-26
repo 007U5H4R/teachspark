@@ -136,7 +136,7 @@ export function LandingV2() {
           <div className="v2-wrap v2-trust__in">
             <div className="v2-trust__item"><span className="v2-trust__ic"><IconShield /></span><div><div className="v2-trust__t">No student data, ever</div><div className="v2-trust__d">It never asks for a single student detail.</div></div></div>
             <div className="v2-trust__item"><span className="v2-trust__ic"><IconBook /></span><div><div className="v2-trust__t">Built for your board</div><div className="v2-trust__d">CBSE, ICSE or state — in the language you teach.</div></div></div>
-            <div className="v2-trust__item"><span className="v2-trust__ic"><IconUsers /></span><div><div className="v2-trust__t">18 teachers on the pilot</div><div className="v2-trust__d">Free, and you can leave anytime.</div></div></div>
+            <div className="v2-trust__item"><span className="v2-trust__ic"><IconUsers /></span><div><div className="v2-trust__t">19 teachers on the pilot</div><div className="v2-trust__d">Free, and you can leave anytime.</div></div></div>
             <div className="v2-trust__item"><span className="v2-trust__ic"><IconHeart /></span><div><div className="v2-trust__t">Made for a real teacher</div><div className="v2-trust__d">Built for my mother, a Sanskrit teacher.</div></div></div>
           </div>
         </section>
@@ -159,7 +159,7 @@ export function LandingV2() {
             <div className="v2-proof" data-reveal>
               <div><div className="n">~2 min</div><div className="l">To a full 3-level worksheet</div></div>
               <div><div className="n">3</div><div className="l">Ability levels + answer key</div></div>
-              <div><div className="n">18</div><div className="l">Teachers already using it</div></div>
+              <div><div className="n">19</div><div className="l">Teachers already using it</div></div>
               <div><div className="n">0</div><div className="l">Student details ever collected</div></div>
             </div>
           </div>
