@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { PhoneDemo } from '../components/PhoneDemo.tsx';
@@ -36,6 +36,22 @@ function V2Orb() {
     </svg>
   );
 }
+
+/** One consistent line-icon system (1.7 stroke, currentColor) — replaces emoji so the marks read as
+ *  one drawn set, not a platform-dependent grab-bag. Lucide-style geometry. */
+function Ic({ children, size = 20 }: { children: ReactNode; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+  );
+}
+const IconShield = ({ size }: { size?: number }) => <Ic size={size}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></Ic>;
+const IconBook = () => <Ic><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Ic>;
+const IconUsers = () => <Ic><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></Ic>;
+const IconHeart = () => <Ic><path d="M20.8 5.1a5 5 0 0 0-7.1 0L12 6.8l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21l8.8-8.8a5 5 0 0 0 0-7.1z" /></Ic>;
+const IconFile = () => <Ic><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8M8 17h6" /></Ic>;
+const IconGlobe = () => <Ic><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z" /></Ic>;
+const IconChat = () => <Ic><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.9 9.9 0 0 1-4-.9L3 21l1.9-4.5A8.4 8.4 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" /></Ic>;
+const IconGift = () => <Ic><path d="M20 12v9H4v-9" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></Ic>;
 
 /**
  * "Trusted Teal" alternate landing (route /v2). Self-contained and fully scoped under .landing-v2;
@@ -107,7 +123,7 @@ export function LandingV2() {
                 <Link className="v2-btn v2-btn--primary v2-btn--lg" to="/join" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get my first worksheet</Link>
                 <a className="v2-btn v2-btn--ghost v2-btn--lg" href="#v2-how">See how it works</a>
               </div>
-              <p className="v2-hero__proof">🔒 <b>No student data, ever.</b> · CBSE, ICSE &amp; state boards</p>
+              <p className="v2-hero__proof"><span className="v2-proof-ic"><IconShield size={16} /></span><b>No student data, ever.</b> · CBSE, ICSE &amp; state boards</p>
             </div>
             <div className="v2-hero__orb" onClick={onOrbTap}>
               <Spark hold={hold} mood={mood} holdGaze={gaze} />
@@ -118,10 +134,10 @@ export function LandingV2() {
         {/* TRUST BAND */}
         <section className="v2-trust" aria-label="Why you can trust it">
           <div className="v2-wrap v2-trust__in">
-            <div className="v2-trust__item"><span className="v2-trust__ic">🔒</span><div><div className="v2-trust__t">No student data, ever</div><div className="v2-trust__d">It never asks for a single student detail.</div></div></div>
-            <div className="v2-trust__item"><span className="v2-trust__ic">📚</span><div><div className="v2-trust__t">Built for your board</div><div className="v2-trust__d">CBSE, ICSE or state — in the language you teach.</div></div></div>
-            <div className="v2-trust__item"><span className="v2-trust__ic">👩‍🏫</span><div><div className="v2-trust__t">18 teachers on the pilot</div><div className="v2-trust__d">Free, and you can leave anytime.</div></div></div>
-            <div className="v2-trust__item"><span className="v2-trust__ic">💚</span><div><div className="v2-trust__t">Made for a real teacher</div><div className="v2-trust__d">Built for my mother, a Sanskrit teacher.</div></div></div>
+            <div className="v2-trust__item"><span className="v2-trust__ic"><IconShield /></span><div><div className="v2-trust__t">No student data, ever</div><div className="v2-trust__d">It never asks for a single student detail.</div></div></div>
+            <div className="v2-trust__item"><span className="v2-trust__ic"><IconBook /></span><div><div className="v2-trust__t">Built for your board</div><div className="v2-trust__d">CBSE, ICSE or state — in the language you teach.</div></div></div>
+            <div className="v2-trust__item"><span className="v2-trust__ic"><IconUsers /></span><div><div className="v2-trust__t">18 teachers on the pilot</div><div className="v2-trust__d">Free, and you can leave anytime.</div></div></div>
+            <div className="v2-trust__item"><span className="v2-trust__ic"><IconHeart /></span><div><div className="v2-trust__t">Made for a real teacher</div><div className="v2-trust__d">Built for my mother, a Sanskrit teacher.</div></div></div>
           </div>
         </section>
 
@@ -156,14 +172,14 @@ export function LandingV2() {
             <div className="v2-split" style={{ marginBottom: 30 }} data-reveal>
               <img className="v2-illo" src="/img/teacher-prep.jpg" width={1000} height={737} loading="lazy" alt="A teacher preparing a question paper at her desk under a warm lamp" />
               <div>
-                <div className="v2-card" style={{ marginBottom: 14 }}><h3><span className="v2-ic">📄</span>Question papers from photos</h3><p>Type <b>PAPER</b>, send photos of a textbook chapter, and get a complete question paper as an editable Word file — answer key included.</p></div>
-                <div className="v2-card"><h3><span className="v2-ic">🌐</span>Your board, your language</h3><p>CBSE, ICSE or state board, differentiated for the class you actually have — in English, Hindi, Sanskrit and more.</p></div>
+                <div className="v2-card" style={{ marginBottom: 14 }}><h3><span className="v2-ic"><IconFile /></span>Question papers from photos</h3><p>Type <b>PAPER</b>, send photos of a textbook chapter, and get a complete question paper as an editable Word file — answer key included.</p></div>
+                <div className="v2-card"><h3><span className="v2-ic"><IconGlobe /></span>Your board, your language</h3><p>CBSE, ICSE or state board, differentiated for the class you actually have — in English, Hindi, Sanskrit and more.</p></div>
               </div>
             </div>
             <div className="v2-why" data-reveal>
-              <div className="v2-card"><h3><span className="v2-ic">🔒</span>Private by design</h3><p>It never asks for student data — please don't send any.</p></div>
-              <div className="v2-card"><h3><span className="v2-ic">📱</span>No install, no login</h3><p>If you can send a WhatsApp message, you can use it.</p></div>
-              <div className="v2-card"><h3><span className="v2-ic">🆓</span>Free while it's a pilot</h3><p>I'm learning from teachers, not selling.</p></div>
+              <div className="v2-card"><h3><span className="v2-ic"><IconShield /></span>Private by design</h3><p>It never asks for student data — please don't send any.</p></div>
+              <div className="v2-card"><h3><span className="v2-ic"><IconChat /></span>No install, no login</h3><p>If you can send a WhatsApp message, you can use it.</p></div>
+              <div className="v2-card"><h3><span className="v2-ic"><IconGift /></span>Free while it's a pilot</h3><p>I'm learning from teachers, not selling.</p></div>
             </div>
           </div>
         </section>
@@ -211,7 +227,7 @@ export function LandingV2() {
             <h2>Make your first worksheet tonight.</h2>
             <p>Two quick details and we'll hand you the WhatsApp link. Takes 15 seconds — no number to type.</p>
             <Link className="v2-btn v2-btn--primary v2-btn--lg" to="/join" onClick={() => trackEvent('cta_tapped', { where: 'why' })}>Join the free pilot →</Link>
-            <p className="v2-hero__proof" style={{ justifyContent: 'center', marginTop: 18 }}>🔒 <b>No student data, ever.</b></p>
+            <p className="v2-hero__proof" style={{ justifyContent: 'center', marginTop: 18 }}><span className="v2-proof-ic"><IconShield size={16} /></span><b>No student data, ever.</b></p>
           </div>
         </section>
       </main>

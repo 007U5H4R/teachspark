@@ -4,7 +4,7 @@
 
 /* /v2 fills the viewport: the global .shell caps width at 1200px and centres on the dark body,
    which shows as black side-bars on wide screens. On /v2 the shell is unconstrained. */
-.shell--bare{max-width:none;margin:0}
+.shell--bare{max-width:none;margin:0;padding:0}
 .landing-v2{
   min-height:100vh;
   --v2-bg:#FFFFFF; --v2-surface:#F6F9FA; --v2-surface-2:#EEF4F5;
@@ -30,9 +30,9 @@
 .landing-v2 .v2-wrap{max-width:var(--v2-maxw);margin:0 auto;padding:0 clamp(18px,4vw,40px)}
 
 /* reveal-on-scroll (IntersectionObserver adds .is-in) */
-.landing-v2 [data-reveal]{opacity:0;transform:translateY(16px);transition:opacity .7s var(--v2-ease),transform .7s var(--v2-ease)}
-.landing-v2 [data-reveal].is-in{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){.landing-v2 [data-reveal]{opacity:1;transform:none;transition:none}}
+.landing-v2 [data-reveal]{opacity:0;transform:translateY(18px);filter:blur(6px);transition:opacity .8s var(--v2-ease),transform .8s var(--v2-ease),filter .8s var(--v2-ease)}
+.landing-v2 [data-reveal].is-in{opacity:1;transform:none;filter:blur(0)}
+@media(prefers-reduced-motion:reduce){.landing-v2 [data-reveal]{opacity:1;transform:none;filter:none;transition:none}}
 
 /* nav */
 .landing-v2 .v2-nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--v2-bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--v2-border)}
@@ -86,9 +86,11 @@
 .landing-v2 .v2-head p{color:var(--v2-muted);font-size:1.05rem;margin-top:12px}
 .landing-v2 .v2-split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,48px);align-items:center}
 .landing-v2 .v2-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.landing-v2 .v2-card{background:var(--v2-surface);border:1px solid var(--v2-border);border-radius:var(--v2-radius);padding:22px;box-shadow:var(--v2-shadow-sm);transition:.25s var(--v2-ease);position:relative;overflow:hidden}
-.landing-v2 .v2-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--v2-accent);opacity:.85}
+.landing-v2 .v2-card{background:var(--v2-surface);border:1px solid var(--v2-border);border-radius:var(--v2-radius);padding:24px;box-shadow:var(--v2-shadow-sm);transition:transform .25s var(--v2-ease),box-shadow .25s var(--v2-ease),border-color .25s var(--v2-ease)}
 .landing-v2 .v2-card:hover{transform:translateY(-3px);box-shadow:var(--v2-shadow-md);border-color:var(--v2-border-strong)}
+/* one drawn icon system — sized and coloured consistently in the tinted chips */
+.landing-v2 .v2-trust__ic svg,.landing-v2 .v2-ic svg{width:20px;height:20px;display:block}
+.landing-v2 .v2-proof-ic{color:var(--v2-accent-strong);display:inline-flex;align-items:center;flex:0 0 auto}
 .landing-v2 .v2-num{width:32px;height:32px;border-radius:8px;background:var(--v2-accent);color:#fff;font-weight:800;display:grid;place-items:center;margin-bottom:14px}
 .landing-v2 .v2-card h3{font-size:1.16rem}
 .landing-v2 .v2-card p{color:var(--v2-muted);font-size:.96rem;margin-top:8px}
