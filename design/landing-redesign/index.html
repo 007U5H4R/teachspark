@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TeachSpark landing — redesign options</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:#FAFAF6;color:#13211B;line-height:1.55}
+.wrap{max-width:1000px;margin:0 auto;padding:56px 24px 80px}
+h1{font-family:"Baloo 2",sans-serif;font-size:clamp(2rem,5vw,3rem);margin:0 0 8px}
+.lead{color:#566259;font-size:1.1rem;max-width:60ch;margin:0 0 40px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.opt{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #E7E3D9;border-radius:20px;overflow:hidden;box-shadow:0 1px 2px rgba(19,33,27,.05);transition:.25s cubic-bezier(.32,.72,0,1)}
+.opt:hover{transform:translateY(-4px);box-shadow:0 20px 40px -22px rgba(19,33,27,.3);border-color:#CDE6D8}
+.sw{height:88px;display:flex}
+.sw span{flex:1}
+.opt__b{padding:20px}
+.tag{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#0F7A4F}
+.opt h2{font-family:"Baloo 2",sans-serif;font-size:1.3rem;margin:6px 0 6px}
+.opt p{color:#566259;font-size:.95rem;margin:0}
+.rec{display:inline-block;margin-left:8px;font-size:11px;font-weight:700;color:#0B5C3B;background:#E7F3EC;border:1px solid #CDE6D8;padding:2px 8px;border-radius:999px;vertical-align:middle}
+.note{margin-top:40px;color:#7C877E;font-size:.9rem}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Landing redesign — three directions</h1>
+<p class="lead">Light &amp; clean, professional &amp; trustworthy, keeping the Spark orb. Same content and information architecture; different palette, type and personality. Open each and compare.</p>
+<div class="grid">
+  <a class="opt" href="option-a.html">
+    <div class="sw"><span style="background:#FAFAF6"></span><span style="background:#0F7A4F"></span><span style="background:#0B5C3B"></span></div>
+    <div class="opt__b"><div class="tag">Option A</div><h2>Calm Green<span class="rec">Recommended</span></h2><p>Off-white, deep emerald accent, Baloo 2 headline. Most cohesive with the brand green and the orb — safest, biggest credibility gain.</p></div>
+  </a>
+  <a class="opt" href="option-b.html">
+    <div class="sw"><span style="background:#FFFFFF"></span><span style="background:#0E7C86"></span><span style="background:#0A575F"></span></div>
+    <div class="opt__b"><div class="tag">Option B</div><h2>Trusted Teal</h2><p>White, calm teal accent, crisp Inter throughout, a structured proof strip. Reads most "a school would endorse this."</p></div>
+  </a>
+  <a class="opt" href="option-c.html">
+    <div class="sw"><span style="background:#F7F1E4"></span><span style="background:#1E6B45"></span><span style="background:#14502F"></span></div>
+    <div class="opt__b"><div class="tag">Option C</div><h2>Warm Paper</h2><p>Cream/paper feel (evokes worksheets), deep green, a dedicated founder-story moment. Most human and distinctive.</p></div>
+  </a>
+</div>
+<p class="note">Mockups are static design artifacts. The real build reuses the actual Spark &amp; PhoneDemo components with its own scoped styles, keeps the original page intact, and adds the chosen direction at a new route. Teacher illustrations shown as placeholder slots — swap in the real paint-stroke art once the folder is shared.</p>
+</div>
+</body>
+</html>

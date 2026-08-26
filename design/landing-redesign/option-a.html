@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TeachSpark — Option A · Calm Green</title>
+<meta name="description" content="A WhatsApp bot that writes a ready-to-use, 3-level worksheet for your class in about 2 minutes. Free pilot for teachers. No student data, ever.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAFAF6; --surface:#FFFFFF; --surface-2:#F4F1E9;
+  --ink:#13211B; --muted:#566259; --muted-dim:#7C877E;
+  --accent:#0F7A4F; --accent-strong:#0B5C3B; --accent-tint:#E7F3EC; --accent-line:#CDE6D8;
+  --gold:#C77A12;
+  --border:#E7E3D9; --border-strong:#D8D2C4;
+  --shadow-sm:0 1px 2px rgba(19,33,27,.05);
+  --shadow-md:0 12px 28px -14px rgba(19,33,27,.18);
+  --shadow-lg:0 28px 60px -30px rgba(19,33,27,.28);
+  --radius:20px; --radius-lg:28px; --radius-sm:12px; --pill:999px;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --display:"Baloo 2",var(--font);
+  --ease:cubic-bezier(.32,.72,0,1);
+  --maxw:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.55}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:0;text-wrap:balance}
+p{margin:0;text-wrap:pretty}
+a{color:inherit}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+.reveal{opacity:0;transform:translateY(16px);animation:rise .8s var(--ease) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.reveal{animation:none;opacity:1;transform:none}}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.nav__in{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;text-decoration:none}
+.brand svg{width:30px;height:30px}
+.brand .b{color:var(--accent)}
+.nav__links{display:flex;gap:6px;align-items:center}
+.nav__links a{text-decoration:none;color:var(--muted);font-weight:600;font-size:15px;padding:8px 13px;border-radius:var(--pill);transition:.2s var(--ease)}
+.nav__links a:hover{color:var(--ink);background:var(--surface-2)}
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--font);font-weight:600;font-size:16px;text-decoration:none;cursor:pointer;border:0;border-radius:var(--pill);transition:.2s var(--ease)}
+.btn--primary{background:var(--accent);color:#fff;padding:12px 20px;box-shadow:var(--shadow-sm)}
+.btn--primary:hover{background:var(--accent-strong);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn--primary:active{transform:translateY(0)}
+.btn--lg{font-size:17px;padding:15px 26px}
+.btn--ghost{background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);padding:12px 20px}
+.btn--ghost:hover{border-color:var(--accent);color:var(--accent)}
+.nav__cta{font-size:15px;padding:10px 18px}
+
+/* hero */
+.hero{padding:clamp(40px,7vw,84px) 0 clamp(30px,5vw,54px)}
+.hero__grid{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(24px,5vw,60px);align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent-line);padding:6px 13px;border-radius:var(--pill);margin-bottom:20px}
+.hero h1{font-size:clamp(2.3rem,5.2vw,3.7rem);max-width:16ch}
+.hero__sub{font-size:clamp(1.05rem,1.6vw,1.25rem);color:var(--muted);margin:18px 0 0;max-width:44ch;line-height:1.5}
+.hero__cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.hero__proof{margin-top:18px;font-size:14px;color:var(--muted-dim);display:flex;align-items:center;gap:8px}
+.hero__proof b{color:var(--accent-strong);font-weight:600}
+.hero__orb{position:relative;display:grid;place-items:center}
+.hero__orb::before{content:"";position:absolute;inset:8%;background:radial-gradient(circle at 50% 45%,var(--accent-tint),transparent 68%);border-radius:50%}
+.hero__orb svg{position:relative;width:min(78%,340px);height:auto;filter:drop-shadow(0 26px 40px rgba(15,122,79,.24))}
+
+/* trust band */
+.trust{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface)}
+.trust__in{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.trust__item{padding:22px clamp(14px,2vw,24px);display:flex;gap:12px;align-items:flex-start;border-left:1px solid var(--border)}
+.trust__item:first-child{border-left:0}
+.trust__ic{flex:0 0 auto;width:38px;height:38px;border-radius:11px;background:var(--accent-tint);color:var(--accent-strong);display:grid;place-items:center}
+.trust__t{font-weight:700;font-size:15px}
+.trust__d{font-size:13px;color:var(--muted);margin-top:2px;line-height:1.4}
+
+/* sections */
+section.band{padding:clamp(48px,7vw,88px) 0}
+.head{max-width:640px;margin-bottom:clamp(24px,3vw,40px)}
+.head .kick{font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.head h2{font-size:clamp(1.7rem,3.4vw,2.5rem)}
+.head p{color:var(--muted);font-size:1.05rem;margin-top:12px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,48px);align-items:center}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);transition:.25s var(--ease)}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+.num{width:34px;height:34px;border-radius:10px;background:var(--accent);color:#fff;font-family:var(--display);font-weight:800;display:grid;place-items:center;margin-bottom:14px}
+.card h3{font-size:1.2rem}
+.card p{color:var(--muted);font-size:.97rem;margin-top:8px}
+
+/* illustration placeholder */
+.illo{border-radius:var(--radius-lg);border:1px dashed var(--accent-line);background:
+  linear-gradient(135deg,var(--accent-tint),var(--surface-2));min-height:300px;display:grid;place-items:center;text-align:center;color:var(--muted-dim);padding:24px;box-shadow:var(--shadow-sm)}
+.illo span{display:block;font-weight:600;color:var(--accent-strong);font-size:15px}
+.illo small{font-size:12.5px}
+
+/* tagline reveal */
+.tagline{background:var(--accent-strong);color:#fff;text-align:center;padding:clamp(56px,8vw,104px) 0}
+.tagline h2{font-size:clamp(2rem,4.6vw,3.3rem);max-width:18ch;margin:0 auto;color:#fff}
+.tagline .em{color:#BEF0D4}
+
+/* why cards */
+.why{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.why .card h3{display:flex;align-items:center;gap:10px;font-size:1.12rem}
+.why .ic{width:30px;height:30px;border-radius:9px;background:var(--accent-tint);color:var(--accent-strong);display:grid;place-items:center;flex:0 0 auto}
+
+/* phone demo */
+.demo__frame{width:100%;max-width:280px;margin:0 auto;aspect-ratio:450/920;border-radius:40px;background:#14201b;padding:11px;box-shadow:var(--shadow-lg)}
+.demo__screen{width:100%;height:100%;border-radius:30px;background:linear-gradient(180deg,#0e1a15,#14241d);display:grid;place-items:center;color:#7fb79a;font-size:13px;text-align:center;padding:20px}
+
+/* faq */
+.faq{max-width:760px;margin:0 auto}
+details{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 20px;margin-bottom:12px}
+details[open]{border-color:var(--accent-line);box-shadow:var(--shadow-sm)}
+summary{cursor:pointer;font-weight:600;padding:16px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--accent);font-size:22px;font-weight:400;transition:.2s}
+details[open] summary::after{content:"–"}
+details p{color:var(--muted);padding:0 0 18px;font-size:.97rem}
+
+/* final cta */
+.final{text-align:center;padding:clamp(52px,7vw,96px) 0}
+.final h2{font-size:clamp(1.8rem,3.8vw,2.7rem);max-width:20ch;margin:0 auto}
+.final p{color:var(--muted);margin:14px auto 26px;max-width:46ch}
+
+/* footer */
+footer{border-top:1px solid var(--border);background:var(--surface);padding:40px 0 30px}
+.foot{display:flex;justify-content:space-between;gap:28px;flex-wrap:wrap}
+.foot__blurb{max-width:34ch;color:var(--muted);font-size:.95rem;margin:10px 0 0}
+.foot__promise{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-weight:600;color:var(--accent-strong);font-size:.95rem}
+.foot__dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.foot__links{display:flex;gap:22px;flex-wrap:wrap}
+.foot__links a{color:var(--muted);text-decoration:none;font-size:.95rem}
+.foot__links a:hover{color:var(--accent)}
+.foot__legal{color:var(--muted-dim);font-size:.85rem;margin-top:26px}
+
+@media(max-width:900px){
+  .hero__grid{grid-template-columns:1fr;text-align:center}
+  .hero h1,.hero__sub{max-width:none}
+  .hero__cta,.hero__proof{justify-content:center}
+  .hero__orb{order:-1}.hero__orb svg{width:200px}
+  .trust__in{grid-template-columns:1fr 1fr}
+  .trust__item:nth-child(3){border-left:0}
+  .trust__item:nth-child(3),.trust__item:nth-child(4){border-top:1px solid var(--border)}
+  .steps,.why{grid-template-columns:1fr}
+  .split{grid-template-columns:1fr}
+  .nav__links{display:none}
+}
+@media(max-width:520px){
+  .trust__in{grid-template-columns:1fr}
+  .trust__item{border-left:0;border-top:1px solid var(--border)}
+  .trust__item:first-child{border-top:0}
+}
+.badge{position:fixed;left:12px;bottom:12px;z-index:50;background:var(--ink);color:#fff;font-size:12px;font-weight:600;padding:7px 12px;border-radius:var(--pill);opacity:.9}
+</style>
+</head>
+<body>
+<span class="badge">Option A · Calm Green</span>
+
+<!-- reusable Spark orb (static) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<radialGradient id="body" cx="36%" cy="30%" r="82%">
+ <stop offset="0%" stop-color="#f2fff9"/><stop offset="18%" stop-color="#bff3d9"/>
+ <stop offset="44%" stop-color="#57df97"/><stop offset="70%" stop-color="#17954a"/>
+ <stop offset="100%" stop-color="#0a5c34"/></radialGradient>
+<radialGradient id="hi" cx="50%" cy="50%" r="50%">
+ <stop offset="0%" stop-color="#fff" stop-opacity=".95"/><stop offset="60%" stop-color="#fff" stop-opacity=".25"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<radialGradient id="eye" cx="40%" cy="27%" r="82%">
+ <stop offset="0%" stop-color="#1f5f47"/><stop offset="55%" stop-color="#0a3226"/><stop offset="100%" stop-color="#03150e"/></radialGradient>
+<symbol id="spark" viewBox="0 0 120 120">
+ <ellipse cx="60" cy="107" rx="30" ry="5" fill="#0a5c34" opacity=".18"/>
+ <circle cx="60" cy="55" r="45" fill="url(#body)"/>
+ <circle cx="60" cy="55" r="44.3" fill="none" stroke="#f2fff9" stroke-opacity=".5"/>
+ <circle cx="48" cy="55" r="9.6" fill="url(#eye)"/><circle cx="72" cy="55" r="9.6" fill="url(#eye)"/>
+ <circle cx="51" cy="51" r="3.6" fill="#fff"/><circle cx="75" cy="51" r="3.6" fill="#fff"/>
+ <path d="M46 71 Q60 81 74 71" fill="none" stroke="#06271c" stroke-width="3.2" stroke-linecap="round" opacity=".5"/>
+ <ellipse cx="44" cy="34" rx="18" ry="12" fill="url(#hi)" transform="rotate(-24 44 34)"/>
+ <path d="M99 20 L100.2 26.4 L106 28 L100.2 29.6 L99 36 L97.8 29.6 L92 28 L97.8 26.4 Z" fill="#F6C453"/>
+</symbol></defs></svg>
+
+<nav class="nav"><div class="wrap nav__in">
+  <a class="brand" href="#top"><svg viewBox="0 0 120 120"><use href="#spark"/></svg>Teach<span class="b">Spark</span></a>
+  <div class="nav__links">
+    <a href="#how">How it works</a><a href="#why">Why teachers use it</a><a href="#faq">FAQ</a>
+    <a class="btn btn--primary nav__cta" href="#join">Join the free pilot</a>
+  </div>
+</div></nav>
+
+<main id="top">
+<!-- HERO -->
+<section class="hero"><div class="wrap hero__grid">
+  <div class="reveal">
+    <span class="eyebrow">◆ Free pilot for teachers</span>
+    <h1>Ready-to-use worksheets for your whole class, in about 2 minutes.</h1>
+    <p class="hero__sub">TeachSpark is a friendly WhatsApp helper that writes a 3-level worksheet, with an answer key, for your exact grade, subject and board. No app to install, no account to make.</p>
+    <div class="hero__cta">
+      <a class="btn btn--primary btn--lg" href="#join">Get my first worksheet</a>
+      <a class="btn btn--ghost btn--lg" href="#how">See how it works</a>
+    </div>
+    <p class="hero__proof">🔒 <b>No student data, ever.</b> · Works right inside WhatsApp</p>
+  </div>
+  <div class="hero__orb reveal" style="animation-delay:.1s"><svg viewBox="0 0 120 120"><use href="#spark"/></svg></div>
+</div></section>
+
+<!-- TRUST BAND -->
+<section class="trust"><div class="wrap trust__in">
+  <div class="trust__item"><span class="trust__ic">🔒</span><div><div class="trust__t">No student data, ever</div><div class="trust__d">It never asks for a single student detail.</div></div></div>
+  <div class="trust__item"><span class="trust__ic">📚</span><div><div class="trust__t">Built for your board</div><div class="trust__d">CBSE, ICSE or state board — in the language you teach.</div></div></div>
+  <div class="trust__item"><span class="trust__ic">👩‍🏫</span><div><div class="trust__t">18 teachers already on it</div><div class="trust__d">A small, free pilot — you can leave anytime.</div></div></div>
+  <div class="trust__item"><span class="trust__ic">💚</span><div><div class="trust__t">Made for a real teacher</div><div class="trust__d">Built for my mother, a Sanskrit teacher.</div></div></div>
+</div></section>
+
+<!-- HOW IT WORKS -->
+<section class="band" id="how"><div class="wrap">
+  <div class="head"><div class="kick">How it works</div><h2>Three steps, all inside WhatsApp.</h2><p>Nothing to install and no account to make. You message TeachSpark the way you'd message a colleague.</p></div>
+  <div class="split">
+    <div class="steps" style="grid-template-columns:1fr">
+      <div class="card"><div class="num">1</div><h3>Tell it your class</h3><p>Tap your grade, subject and board from a short menu, then type your topic.</p></div>
+      <div class="card"><div class="num">2</div><h3>Get a 3-level worksheet</h3><p>Support, on-level and challenge — with an answer key — as a message and a printable PDF, in about two minutes.</p></div>
+      <div class="card"><div class="num">3</div><h3>Keep the prompt</h3><p>It sends you the exact prompt it used, so you can make the next one yourself in any AI tool.</p></div>
+    </div>
+    <div class="illo"><div><span>🎨 Teacher illustration</span><small>Paint-stroke art: a teacher preparing a question paper</small></div></div>
+  </div>
+</div></section>
+
+<!-- TAGLINE REVEAL -->
+<section class="tagline"><div class="wrap"><h2>Less time making worksheets.<br><span class="em">More time teaching.</span></h2></div></section>
+
+<!-- WHY -->
+<section class="band" id="why"><div class="wrap">
+  <div class="head"><div class="kick">Why teachers use it</div><h2>Built around the night before a lesson.</h2></div>
+  <div class="split" style="margin-bottom:32px">
+    <div class="illo" style="min-height:260px"><div><span>🎨 Teacher illustration</span><small>Paint-stroke art: a teacher with her class</small></div></div>
+    <div>
+      <div class="card" style="margin-bottom:16px"><h3><span class="ic">📄</span>Question papers from photos</h3><p>Type <b>PAPER</b>, send photos of a textbook chapter, and get a complete question paper back as an editable Word file — answer key included.</p></div>
+      <div class="card"><h3><span class="ic">🕊️</span>Private by design</h3><p>It never asks for student data — please don't send any — and you can leave anytime.</p></div>
+    </div>
+  </div>
+  <div class="why">
+    <div class="card"><h3><span class="ic">⏱️</span>~2 minutes</h3><p>A differentiated worksheet that used to take 40 minutes by hand.</p></div>
+    <div class="card"><h3><span class="ic">🌐</span>Your language</h3><p>English, Hindi, Sanskrit and more — the language you actually teach in.</p></div>
+    <div class="card"><h3><span class="ic">🆓</span>Free while it's a pilot</h3><p>I'm learning from teachers, not selling. No card, no catch.</p></div>
+  </div>
+</div></section>
+
+<!-- SEE IT -->
+<section class="band" style="background:var(--surface);border-top:1px solid var(--border)"><div class="wrap split">
+  <div><div class="head" style="margin-bottom:16px"><div class="kick">See it in action</div><h2>Watch a worksheet appear.</h2><p>A quick walkthrough — sign up, connect on WhatsApp, and make your first worksheet. Exactly what you'll do once you join.</p></div>
+    <a class="btn btn--primary btn--lg" href="#join">Try it yourself</a></div>
+  <div class="demo__frame"><div class="demo__screen">▶ Onboarding walkthrough<br><small>(demo video)</small></div></div>
+</div></section>
+
+<!-- FAQ -->
+<section class="band" id="faq"><div class="wrap">
+  <div class="head" style="margin:0 auto 32px;text-align:center"><div class="kick">Questions teachers ask</div><h2>Straight answers.</h2></div>
+  <div class="faq">
+    <details open><summary>Is it really free?</summary><p>Yes. It's a small pilot and it's free while I learn what teachers need. No card, no subscription.</p></details>
+    <details><summary>Do I need to install an app or make an account?</summary><p>No. It works inside WhatsApp — you message it like you'd message a colleague.</p></details>
+    <details><summary>Is my students' data safe?</summary><p>It never asks for student data, and please don't send any. It only needs your grade, subject, board and topic.</p></details>
+    <details><summary>Which boards and languages does it support?</summary><p>CBSE, ICSE and state boards, in the language you teach — English, Hindi, Sanskrit and more.</p></details>
+    <details><summary>What if I'm not very techy?</summary><p>If you can send a WhatsApp message, you can use it. Everything is a short menu or a simple reply.</p></details>
+  </div>
+</div></section>
+
+<!-- FINAL CTA -->
+<section class="final" id="join"><div class="wrap">
+  <div class="reveal" style="max-width:640px;margin:0 auto">
+    <div style="width:76px;margin:0 auto 18px"><svg viewBox="0 0 120 120" style="width:100%"><use href="#spark"/></svg></div>
+    <h2>Make your first worksheet tonight.</h2>
+    <p>Two quick details and we'll hand you the WhatsApp link. Takes 15 seconds — no number to type.</p>
+    <a class="btn btn--primary btn--lg" href="#">Join the free pilot →</a>
+    <p class="hero__proof" style="justify-content:center;margin-top:18px">🔒 <b>No student data, ever.</b></p>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap foot">
+  <div>
+    <a class="brand" href="#top"><svg viewBox="0 0 120 120"><use href="#spark"/></svg>Teach<span class="b">Spark</span></a>
+    <p class="foot__blurb">A free pilot for teachers: a WhatsApp bot that writes a ready-to-use worksheet for your own class in about two minutes.</p>
+    <p class="foot__promise"><span class="foot__dot"></span>No student data, ever.</p>
+  </div>
+  <div class="foot__links">
+    <a href="#how">How it works</a><a href="#why">Why teachers use it</a><a href="#faq">FAQ</a><a href="#join">Join the pilot</a><a href="#">Privacy</a><a href="#">Terms</a>
+  </div>
+</div>
+<div class="wrap"><p class="foot__legal">© 2026 TeachSpark — a small pilot. You can leave anytime.</p></div>
+</footer>
+</body>
+</html>
