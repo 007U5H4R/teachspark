@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { PhoneDemo } from '../components/PhoneDemo.tsx';
+import { Wordmark } from '../components/Wordmark.tsx';
 import { useHeroSpark } from '../lib/useHeroSpark.ts';
 import { emitOrbHover } from '../lib/ctaHover.ts';
 import { trackEvent } from '../lib/api.ts';
@@ -17,8 +18,8 @@ function V2Orb() {
     <svg viewBox="0 0 120 120" aria-hidden="true">
       <defs>
         <radialGradient id="v2ob" cx="36%" cy="30%" r="82%">
-          <stop offset="0%" stopColor="#f2fff9" /><stop offset="18%" stopColor="#bff3d9" />
-          <stop offset="44%" stopColor="#57df97" /><stop offset="70%" stopColor="#17954a" /><stop offset="100%" stopColor="#0a5c34" />
+          <stop offset="0%" stopColor="#d8f2e5" /><stop offset="18%" stopColor="#7ed3a4" />
+          <stop offset="44%" stopColor="#2a9a5e" /><stop offset="70%" stopColor="#0f6236" /><stop offset="100%" stopColor="#05331d" />
         </radialGradient>
         <radialGradient id="v2oh" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#fff" stopOpacity=".95" /><stop offset="60%" stopColor="#fff" stopOpacity=".25" /><stop offset="100%" stopColor="#fff" stopOpacity="0" />
@@ -81,7 +82,7 @@ export function LandingV2() {
       <nav className="v2-nav" aria-label="Main">
         <div className="v2-wrap v2-nav__in">
           <Link to="/v2" className="v2-brand" onPointerEnter={() => emitOrbHover('starry')} onPointerLeave={() => emitOrbHover(null)}>
-            <V2Orb />Teach<span className="b">Spark</span>
+            <Wordmark />
           </Link>
           <div className="v2-nav__right">
             <div className="v2-nav__links" onPointerEnter={() => emitOrbHover('skeptical')} onPointerLeave={() => emitOrbHover(null)}>
@@ -101,7 +102,7 @@ export function LandingV2() {
             <div>
               <span className="v2-eyebrow">Free pilot · for Indian classrooms</span>
               <h1>Worksheets that fit your class, ready in about 2 minutes.</h1>
-              <p className="v2-hero__sub">TeachSpark writes a 3-level worksheet with an answer key for your exact grade, subject and board — right inside WhatsApp. No app, no account, no student data.</p>
+              <p className="v2-hero__sub">A ready-to-use, 3-level worksheet for your exact grade, subject and board — right inside WhatsApp.</p>
               <div className="v2-hero__cta" onPointerEnter={() => setHover('love')} onPointerLeave={() => setHover(null)}>
                 <Link className="v2-btn v2-btn--primary v2-btn--lg" to="/join" onClick={() => trackEvent('cta_tapped', { where: 'hero' })}>Get my first worksheet</Link>
                 <a className="v2-btn v2-btn--ghost v2-btn--lg" href="#v2-how">See how it works</a>
@@ -218,7 +219,7 @@ export function LandingV2() {
       <footer className="v2-footer">
         <div className="v2-wrap v2-foot">
           <div>
-            <Link to="/v2" className="v2-brand"><V2Orb />Teach<span className="b">Spark</span></Link>
+            <Link to="/v2" className="v2-brand"><Wordmark /></Link>
             <p className="v2-foot__blurb">A free pilot for teachers: a WhatsApp bot that writes a ready-to-use worksheet for your own class in about two minutes.</p>
             <p className="v2-foot__promise"><span className="v2-foot__dot" />No student data, ever.</p>
           </div>

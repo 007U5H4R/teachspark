@@ -21,7 +21,7 @@ export function App() {
   // suppressed there. Every other route — including the original "/" — renders exactly as before.
   const chromeless = pathname === '/v2';
   return (
-    <div className="shell">
+    <div className={`shell${chromeless ? ' shell--bare' : ''}`}>
       {!chromeless && <Nav showSignup={showSignupCta(pathname)} />}
       <Routes>
         <Route path="/" element={<Landing />} />
