@@ -36,6 +36,7 @@
 .landing-v2 .v2-brand{font-family:'Baloo 2','Inter',sans-serif;font-weight:800;font-size:20px;display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--v2-ink)}
 .landing-v2 .v2-brand svg{width:29px;height:29px}
 .landing-v2 .v2-brand .b{color:var(--v2-accent)}
+.landing-v2 .v2-nav__right{display:flex;align-items:center;gap:8px}
 .landing-v2 .v2-nav__links{display:flex;gap:4px;align-items:center}
 .landing-v2 .v2-nav__links a{text-decoration:none;color:var(--v2-muted);font-weight:600;font-size:15px;padding:8px 12px;border-radius:var(--v2-radius-sm);transition:.2s var(--v2-ease)}
 .landing-v2 .v2-nav__links a:hover{color:var(--v2-ink);background:var(--v2-surface-2)}

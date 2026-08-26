@@ -83,11 +83,13 @@ export function LandingV2() {
           <Link to="/v2" className="v2-brand" onPointerEnter={() => emitOrbHover('starry')} onPointerLeave={() => emitOrbHover(null)}>
             <V2Orb />Teach<span className="b">Spark</span>
           </Link>
-          <div className="v2-nav__links" onPointerEnter={() => emitOrbHover('skeptical')} onPointerLeave={() => emitOrbHover(null)}>
-            <a href="#v2-how">How it works</a>
-            <a href="#v2-why">Why teachers use it</a>
-            <a href="#v2-faq">FAQ</a>
-            <Link className="v2-btn v2-btn--primary v2-nav__cta" to="/join" onClick={() => trackEvent('cta_tapped', { where: 'nav' })}>Join the free pilot</Link>
+          <div className="v2-nav__right">
+            <div className="v2-nav__links" onPointerEnter={() => emitOrbHover('skeptical')} onPointerLeave={() => emitOrbHover(null)}>
+              <a href="#v2-how">How it works</a>
+              <a href="#v2-why">Why teachers use it</a>
+              <a href="#v2-faq">FAQ</a>
+            </div>
+            <Link className="v2-btn v2-btn--primary v2-nav__cta" to="/join" onPointerEnter={() => emitOrbHover('love')} onPointerLeave={() => emitOrbHover(null)} onClick={() => trackEvent('cta_tapped', { where: 'nav' })}>Join the free pilot</Link>
           </div>
         </div>
       </nav>
