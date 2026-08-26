@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { AdminError, fetchMetrics, hasSession, login, logout, type AdminMetrics, type Tally } from '../lib/adminApi.ts';
+import { AdminError, fetchMetrics, hasSession, login, logout, nudgeReengagementRate, type AdminMetrics, type Tally } from '../lib/adminApi.ts';
 import { IndiaMap } from '../components/IndiaMap/IndiaMap.tsx';
 
 type View =
@@ -180,6 +180,22 @@ export function Admin() {
         “Tapped through” is indicative: the sign-up endpoint returns a usable id for an already-registered
         person, so the flag can be set by someone other than its owner. Treat it as a trend, not a count.
       </p>
+
+      <h2 className="admin__section">Retention &amp; nudges</h2>
+      <p className="admin__muted admin__note">
+        Before vs after the next-day nudge. <b>Activated</b> (above) is who used the bot in their first
+        session; a day later the nudge fires — inside WhatsApp’s 24-hour window — to pull them back for
+        Skill&nbsp;2. This is how many that reminder actually brought back.
+      </p>
+      <div className="stats">
+        <Stat label="Nudges sent" value={funnel.nudgesSent} hint="Next-day reminders delivered" />
+        <Stat label="Returned after a nudge" value={funnel.returnedForSkill2} hint="Distinct teachers who messaged back" />
+        <Stat
+          label="Re-engagement rate"
+          value={(() => { const r = nudgeReengagementRate(funnel.nudgesSent, funnel.returnedForSkill2); return r === null ? '—' : `${r}%`; })()}
+          hint="Returned ÷ nudges sent"
+        />
+      </div>
 
       <h2 className="admin__section">Lagging indicators</h2>
       <div className="stats">

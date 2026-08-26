@@ -69,6 +69,16 @@ export async function hasSession(): Promise<boolean> {
   }
 }
 
+/**
+ * Share of nudged teachers who came back, as a whole-number percent — the "after the nudge" half of
+ * the before/after-nudge read. Returns null when no nudge has been sent (a 0/0 rate is meaningless,
+ * and "—" reads better than "0%" before the cron has fired for anyone).
+ */
+export function nudgeReengagementRate(nudgesSent: number, returned: number): number | null {
+  if (nudgesSent <= 0) return null;
+  return Math.round((returned / nudgesSent) * 100);
+}
+
 export async function fetchMetrics(): Promise<AdminMetrics> {
   const res = await fetch('/api/admin/metrics', { credentials: 'same-origin' });
   if (!res.ok) throw new AdminError(res.status, res.status === 401 ? 'unauthorized' : 'server_error');
