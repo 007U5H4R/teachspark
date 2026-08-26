@@ -1,6 +1,7 @@
 import mixpanel from 'mixpanel-browser';
 import clarity from '@microsoft/clarity';
 import { getVisitorId } from './visitor.ts';
+import { getVariant } from './variant.ts';
 import { loadSource } from './session.ts';
 
 // Data residency MUST match the Mixpanel project's region or /track returns status:1 while the
@@ -27,8 +28,10 @@ export function initAnalytics(): void {
       track_pageview: false, // App.tsx tracks navigations explicitly so SPA route changes are counted
     });
     // Cross-reference key: ties Mixpanel events back to the same anonymous id the first-party
-    // /api/events funnel and /admin/metrics use.
-    mixpanel.register({ visitor_id: getVisitorId() });
+    // /api/events funnel and /admin/metrics use. `variant` is the A/B bucket (A = original landing,
+    // B = the /v2 redesign) as a super-property, so every event this visitor fires is attributed to
+    // the landing they saw — the whole funnel can be broken down A-vs-B in Mixpanel.
+    mixpanel.register({ visitor_id: getVisitorId(), variant: getVariant() });
     enabled = true;
   } catch {
     enabled = false; // a bad token or blocked SDK must not break the app
@@ -50,6 +53,7 @@ export function initClarity(): void {
     // Same cross-reference key as Mixpanel, so a Clarity session can be tied back to the first-party
     // /api/events funnel and /admin metrics by the one anonymous visitor id.
     clarity.setTag('visitor_id', getVisitorId());
+    clarity.setTag('variant', getVariant()); // A/B bucket — filter replays/heatmaps by landing version
   } catch {
     /* a blocked or failed SDK must never break the page */
   }
