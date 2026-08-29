@@ -8,8 +8,8 @@ describe('Nav', () => {
   it('renders the brand, the pill links, and the neon sign-up CTA pointing at /join', () => {
     const { container } = render(<MemoryRouter><Nav showSignup /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'TeachSpark' })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/join');
-    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveClass('neon-btn');
+    expect(screen.getByRole('link', { name: 'Get my worksheet' })).toHaveAttribute('href', '/join');
+    expect(screen.getByRole('link', { name: 'Get my worksheet' })).toHaveClass('neon-btn');
     expect(screen.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#how');
     // Safari strips the implicit list role when list-style: none is set; jsdom applies no CSS, so it
     // cannot reproduce that. We assert the explicit role="list" attribute the component ships instead.
@@ -17,7 +17,7 @@ describe('Nav', () => {
   });
   it('hides the CTA when showSignup is false', () => {
     render(<MemoryRouter><Nav showSignup={false} /></MemoryRouter>);
-    expect(screen.queryByRole('link', { name: 'Sign up' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Get my worksheet' })).toBeNull();
   });
   it('toggles the mobile menu', async () => {
     render(<MemoryRouter><Nav showSignup /></MemoryRouter>);

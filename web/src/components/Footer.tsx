@@ -9,6 +9,7 @@ const LINKS = [
   { to: '/#demo', label: 'Demo' },
   { to: '/#why', label: 'Why teachers use it' },
   { to: '/join', label: 'Join the pilot' },
+  { to: '/privacy', label: 'Your data & privacy' },
 ];
 
 export function Footer() {

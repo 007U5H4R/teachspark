@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { PhoneDemo } from '../components/PhoneDemo.tsx';
+import { SampleWorksheet } from '../components/SampleWorksheet.tsx';
 import { Wordmark } from '../components/Wordmark.tsx';
 import { useHeroSpark } from '../lib/useHeroSpark.ts';
 import { emitOrbHover } from '../lib/ctaHover.ts';
@@ -148,7 +149,7 @@ export function LandingV2() {
             <div className="v2-steps" data-reveal>
               <div className="v2-card"><div className="v2-num">1</div><h3>Tell it your class</h3><p>Tap your grade, subject and board from a short menu, then type your topic.</p></div>
               <div className="v2-card"><div className="v2-num">2</div><h3>Get a 3-level worksheet</h3><p>Support, on-level and challenge, with an answer key — as a message and a printable PDF.</p></div>
-              <div className="v2-card"><div className="v2-num">3</div><h3>Keep the prompt</h3><p>It sends the exact prompt it used, so you can make the next one yourself in any AI tool.</p></div>
+              <div className="v2-card"><div className="v2-num">3</div><h3>Learn as you go</h3><p>It shows you the exact recipe it used, so you get better at making AI work for your class each week.</p></div>
             </div>
           </div>
         </section>
@@ -162,6 +163,14 @@ export function LandingV2() {
               <div><div className="n">19</div><div className="l">Teachers already using it</div></div>
               <div><div className="n">0</div><div className="l">Student details ever collected</div></div>
             </div>
+          </div>
+        </section>
+
+        {/* SEE A REAL WORKSHEET — proof-of-output before joining. */}
+        <section className="v2-band" style={{ paddingTop: 0 }}>
+          <div className="v2-wrap">
+            <div className="v2-head" style={{ marginBottom: 20 }} data-reveal><div className="v2-kick">See a real worksheet</div><h2>Not a mockup — a real one.</h2><p>This is an actual worksheet TeachSpark made, start to finish. Here's exactly what lands in your chat.</p></div>
+            <div data-reveal><SampleWorksheet /></div>
           </div>
         </section>
 
@@ -179,7 +188,7 @@ export function LandingV2() {
             <div className="v2-why" data-reveal>
               <div className="v2-card"><h3><span className="v2-ic"><IconShield /></span>Private by design</h3><p>It never asks for student data — please don't send any.</p></div>
               <div className="v2-card"><h3><span className="v2-ic"><IconChat /></span>No install, no login</h3><p>If you can send a WhatsApp message, you can use it.</p></div>
-              <div className="v2-card"><h3><span className="v2-ic"><IconGift /></span>Free while it's a pilot</h3><p>I'm learning from teachers, not selling.</p></div>
+              <div className="v2-card"><h3><span className="v2-ic"><IconGift /></span>Free while it's a pilot</h3><p>I'm learning from teachers, not selling — and it stays free for the teachers who join now.</p></div>
             </div>
           </div>
         </section>
@@ -199,7 +208,7 @@ export function LandingV2() {
         <section className="v2-band" style={{ paddingTop: 0 }}>
           <div className="v2-wrap v2-split" data-reveal>
             <div>
-              <div className="v2-head" style={{ marginBottom: 16 }}><div className="v2-kick">See it in action</div><h2>Watch a worksheet appear.</h2><p>A quick walkthrough — sign up, connect on WhatsApp, and make your first worksheet.</p></div>
+              <div className="v2-head" style={{ marginBottom: 16 }}><div className="v2-kick">See it in action</div><h2>Watch a worksheet appear.</h2><p>A quick walkthrough — get your WhatsApp link, connect, and make your first worksheet.</p></div>
               <Link className="v2-btn v2-btn--primary v2-btn--lg" to="/join" onClick={() => trackEvent('cta_tapped', { where: 'why' })}>Try it yourself</Link>
             </div>
             <div className="v2-demo"><PhoneDemo autoPlay /></div>
@@ -211,7 +220,7 @@ export function LandingV2() {
           <div className="v2-wrap">
             <div className="v2-head" style={{ margin: '0 auto 32px', textAlign: 'center' }} data-reveal><div className="v2-kick">Questions teachers ask</div><h2>Straight answers.</h2></div>
             <div className="v2-faq" data-reveal>
-              <details open><summary>Is it really free?</summary><p>Yes. It's a small pilot and free while I learn what teachers need. No card, no subscription.</p></details>
+              <details open><summary>Is it really free? What happens after the pilot?</summary><p>Yes, it's free. And it stays free for the teachers who join during the pilot — no card, no subscription, no "your trial has ended." That's a promise.</p></details>
               <details><summary>Do I need to install an app or make an account?</summary><p>No. It works inside WhatsApp — you message it like a colleague.</p></details>
               <details><summary>Is my students' data safe?</summary><p>It never asks for student data, and please don't send any. It only needs your grade, subject, board and topic.</p></details>
               <details><summary>Which boards and languages does it support?</summary><p>CBSE, ICSE and state boards, in the language you teach — English, Hindi, Sanskrit and more.</p></details>
@@ -240,7 +249,7 @@ export function LandingV2() {
             <p className="v2-foot__promise"><span className="v2-foot__dot" />No student data, ever.</p>
           </div>
           <div className="v2-foot__links">
-            <a href="#v2-how">How it works</a><a href="#v2-why">Why teachers use it</a><a href="#v2-faq">FAQ</a><Link to="/join">Join the pilot</Link><Link to="/join">Privacy</Link><Link to="/join">Terms</Link>
+            <a href="#v2-how">How it works</a><a href="#v2-why">Why teachers use it</a><a href="#v2-faq">FAQ</a><Link to="/join">Join the pilot</Link><Link to="/privacy">Your data & privacy</Link>
           </div>
         </div>
         <div className="v2-wrap"><p className="v2-foot__legal">© 2026 TeachSpark — a small pilot. You can leave anytime.</p></div>

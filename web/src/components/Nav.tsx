@@ -62,7 +62,7 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
         <span aria-hidden="true">{open ? '×' : '☰'}</span>
       </button>
       {/* The nav lives outside Landing, so each element announces which expression the orb should
-          make on hover (see lib/ctaHover.ts): logo → starry, tabs → skeptical, Sign up → love. */}
+          make on hover (see lib/ctaHover.ts): logo → starry, tabs → skeptical, CTA → love. */}
       <Link to="/" className="nav__brand" onPointerEnter={() => emitOrbHover('starry')} onPointerLeave={() => emitOrbHover(null)}><Wordmark /></Link>
       <ul className="nav__pills" role="list" onPointerEnter={() => emitOrbHover('skeptical')} onPointerLeave={() => emitOrbHover(null)}>
         <li><NavLink to="/" end className="nav__pill" onClick={close}>Home</NavLink></li>
@@ -71,7 +71,7 @@ export function Nav({ showSignup }: { showSignup: boolean }) {
         ))}
       </ul>
       <div className="nav__cta" onPointerEnter={() => emitOrbHover('love')} onPointerLeave={() => emitOrbHover(null)}>
-        {showSignup && <NeonButton to="/join" onClick={() => trackEvent('cta_tapped', { where: 'nav' })}>Sign up</NeonButton>}
+        {showSignup && <NeonButton to="/join" onClick={() => trackEvent('cta_tapped', { where: 'nav' })}>Get my worksheet</NeonButton>}
       </div>
     </nav>
   );

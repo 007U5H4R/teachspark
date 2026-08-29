@@ -48,7 +48,7 @@ export function PhoneDemo({ autoPlay = false }: { autoPlay?: boolean }) {
           playsInline
           autoPlay={autoPlay && !reduced}
           preload="metadata"
-          aria-label="TeachSpark onboarding walkthrough — sign up, connect on WhatsApp, make your first worksheet"
+          aria-label="TeachSpark onboarding walkthrough — get your WhatsApp link, connect, make your first worksheet"
         />
       </div>
     </div>

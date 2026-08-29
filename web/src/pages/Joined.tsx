@@ -43,7 +43,7 @@ export function Joined() {
       </ol>
       <p className="joined__fallback">
         Didn't open? Save <strong>{whatsappNumber}</strong> in your contacts and type <code>join {code}</code> yourself, then send it.<br />
-        It's a small pilot — if it ever stops replying, just tap the button again to rejoin.
+        It's a small pilot — free for the teachers who join it now, and it stays free for you. If it ever stops replying, just tap the button again to rejoin.
       </p>
     </main>
   );

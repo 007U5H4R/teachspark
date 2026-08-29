@@ -5,6 +5,7 @@ import type { Behavior } from '../components/spark/eyeShape.ts';
 import type { Mood } from '../components/spark/eyes.ts';
 import { NeonButton } from '../components/NeonButton.tsx';
 import { PhoneDemo } from '../components/PhoneDemo.tsx';
+import { SampleWorksheet } from '../components/SampleWorksheet.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { saveSource } from '../lib/session.ts';
 import { onOrbHover, type OrbIntent } from '../lib/ctaHover.ts';
@@ -175,19 +176,27 @@ export function Landing() {
 
       <section className="section" aria-labelledby="how">
         <h2 id="how">How it works</h2>
-        <p className="section__lead">Three steps, all inside WhatsApp. Nothing to install and no account to make.</p>
+        <p className="section__lead">Three steps, all inside WhatsApp. Nothing to install, no app to learn.</p>
         <div className="cards">
           <article className="card"><span className="card__num">1</span><h3>Tell it your class</h3><p>Tap your grade, subject and board from a short menu, then type your topic. No login, no app — just WhatsApp.</p></article>
           <article className="card"><span className="card__num">2</span><h3>Get a 3-level worksheet</h3><p>Support / On-level / Challenge, with an answer key — as a WhatsApp message and a PDF, in about two minutes.</p></article>
-          <article className="card"><span className="card__num">3</span><h3>Keep the prompt</h3><p>It sends you the exact prompt, so you can do the same thing yourself in ChatGPT or Gemini next time.</p></article>
+          <article className="card"><span className="card__num">3</span><h3>Learn as you go</h3><p>It shows you the exact recipe it used — so each week you get a little better at making AI work for your class.</p></article>
         </div>
+      </section>
+
+      {/* Proof-of-output: a REAL worksheet, right after the three steps. A teacher buys a worksheet,
+          not "AI" — so show her the actual result before she joins. */}
+      <section className="section" aria-labelledby="sample">
+        <h2 id="sample">See a real worksheet</h2>
+        <p className="section__lead">Not a mockup — this is an actual worksheet TeachSpark made, start to finish. Here's exactly what lands in your chat.</p>
+        <SampleWorksheet />
       </section>
 
       {/* Demo segment. The nav's "Demo" pill points here (/#demo); the standalone /demo page was
           folded into this section so the walkthrough follows the three steps above. */}
       <section className="section" aria-labelledby="demo">
         <h2 id="demo">See it in action</h2>
-        <p className="section__lead">A quick walkthrough of the whole thing — sign up, connect on WhatsApp, and make your first worksheet. This is exactly what you'll do once you join.</p>
+        <p className="section__lead">A quick walkthrough of the whole thing — get your WhatsApp link, connect, and make your first worksheet. This is exactly what you'll do once you join.</p>
         <div className="section__demo"><PhoneDemo autoPlay /></div>
       </section>
 
@@ -202,6 +211,7 @@ export function Landing() {
         <div className="section__cta" onPointerEnter={() => setHover('love')} onPointerLeave={() => setHover(null)}>
           <NeonButton to="/join" size="lg" onClick={() => trackEvent('cta_tapped', { where: 'why' })}>Join the pilot</NeonButton>
         </div>
+        <p className="section__promise">Free for teachers who join the pilot — and it stays free for you, always.</p>
       </section>
     </main>
   );

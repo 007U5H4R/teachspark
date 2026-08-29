@@ -11,6 +11,7 @@ import { Join } from './pages/Join.tsx';
 import { Joined } from './pages/Joined.tsx';
 import { Landing } from './pages/Landing.tsx';
 import { LandingV2 } from './pages/LandingV2.tsx';
+import { Privacy } from './pages/Privacy.tsx';
 import { SparkLab } from './pages/SparkLab.tsx';
 
 export function App() {
@@ -35,6 +36,7 @@ export function App() {
         <Route path="/join" element={<Join />} />
         <Route path="/joined" element={<Joined />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/spark" element={<SparkLab />} />
         <Route path="*" element={<Landing />} />
       </Routes>

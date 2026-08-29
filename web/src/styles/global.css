@@ -111,6 +111,43 @@ button, input, select { font: inherit; }
 
 /* The closing CTA is the last conversion point on the page; centre it and give it room. */
 .section__cta { display: flex; justify-content: center; margin-top: var(--sp-12); }
+/* Post-pilot promise, sits under a CTA. Small, muted, centred. */
+.section__promise { text-align: center; color: var(--muted); font-size: var(--fs-sm); margin: var(--sp-4) 0 0; }
+
+/* ---------------------------------------------------------------- Real-worksheet proof card
+   A REAL generated worksheet, shown so a teacher sees the actual output before joining
+   (SampleWorksheet.tsx). Deliberately a light "paper" surface with explicit ink-on-paper colours,
+   not theme tokens — it must read as a printed worksheet on the dark page AND on the light /v2 page,
+   so it carries its own border + shadow and stands on any background. */
+.worksheet {
+  max-width: 680px;
+  margin: 0 auto;
+  background: #fbfaf4;
+  color: #1a1a1a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius);
+  padding: var(--sp-8);
+  box-shadow: var(--shadow-md);
+}
+.worksheet__tags { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.worksheet__tag {
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  color: #0c5a2a; background: rgba(22, 154, 60, 0.1); border: 1px solid rgba(22, 154, 60, 0.32);
+  border-radius: var(--pill); padding: 3px 11px;
+}
+.worksheet__title { font-size: var(--fs-lg); font-weight: 800; letter-spacing: var(--ls-snug); color: #111; margin: 0 0 var(--sp-5); }
+.worksheet__levels { display: grid; gap: var(--sp-5); }
+.worksheet__level-name { font-size: var(--fs-sm); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #0c5a2a; margin: 0 0 var(--sp-2); }
+.worksheet__level-name span { color: #4a7a58; font-weight: 700; }
+.worksheet__q { margin: 0; padding-left: var(--sp-5); display: grid; gap: 7px; color: #2a2a2a; font-size: var(--fs-sm); line-height: var(--lh-base); }
+.worksheet__foot {
+  display: flex; flex-wrap: wrap; gap: var(--sp-3); justify-content: space-between; align-items: center;
+  margin-top: var(--sp-6); padding-top: var(--sp-4); border-top: 1px dashed rgba(0, 0, 0, 0.18);
+}
+.worksheet__key { font-size: var(--fs-sm); font-weight: 700; color: #0c5a2a; }
+.worksheet__pdf { font-size: var(--fs-sm); font-weight: 700; color: #0c5a2a; text-decoration: none; white-space: nowrap; }
+.worksheet__pdf:hover { text-decoration: underline; }
+@media (max-width: 480px) { .worksheet { padding: var(--sp-5); } }
 
 /* ---------------------------------------------------------------- Forms
    The panel is what stops the form floating on an empty canvas at desktop widths. */
@@ -265,6 +302,18 @@ button, input, select { font: inherit; }
 .table__mono { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pill { display: inline-block; padding: 2px var(--sp-2); border-radius: var(--pill); border: 1px solid var(--border); background: var(--bg-elev); color: var(--muted); font-size: var(--fs-xs); }
 .pill--yes { background: var(--lime-tint); border-color: transparent; color: var(--lime); }
+
+/* ---------------------------------------------------------------- Legal / Privacy prose */
+.legal { max-width: 680px; margin: 0 auto; padding: var(--sp-6) 0 var(--sp-20); }
+.legal h1 { font-size: var(--fs-3xl); letter-spacing: var(--ls-snug); line-height: var(--lh-snug); margin: 0 0 var(--sp-4); text-wrap: balance; }
+.legal__lead { color: var(--muted); font-size: var(--fs-lg); line-height: var(--lh-base); margin: 0 0 var(--sp-8); }
+.legal h2 { font-size: var(--fs-lg); letter-spacing: var(--ls-snug); margin: var(--sp-8) 0 var(--sp-2); }
+.legal p { color: var(--muted); line-height: var(--lh-base); margin: 0 0 var(--sp-3); }
+.legal ul { color: var(--muted); line-height: var(--lh-base); margin: 0 0 var(--sp-3); padding-left: var(--sp-6); display: grid; gap: var(--sp-2); }
+.legal strong { color: var(--text); font-weight: 600; }
+.legal__foot { margin-top: var(--sp-10); padding-top: var(--sp-6); border-top: 1px solid var(--border); }
+.legal__foot a { color: var(--lime); text-decoration: none; font-weight: 600; }
+.legal__foot a:hover { text-decoration: underline; }
 
 /* ---------------------------------------------------------------- Footer */
 /* Small top margin on purpose: every page already ends in generous bottom padding (.section,
