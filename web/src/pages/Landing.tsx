@@ -5,7 +5,7 @@ import type { Behavior } from '../components/spark/eyeShape.ts';
 import type { Mood } from '../components/spark/eyes.ts';
 import { NeonButton } from '../components/NeonButton.tsx';
 import { PhoneDemo } from '../components/PhoneDemo.tsx';
-import { SampleWorksheet } from '../components/SampleWorksheet.tsx';
+import { SampleOutputs } from '../components/SampleOutputs.tsx';
 import { trackEvent } from '../lib/api.ts';
 import { saveSource } from '../lib/session.ts';
 import { onOrbHover, type OrbIntent } from '../lib/ctaHover.ts';
@@ -187,9 +187,9 @@ export function Landing() {
       {/* Proof-of-output: a REAL worksheet, right after the three steps. A teacher buys a worksheet,
           not "AI" — so show her the actual result before she joins. */}
       <section className="section" aria-labelledby="sample">
-        <h2 id="sample">See a real worksheet</h2>
-        <p className="section__lead">Not a mockup — this is an actual worksheet TeachSpark made, start to finish. Here's exactly what lands in your chat.</p>
-        <SampleWorksheet />
+        <h2 id="sample">See what it makes</h2>
+        <p className="section__lead">Not mockups — real examples of the worksheet, quiz and question paper TeachSpark makes. Here's exactly what lands in your chat.</p>
+        <SampleOutputs />
       </section>
 
       {/* Demo segment. The nav's "Demo" pill points here (/#demo); the standalone /demo page was

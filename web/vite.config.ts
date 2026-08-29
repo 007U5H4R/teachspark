@@ -50,7 +50,12 @@ export default defineConfig(({ mode }) => {
           // line entirely. That is why og-cover.png was precached anyway until both were turned off above.
           globIgnores: ['**/og-cover.png'],
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [NON_SPA_ROUTES],
+          // NON_SPA_ROUTES keeps backend prefixes off the SPA shell; the second pattern keeps
+          // static files off it too. Without it, a navigation to /sample-worksheet.pdf (or any
+          // /*.png, /*.docx) matched navigateFallback and rendered index.html — the SPA — instead
+          // of the file. It matches a final path segment containing a dot (a real extension) and
+          // never matches an SPA route (/, /join, /privacy, /v2, /admin, /spark carry no dot).
+          navigateFallbackDenylist: [NON_SPA_ROUTES, /\/[^/?#]+\.[^/?#]+$/],
           cleanupOutdatedCaches: true,
           // No runtimeCaching on purpose: /api and /webhooks must always hit the network.
         },

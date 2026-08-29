@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Spark } from '../components/spark/Spark.tsx';
 import { PhoneDemo } from '../components/PhoneDemo.tsx';
-import { SampleWorksheet } from '../components/SampleWorksheet.tsx';
+import { SampleOutputs } from '../components/SampleOutputs.tsx';
 import { Wordmark } from '../components/Wordmark.tsx';
 import { useHeroSpark } from '../lib/useHeroSpark.ts';
 import { emitOrbHover } from '../lib/ctaHover.ts';
@@ -169,8 +169,8 @@ export function LandingV2() {
         {/* SEE A REAL WORKSHEET — proof-of-output before joining. */}
         <section className="v2-band" style={{ paddingTop: 0 }}>
           <div className="v2-wrap">
-            <div className="v2-head" style={{ marginBottom: 20 }} data-reveal><div className="v2-kick">See a real worksheet</div><h2>Not a mockup — a real one.</h2><p>This is an actual worksheet TeachSpark made, start to finish. Here's exactly what lands in your chat.</p></div>
-            <div data-reveal><SampleWorksheet /></div>
+            <div className="v2-head" style={{ marginBottom: 20 }} data-reveal><div className="v2-kick">See what it makes</div><h2>Not mockups — real ones.</h2><p>Real examples of the worksheet, quiz and question paper TeachSpark makes. Here's exactly what lands in your chat.</p></div>
+            <div data-reveal><SampleOutputs /></div>
           </div>
         </section>
 
